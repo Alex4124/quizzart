@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section class="player-shell player-shell-centered">
+    <article class="card auth-card">
+        <p class="eyebrow">Student mode</p>
+        <h1>{{ activity.title }}</h1>
+        <p>{{ activity.description|default:"Open the activity and submit your answers." }}</p>
+        <form method="post" class="stack-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <div class="form-row">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                </div>
+            {% endfor %}
+            <button class="button" type="submit" name="action" value="start">Start activity</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

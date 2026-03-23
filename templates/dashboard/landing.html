@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Quizzart MVP{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-copy">
+        <p class="eyebrow">Python-first interactive learning builder</p>
+        <h1>Build classroom activities fast, publish by link, keep the results.</h1>
+        <p class="hero-text">
+            Quizzart is a pragmatic Django monolith for teachers who need quick interactive formats:
+            Choose a Box, Quiz, Wheel of Fortune, Matching and Categorize.
+        </p>
+        <div class="hero-actions">
+            <a class="button" href="{% url 'accounts:register' %}">Start with a teacher account</a>
+            <a class="button button-secondary" href="{% url 'accounts:login' %}">Log in</a>
+        </div>
+    </div>
+    <div class="hero-panel">
+        <div class="metric-card">
+            <span class="metric-label">MVP focus</span>
+            <strong>Choose a Box + Quiz</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Architecture</span>
+            <strong>Registered template engine</strong>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Stack</span>
+            <strong>Django 5 + PostgreSQL</strong>
+        </div>
+    </div>
+</section>
+{% endblock %}

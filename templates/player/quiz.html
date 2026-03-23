@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section class="player-shell">
+    <div class="player-header">
+        <div>
+            <p class="eyebrow">{% if preview %}Teacher preview{% else %}Quiz{% endif %}</p>
+            <h1>{{ activity.title }}</h1>
+            <p>{{ activity.description }}</p>
+        </div>
+        <div class="stats-row compact-stats">
+            <div><strong>{{ runtime.questions|length }}</strong><span>Questions</span></div>
+            {% if session %}
+                <div><strong>{{ session.score }}</strong><span>Score</span></div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if player_error %}
+        <div class="message">{{ player_error }}</div>
+    {% endif %}
+
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="submit_quiz">
+        {% for question in runtime.questions %}
+            <article class="card question-card">
+                <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
+                <div class="option-list">
+                    {% for option in question.options %}
+                        <label class="option-row">
+                            <input
+                                type="radio"
+                                name="question_{{ question.id }}"
+                                value="{{ option }}"
+                                {% if option == question.selected_option %}checked{% endif %}
+                                {% if preview %}disabled{% endif %}
+                            >
+                            <span>{{ option }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </article>
+        {% endfor %}
+        {% if not preview %}
+            <button class="button" type="submit">Submit quiz</button>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}

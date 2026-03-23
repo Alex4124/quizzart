@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Teacher dashboard</p>
+        <h1>Your activities</h1>
+    </div>
+    <a class="button" href="{% url 'activities:create' %}">Create activity</a>
+</section>
+
+<section class="activity-list">
+    {% for activity in activities %}
+        <article class="card">
+            <div class="card-head">
+                <div>
+                    <h2>{{ activity.title }}</h2>
+                    <p class="muted">{{ activity.template_key }}</p>
+                </div>
+                <span class="status-chip status-chip-{{ activity.status }}">{{ activity.status }}</span>
+            </div>
+            <p>{{ activity.description|default:"No description yet." }}</p>
+            <div class="stats-row">
+                <div><strong>{{ activity.launches }}</strong><span>Launches</span></div>
+                <div><strong>{{ activity.completions }}</strong><span>Completions</span></div>
+                <div><strong>{{ activity.avg_percent|default:0|floatformat:0 }}%</strong><span>Avg score</span></div>
+            </div>
+            <div class="card-actions">
+                <a href="{% url 'activities:edit' activity.pk %}">Edit</a>
+                <a href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Preview</a>
+                <a href="{% url 'dashboard:analytics' activity.pk %}">Analytics</a>
+            </div>
+        </article>
+    {% empty %}
+        <article class="card empty-card">
+            <h2>No activities yet</h2>
+            <p>Create the first draft and use the template engine to shape the player flow later.</p>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

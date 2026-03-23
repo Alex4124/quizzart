@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}{% if activity %}Edit{% else %}Create{% endif %} Activity{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Activity editor</p>
+        <h1>{% if activity %}{{ activity.title }}{% else %}New activity{% endif %}</h1>
+    </div>
+    <div class="hero-actions">
+        {% if activity %}
+            <a class="button button-secondary" href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Teacher preview</a>
+            <a class="button button-secondary" href="{% url 'dashboard:analytics' activity.pk %}">Analytics</a>
+            <a class="button button-secondary" href="{% url 'activities:duplicate' activity.pk %}">Duplicate</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="editor-layout">
+    <aside class="card">
+        <h2>Template registry</h2>
+        <form method="get">
+            <label for="template-switch">Template</label>
+            <select id="template-switch" name="template_key" onchange="this.form.submit()">
+                {% for template in templates %}
+                    <option value="{{ template.metadata.key }}" {% if template.metadata.key == template_definition.metadata.key %}selected{% endif %}>
+                        {{ template.metadata.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+        <p class="muted">{{ template_definition.metadata.description }}</p>
+        <p class="muted">
+            Runtime:
+            {% if template_definition.metadata.playable %}
+                ready for public play
+            {% else %}
+                registered only
+            {% endif %}
+        </p>
+        {% if share_url %}
+            <div class="share-box">
+                <strong>Public link</strong>
+                <a href="{{ share_url }}" target="_blank" rel="noreferrer">{{ share_url }}</a>
+            </div>
+        {% endif %}
+    </aside>
+
+    <section class="card">
+        <form method="post" class="stack-form">
+            {% csrf_token %}
+            <div class="form-grid">
+                {% for field in activity_form %}
+                    <div class="form-row">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+                        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="card inset-card">
+                <h2>{{ template_definition.metadata.title }} config</h2>
+                {% for field in config_form %}
+                    <div class="form-row">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+                        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="hero-actions">
+                <button class="button button-secondary" type="submit" name="action" value="save_draft">Save draft</button>
+                <button class="button" type="submit" name="action" value="publish">Publish</button>
+            </div>
+        </form>
+    </section>
+</section>
+{% endblock %}

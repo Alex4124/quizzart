@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section class="player-shell">
+    <div class="player-header">
+        <div>
+            <p class="eyebrow">{% if preview %}Teacher preview{% else %}Choose a Box{% endif %}</p>
+            <h1>{{ activity.title }}</h1>
+            <p>{{ activity.description }}</p>
+        </div>
+        <div class="stats-row compact-stats">
+            {% if session %}
+                <div><strong>{{ session.score }}</strong><span>Score</span></div>
+            {% endif %}
+            <div><strong>{{ runtime.answered_count }}</strong><span>Answered</span></div>
+            <div><strong>{{ runtime.total_boxes }}</strong><span>Total boxes</span></div>
+        </div>
+    </div>
+
+    {% if player_error %}
+        <div class="message">{{ player_error }}</div>
+    {% endif %}
+
+    <div class="box-grid box-grid-{{ runtime.grid_size }}">
+        {% for box in runtime.boxes %}
+            <article class="box-card box-card-{{ box.state }}">
+                <div class="box-card-head">
+                    <span class="box-label">{{ box.label }}</span>
+                    <span class="muted">{{ box.points }} pts</span>
+                </div>
+
+                {% if preview %}
+                    <p>{{ box.prompt }}</p>
+                    <p class="muted">Expected answer: {{ box.expected_answer }}</p>
+                {% elif box.state == "unopened" %}
+                    <form method="post" class="stack-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="open_box">
+                        <input type="hidden" name="item_key" value="{{ box.id }}">
+                        <button class="button button-small" type="submit">Open box</button>
+                    </form>
+                {% elif box.state == "opened" %}
+                    <p>{{ box.prompt }}</p>
+                    <form method="post" class="stack-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="answer_box">
+                        <input type="hidden" name="item_key" value="{{ box.id }}">
+                        <label for="answer-{{ box.id }}">Your answer</label>
+                        <input id="answer-{{ box.id }}" type="text" name="answer" required>
+                        <button class="button button-small" type="submit">Submit answer</button>
+                    </form>
+                {% else %}
+                    <p>{{ box.prompt }}</p>
+                    <p class="muted">Your answer: {{ box.submitted_answer|default:"No answer" }}</p>
+                    <p class="muted">Correct answer: {{ box.expected_answer }}</p>
+                    <span class="status-chip {% if box.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
+                        {% if box.is_correct %}Correct{% else %}Incorrect{% endif %}
+                    </span>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+
+    {% if not preview and runtime.show_finish %}
+        <form method="post" class="hero-actions">
+            {% csrf_token %}
+            <button class="button button-secondary" type="submit" name="action" value="finish">Finish activity</button>
+        </form>
+    {% endif %}
+</section>
+{% endblock %}
