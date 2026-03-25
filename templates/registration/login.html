@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Teacher Login{% endblock %}
+{% block title %}Вход{% endblock %}
 
 {% block content %}
 <section class="auth-shell">
     <article class="card auth-card">
-        <p class="eyebrow">Teacher login</p>
-        <h1>Continue to the dashboard</h1>
+        <p class="eyebrow">Вход учителя</p>
+        <h1>Войти в панель управления</h1>
         <form method="post" class="stack-form">
             {% csrf_token %}
             {% for field in form %}
@@ -16,7 +16,7 @@
                     {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
             {% endfor %}
-            <button class="button" type="submit">Log in</button>
+            <button class="button" type="submit">Войти</button>
         </form>
     </article>
 </section>

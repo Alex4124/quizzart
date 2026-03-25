@@ -10,76 +10,299 @@ from attempts.models import ActivitySession
 class PublicPlayTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(username="teacher", password="pass12345")
-        self.quiz_activity = Activity.objects.create(
+
+    def _create_published_activity(self, template_key: str, config_json: dict) -> ShareLink:
+        activity = Activity.objects.create(
             owner=self.teacher,
-            title="Quiz activity",
-            description="Quiz",
-            template_key="quiz",
-            config_json={
+            title=f"{template_key} activity",
+            description=template_key,
+            template_key=template_key,
+            config_json=config_json,
+            status=Activity.Status.PUBLISHED,
+        )
+        return ShareLink.objects.create(activity=activity)
+
+    def test_student_can_complete_quiz(self):
+        link = self._create_published_activity(
+            "quiz",
+            {
                 "show_result_at_end": True,
-                "questions": [
+                "items": [
                     {
-                        "id": "question-1",
+                        "id": "item-1",
                         "prompt": "2+2?",
-                        "correct_option": "4",
-                        "options": ["4", "3", "5"],
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
                     }
                 ],
             },
-            status=Activity.Status.PUBLISHED,
         )
-        self.share_link = ShareLink.objects.create(activity=self.quiz_activity)
-
-    def test_student_can_complete_quiz(self):
-        start_response = self.client.post(
-            f"/p/{self.share_link.slug}/",
-            {"action": "start", "participant_name": "Student"},
-        )
-        self.assertEqual(start_response.status_code, 302)
-
+        self.client.post(f"/p/{link.slug}/", {"action": "start", "participant_name": "Student"})
         submit_response = self.client.post(
-            f"/p/{self.share_link.slug}/",
+            f"/p/{link.slug}/",
             {
                 "action": "submit_quiz",
-                "question_question-1": "4",
+                "question_item-1": "4",
             },
         )
         self.assertEqual(submit_response.status_code, 302)
-        session = ActivitySession.objects.get(activity=self.quiz_activity)
+        session = ActivitySession.objects.get(activity__template_key="quiz")
         self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
         self.assertEqual(session.score, 1)
 
     def test_student_can_answer_choose_a_box(self):
-        activity = Activity.objects.create(
-            owner=self.teacher,
-            title="Box activity",
-            description="Boxes",
-            template_key="choose_a_box",
-            config_json={
+        link = self._create_published_activity(
+            "choose_a_box",
+            {
                 "grid_size": 6,
                 "no_repeat": True,
-                "boxes": [
-                    {"id": "box-1", "label": "100", "prompt": "Water formula", "answer": "H2O", "points": 100},
-                    {"id": "box-2", "label": "200", "prompt": "Two plus two", "answer": "4", "points": 200},
-                    {"id": "box-3", "label": "300", "prompt": "Red planet", "answer": "Mars", "points": 300},
-                    {"id": "box-4", "label": "400", "prompt": "Largest ocean", "answer": "Pacific", "points": 400},
-                    {"id": "box-5", "label": "500", "prompt": "Python creator", "answer": "Guido", "points": 500},
-                    {"id": "box-6", "label": "600", "prompt": "Capital of France", "answer": "Paris", "points": 600},
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Water formula",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
+                    }
                 ],
             },
-            status=Activity.Status.PUBLISHED,
         )
-        link = ShareLink.objects.create(activity=activity)
 
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
-        self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "open_box", "item_key": "box-1"},
-        )
+        self.client.post(f"/p/{link.slug}/", {"action": "open_box", "item_key": "item-1"})
         answer_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "answer_box", "item_key": "box-1", "answer": "H2O"},
+            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
         )
         self.assertEqual(answer_response.status_code, 302)
-        session = ActivitySession.objects.get(activity=activity)
+        session = ActivitySession.objects.get(activity__template_key="choose_a_box")
         self.assertEqual(session.score, 100)
+
+    def test_student_can_launch_all_registered_templates(self):
+        configs = {
+            "wheel_of_fortune": {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Largest ocean?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+            "matching": {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Python creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Guido", "is_correct": True},
+                            {"id": "b", "text": "Dennis", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+            "categorize": {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Cat",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Animals", "is_correct": True},
+                            {"id": "b", "text": "Plants", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+            "snake": {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        }
+
+        for template_key, config_json in configs.items():
+            with self.subTest(template_key=template_key):
+                link = self._create_published_activity(template_key, config_json)
+                response = self.client.get(f"/p/{link.slug}/")
+                self.assertEqual(response.status_code, 200)
+
+    def test_student_can_complete_wheel_matching_and_categorize(self):
+        wheel = self._create_published_activity(
+            "wheel_of_fortune",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Largest ocean?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+        self.client.post(f"/p/{wheel.slug}/", {"action": "start"})
+        self.client.post(f"/p/{wheel.slug}/", {"action": "spin_wheel"})
+        self.client.post(f"/p/{wheel.slug}/", {"action": "answer_wheel", "answer": "Pacific"})
+        self.assertEqual(
+            ActivitySession.objects.get(activity__template_key="wheel_of_fortune").status,
+            ActivitySession.Status.COMPLETED,
+        )
+
+        matching = self._create_published_activity(
+            "matching",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Python creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Guido", "is_correct": True},
+                            {"id": "b", "text": "Dennis", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+        self.client.post(f"/p/{matching.slug}/", {"action": "start"})
+        self.client.post(
+            f"/p/{matching.slug}/",
+            {"action": "submit_matching", "match_item-1": "Guido"},
+        )
+        self.assertEqual(
+            ActivitySession.objects.get(activity__template_key="matching").status,
+            ActivitySession.Status.COMPLETED,
+        )
+
+        categorize = self._create_published_activity(
+            "categorize",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Cat",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Animals", "is_correct": True},
+                            {"id": "b", "text": "Plants", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+        self.client.post(f"/p/{categorize.slug}/", {"action": "start"})
+        self.client.post(
+            f"/p/{categorize.slug}/",
+            {"action": "submit_categorize", "category_item-1": "Animals"},
+        )
+        self.assertEqual(
+            ActivitySession.objects.get(activity__template_key="categorize").status,
+            ActivitySession.Status.COMPLETED,
+        )
+
+    def test_student_can_complete_snake(self):
+        snake = self._create_published_activity(
+            "snake",
+            {
+                "reveal_correct_answer": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Largest ocean?",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{snake.slug}/", {"action": "start"})
+        submit_response = self.client.post(
+            f"/p/{snake.slug}/",
+            {
+                "action": "submit_snake",
+                "question_item-1": "4",
+                "question_item-2": "Pacific",
+            },
+        )
+
+        self.assertEqual(submit_response.status_code, 302)
+        session = ActivitySession.objects.get(activity__template_key="snake")
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 3)
+
+    def test_partial_snake_submit_returns_validation_error(self):
+        snake = self._create_published_activity(
+            "snake",
+            {
+                "reveal_correct_answer": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Largest ocean?",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{snake.slug}/", {"action": "start"})
+        response = self.client.post(
+            f"/p/{snake.slug}/",
+            {
+                "action": "submit_snake",
+                "question_item-1": "4",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session = ActivitySession.objects.get(activity__template_key="snake")
+        self.assertEqual(session.status, ActivitySession.Status.STARTED)
+        self.assertEqual(session.answers.count(), 0)

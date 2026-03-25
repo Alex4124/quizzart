@@ -5,10 +5,9 @@
 - Teachers can register, log in, create activities, edit content, preview and publish by share link.
 - Students can open a public link, run an activity, submit answers and receive a result screen.
 - The system stores sessions and answers, then exposes basic analytics to the teacher.
-- Only two templates must be fully end-to-end in this phase:
-  - `choose_a_box`
-  - `quiz`
-- The remaining templates are registered in the architecture so future work extends the registry instead of rewriting the app.
+- All five templates publish and launch in this phase.
+- `choose_a_box` and `quiz` remain the primary reference implementations for richer end-to-end behavior.
+- The rest reuse the same architecture and common question bank contract.
 
 ## 2. Architecture
 
@@ -48,6 +47,12 @@ Unified template contract:
 - `build_runtime_data()`
 - `get_max_score()`
 - `evaluate_submission()`
+
+Shared authoring format:
+
+- one question bank consumed by every template
+- each row is `Prompt | *Correct answer | Wrong answer 1 | Wrong answer 2 | optional points`
+- template definitions map the same items into boxes, quiz questions, wheel sectors, matching pairs or category assignments
 
 Rationale:
 
@@ -89,7 +94,8 @@ quizzart/
 3. Add template registry and five registered definitions
 4. Build dashboard, editor and public player shells
 5. Finish `choose_a_box` and `quiz` end-to-end
-6. Add README, AGENTS guide and smoke tests
+6. Make all registered templates publishable and launchable from the same question bank
+7. Add README, AGENTS guide and smoke tests
 
 ## 7. First commit content
 

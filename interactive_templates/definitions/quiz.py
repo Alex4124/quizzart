@@ -11,93 +11,81 @@ from interactive_templates.base import (
     TemplateEvaluation,
     TemplateMetadata,
 )
-from interactive_templates.utils import non_empty_lines, split_pipe_row
+from interactive_templates.utils import (
+    build_review_items,
+    choice_texts,
+    correct_option,
+    normalize_question_bank,
+    question_bank_items_from_payload,
+    serialize_question_bank,
+    serialize_question_bank_editor,
+)
 
 
 class QuizEditorForm(forms.Form):
-    show_result_at_end = forms.BooleanField(required=False, initial=True)
-    questions_text = forms.CharField(
-        label="Questions",
-        widget=forms.Textarea(attrs={"rows": 12}),
-        help_text="One question per line: Prompt | Correct option | Wrong option 1 | Wrong option 2",
+    show_result_at_end = forms.BooleanField(required=False, initial=True, label="Показывать результат в конце")
+    reveal_correct_answer = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Показывать правильный ответ сразу после выбора",
     )
+    items_json = forms.CharField(required=False, widget=forms.HiddenInput())
+    items_text = forms.CharField(required=False, widget=forms.HiddenInput())
+
+
+def _sample_items() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": f"item-{index}",
+            "prompt": f"Sample question {index}?",
+            "options": [
+                {"id": f"item-{index}-option-1", "text": f"Correct {index}", "is_correct": True},
+                {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
+                {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
+            ],
+            "points": 1,
+        }
+        for index in range(1, 4)
+    ]
 
 
 class QuizDefinition(BaseTemplateDefinition):
     metadata = TemplateMetadata(
         key="quiz",
-        title="Quiz",
-        description="Single-answer quiz with end-of-run scoring.",
+        title="Викторина",
+        description="Классическая викторина с одним правильным ответом.",
         playable=True,
     )
     editor_form_class = QuizEditorForm
     player_template_name = "player/quiz.html"
     preview_template_name = "player/quiz.html"
+    editor_question_default_points = 1
 
     def default_config(self) -> dict[str, Any]:
         return {
             "show_result_at_end": True,
-            "questions": [
-                {
-                    "id": f"question-{index}",
-                    "prompt": f"Sample question {index}?",
-                    "correct_option": f"Correct option {index}",
-                    "options": [
-                        f"Correct option {index}",
-                        f"Wrong option A{index}",
-                        f"Wrong option B{index}",
-                        f"Wrong option C{index}",
-                    ],
-                }
-                for index in range(1, 4)
-            ],
+            "reveal_correct_answer": True,
+            "items": _sample_items(),
         }
 
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
-        rows = []
-        for question in config.get("questions", []):
-            wrong_options = [
-                option
-                for option in question.get("options", [])
-                if option != question.get("correct_option")
-            ]
-            rows.append(
-                " | ".join(
-                    [question.get("prompt", ""), question.get("correct_option", ""), *wrong_options]
-                )
-            )
+        items = normalize_question_bank(config, default_points=1)
         return {
             "show_result_at_end": config.get("show_result_at_end", True),
-            "questions_text": "\n".join(rows),
+            "reveal_correct_answer": config.get("reveal_correct_answer", True),
+            "items_json": serialize_question_bank_editor(items, default_points=1),
+            "items_text": serialize_question_bank(items, default_points=1),
         }
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
-        rows = non_empty_lines(cleaned_data["questions_text"])
-        if not rows:
-            raise ValidationError("Quiz must contain at least one question.")
-
-        questions: list[dict[str, Any]] = []
-        for index, row in enumerate(rows, start=1):
-            parts = split_pipe_row(row, index)
-            if len(parts) < 3:
-                raise ValidationError(
-                    f"Line {index} must contain prompt, correct option and at least one wrong option."
-                )
-            prompt = parts[0]
-            correct_option = parts[1]
-            wrong_options = parts[2:]
-            questions.append(
-                {
-                    "id": f"question-{index}",
-                    "prompt": prompt,
-                    "correct_option": correct_option,
-                    "options": [correct_option, *wrong_options],
-                }
-            )
-
         return {
             "show_result_at_end": cleaned_data.get("show_result_at_end", False),
-            "questions": questions,
+            "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
+            "items": question_bank_items_from_payload(
+                cleaned_data.get("items_json"),
+                cleaned_data.get("items_text", ""),
+                default_points=1,
+            ),
         }
 
     def build_runtime_data(
@@ -106,36 +94,40 @@ class QuizDefinition(BaseTemplateDefinition):
         session: Any | None = None,
         preview: bool = False,
     ) -> dict[str, Any]:
-        config = activity.config_json
+        items = normalize_question_bank(activity.config_json, default_points=1)
         answer_map = {}
         seed_base = "preview" if preview else str(session.token) if session else "anonymous"
         if session:
             answer_map = {answer.item_key: answer for answer in session.answers.all()}
 
         questions = []
-        for index, question in enumerate(config.get("questions", []), start=1):
-            shuffled = list(question["options"])
+        for index, item in enumerate(items, start=1):
+            shuffled = list(choice_texts(item))
             random.Random(f"{seed_base}-{index}").shuffle(shuffled)
-            answer = answer_map.get(question["id"])
+            answer = answer_map.get(item["id"])
             questions.append(
                 {
-                    "id": question["id"],
-                    "prompt": question["prompt"],
+                    "id": item["id"],
+                    "prompt": item["prompt"],
                     "options": shuffled,
                     "selected_option": answer.submitted_value.get("choice") if answer else "",
-                    "correct_option": question["correct_option"],
+                    "correct_option": correct_option(item)["text"],
                     "is_correct": answer.is_correct if answer else None,
+                    "points": item.get("points", 1),
                 }
             )
 
         return {
             "questions": questions,
-            "show_result_at_end": config.get("show_result_at_end", True),
-            "max_score": len(questions),
+            "show_result_at_end": activity.config_json.get("show_result_at_end", True),
+            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "max_score": self.get_max_score(activity.config_json),
+            "review_items": build_review_items(items, answer_map),
         }
 
     def get_max_score(self, config: dict[str, Any]) -> int:
-        return len(config.get("questions", []))
+        items = normalize_question_bank(config, default_points=1)
+        return sum(item.get("points", 1) for item in items)
 
     def evaluate_submission(
         self,
@@ -144,29 +136,29 @@ class QuizDefinition(BaseTemplateDefinition):
         payload: dict[str, Any],
     ) -> TemplateEvaluation:
         if payload.get("action") != "submit_quiz":
-            raise ValidationError("Unknown Quiz action.")
+            raise ValidationError("Неизвестное действие для шаблона 'Викторина'.")
 
-        config = activity.config_json
+        items = normalize_question_bank(activity.config_json, default_points=1)
         answers = []
         score = 0
-        max_score = self.get_max_score(config)
+        max_score = self.get_max_score(activity.config_json)
 
-        for question in config.get("questions", []):
-            field_name = f"question_{question['id']}"
+        for item in items:
+            field_name = f"question_{item['id']}"
             choice = str(payload.get(field_name, "")).strip()
-            is_correct = choice == question["correct_option"]
+            is_correct = choice == correct_option(item)["text"]
             if is_correct:
-                score += 1
+                score += item.get("points", 1)
             answers.append(
                 {
-                    "item_key": question["id"],
-                    "prompt": question["prompt"],
+                    "item_key": item["id"],
+                    "prompt": item["prompt"],
                     "submitted_value": {
                         "choice": choice,
-                        "correct_option": question["correct_option"],
+                        "correct_option": correct_option(item)["text"],
                     },
                     "is_correct": is_correct,
-                    "score_awarded": 1 if is_correct else 0,
+                    "score_awarded": item.get("points", 1) if is_correct else 0,
                 }
             )
 

@@ -97,7 +97,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ru"
 TIME_ZONE = os.getenv("QUIZZART_TIME_ZONE", "Europe/Moscow")
 USE_I18N = True
 USE_TZ = True

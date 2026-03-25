@@ -1,32 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Quizzart MVP{% endblock %}
+{% block title %}Quizzart{% endblock %}
 
 {% block content %}
 <section class="hero">
     <div class="hero-copy">
-        <p class="eyebrow">Python-first interactive learning builder</p>
-        <h1>Build classroom activities fast, publish by link, keep the results.</h1>
+        <p class="eyebrow">Python-first конструктор учебных интерактивов</p>
+        <h1>Создавайте интерактивы быстро, публикуйте по ссылке и сохраняйте результаты.</h1>
         <p class="hero-text">
-            Quizzart is a pragmatic Django monolith for teachers who need quick interactive formats:
-            Choose a Box, Quiz, Wheel of Fortune, Matching and Categorize.
+            Quizzart — это прагматичный Django-монолит для учителей, которым нужен быстрый запуск
+            форматов вроде "Выбери коробку", "Викторина", "Колесо фортуны", "Сопоставление"
+            и "Категории".
         </p>
         <div class="hero-actions">
-            <a class="button" href="{% url 'accounts:register' %}">Start with a teacher account</a>
-            <a class="button button-secondary" href="{% url 'accounts:login' %}">Log in</a>
+            <a class="button" href="{% url 'accounts:register' %}">Начать как учитель</a>
+            <a class="button button-secondary" href="{% url 'accounts:login' %}">Войти</a>
         </div>
     </div>
     <div class="hero-panel">
         <div class="metric-card">
-            <span class="metric-label">MVP focus</span>
-            <strong>Choose a Box + Quiz</strong>
+            <span class="metric-label">Приоритет</span>
+            <strong>Практичный MVP</strong>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Architecture</span>
-            <strong>Registered template engine</strong>
+            <span class="metric-label">Архитектура</span>
+            <strong>Единый template engine</strong>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Stack</span>
+            <span class="metric-label">Стек</span>
             <strong>Django 5 + PostgreSQL</strong>
         </div>
     </div>

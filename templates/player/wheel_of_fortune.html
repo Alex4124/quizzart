@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section
+    class="player-shell"
+    data-wheel-player
+    data-preview="{{ preview|yesno:'1,0' }}"
+    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+    data-no-repeat="{{ runtime.no_repeat|yesno:'1,0' }}"
+    {% if runtime.active_item %}data-active-item="{{ runtime.active_item.id }}"{% endif %}
+>
+    <div class="player-header">
+        <div>
+            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Колесо фортуны{% endif %}</p>
+            <h1>{{ activity.title }}</h1>
+            <p>{{ activity.description }}</p>
+        </div>
+        <div class="stats-row compact-stats">
+            <div><strong>{{ runtime.answered_count }}</strong><span>Отвечено</span></div>
+            <div><strong>{{ runtime.total_items }}</strong><span>Секторов</span></div>
+            {% if session %}
+                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="wheel-board">
+        <div class="wheel-figure">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
+                {% for sector in runtime.sectors %}
+                    <div
+                    class="wheel-sector {% if sector.is_active %}wheel-sector-active{% endif %} {% if sector.is_answered %}wheel-sector-answered{% endif %}"
+                    data-wheel-sector
+                    data-item-id="{{ sector.id }}"
+                    data-answered="{{ sector.is_answered|yesno:'1,0' }}"
+                    data-sector-index="{{ forloop.counter0 }}"
+                    style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {% cycle '#cfeee4' '#ffd8bf' '#fff0a8' '#d9d5ff' '#ffd5e2' '#cdeaff' %};"
+                >
+                        <div class="wheel-sector-content">
+                            <span class="wheel-sector-label">{{ sector.prompt }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="hero-actions wheel-controls">
+        <button class="button" type="button" data-wheel-start>Старт</button>
+        <button class="button button-secondary" type="button" data-wheel-stop disabled>Стоп</button>
+        {% if not preview and runtime.answered_count %}
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="wheel-question-stack">
+        {% for sector in runtime.sectors %}
+            <article
+                class="card question-card question-card-reveal"
+                data-wheel-question
+                data-item-id="{{ sector.id }}"
+                {% if not runtime.active_item or runtime.active_item.id != sector.id %}hidden{% endif %}
+            >
+                <h2>{{ sector.prompt }}</h2>
+                <p class="muted">{{ sector.points }} балл.</p>
+                {% if preview %}
+                    <form
+                        class="stack-form"
+                        data-answer-form
+                        data-preview="1"
+                        data-correct-option="{{ sector.correct_option }}"
+                        data-local-complete="wheel"
+                    >
+                        <div class="option-list">
+                            {% for option in sector.options %}
+                                <label class="option-row">
+                                    <input type="radio" name="preview_wheel_{{ sector.id }}" value="{{ option }}">
+                                    <span>{{ option }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <p class="muted question-feedback" data-question-feedback hidden></p>
+                    </form>
+                {% else %}
+                    <form
+                        method="post"
+                        class="stack-form"
+                        data-answer-form
+                        data-preview="0"
+                        data-correct-option="{{ sector.correct_option }}"
+                    >
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="answer_wheel">
+                        <input type="hidden" name="item_key" value="{{ sector.id }}">
+                        <div class="option-list">
+                            {% for option in sector.options %}
+                                <label class="option-row">
+                                    <input type="radio" name="answer" value="{{ option }}" required>
+                                    <span>{{ option }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <p class="muted question-feedback" data-question-feedback hidden></p>
+                        <button class="button" type="submit" data-answer-submit>Ответить</button>
+                    </form>
+                {% endif %}
+            </article>
+        {% endfor %}
+
+        {% if preview %}
+            <div class="message" data-wheel-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы прокрутить колесо заново.</div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

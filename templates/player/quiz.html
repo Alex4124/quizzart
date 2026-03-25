@@ -3,17 +3,22 @@
 {% block title %}{{ activity.title }}{% endblock %}
 
 {% block content %}
-<section class="player-shell">
+<section
+    class="player-shell"
+    data-quiz-player
+    data-preview="{{ preview|yesno:'1,0' }}"
+    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+>
     <div class="player-header">
         <div>
-            <p class="eyebrow">{% if preview %}Teacher preview{% else %}Quiz{% endif %}</p>
+            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Викторина{% endif %}</p>
             <h1>{{ activity.title }}</h1>
             <p>{{ activity.description }}</p>
         </div>
         <div class="stats-row compact-stats">
-            <div><strong>{{ runtime.questions|length }}</strong><span>Questions</span></div>
+            <div><strong>{{ runtime.questions|length }}</strong><span>Вопросов</span></div>
             {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Score</span></div>
+                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
             {% endif %}
         </div>
     </div>
@@ -22,12 +27,22 @@
         <div class="message">{{ player_error }}</div>
     {% endif %}
 
-    <form method="post" class="stack-form">
+    <form method="post" class="stack-form quiz-flow">
         {% csrf_token %}
-        <input type="hidden" name="action" value="submit_quiz">
+        {% if not preview %}
+            <input type="hidden" name="action" value="submit_quiz">
+        {% endif %}
         {% for question in runtime.questions %}
-            <article class="card question-card">
+            <article
+                class="card question-card"
+                data-reveal-stagger
+                data-quiz-question
+                data-question-index="{{ forloop.counter0 }}"
+                data-correct-option="{{ question.correct_option }}"
+            >
+                <p class="eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
                 <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
+                <p class="muted">{{ question.points }} балл.</p>
                 <div class="option-list">
                     {% for option in question.options %}
                         <label class="option-row">
@@ -36,16 +51,18 @@
                                 name="question_{{ question.id }}"
                                 value="{{ option }}"
                                 {% if option == question.selected_option %}checked{% endif %}
-                                {% if preview %}disabled{% endif %}
                             >
                             <span>{{ option }}</span>
                         </label>
                     {% endfor %}
                 </div>
+                <p class="muted question-feedback" data-question-feedback hidden></p>
             </article>
         {% endfor %}
         {% if not preview %}
-            <button class="button" type="submit">Submit quiz</button>
+            <button class="button" type="submit" data-quiz-submit>Завершить викторину</button>
+        {% else %}
+            <div class="message" data-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы пройти викторину заново.</div>
         {% endif %}
     </form>
 </section>

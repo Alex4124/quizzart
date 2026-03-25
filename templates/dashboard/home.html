@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Teacher Dashboard{% endblock %}
+{% block title %}Панель учителя{% endblock %}
 
 {% block content %}
 <section class="section-heading">
     <div>
-        <p class="eyebrow">Teacher dashboard</p>
-        <h1>Your activities</h1>
+        <p class="eyebrow">Панель учителя</p>
+        <h1>Ваши интерактивы</h1>
     </div>
-    <a class="button" href="{% url 'activities:create' %}">Create activity</a>
+    <a class="button" href="{% url 'activities:create' %}">Создать интерактив</a>
 </section>
 
 <section class="activity-list">
@@ -19,24 +19,24 @@
                     <h2>{{ activity.title }}</h2>
                     <p class="muted">{{ activity.template_key }}</p>
                 </div>
-                <span class="status-chip status-chip-{{ activity.status }}">{{ activity.status }}</span>
+                <span class="status-chip status-chip-{{ activity.status }}">{{ activity.get_status_display }}</span>
             </div>
             <p>{{ activity.description|default:"No description yet." }}</p>
             <div class="stats-row">
-                <div><strong>{{ activity.launches }}</strong><span>Launches</span></div>
-                <div><strong>{{ activity.completions }}</strong><span>Completions</span></div>
-                <div><strong>{{ activity.avg_percent|default:0|floatformat:0 }}%</strong><span>Avg score</span></div>
+                <div><strong>{{ activity.launches }}</strong><span>Запуски</span></div>
+                <div><strong>{{ activity.completions }}</strong><span>Завершения</span></div>
+                <div><strong>{{ activity.avg_percent|default:0|floatformat:0 }}%</strong><span>Средний результат</span></div>
             </div>
             <div class="card-actions">
-                <a href="{% url 'activities:edit' activity.pk %}">Edit</a>
-                <a href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Preview</a>
-                <a href="{% url 'dashboard:analytics' activity.pk %}">Analytics</a>
+                <a href="{% url 'activities:edit' activity.pk %}">Редактировать</a>
+                <a href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Предпросмотр</a>
+                <a href="{% url 'dashboard:analytics' activity.pk %}">Аналитика</a>
             </div>
         </article>
     {% empty %}
         <article class="card empty-card">
-            <h2>No activities yet</h2>
-            <p>Create the first draft and use the template engine to shape the player flow later.</p>
+            <h2>Пока нет интерактивов</h2>
+            <p>Создайте первый черновик и настройте его под нужный шаблон.</p>
         </article>
     {% endfor %}
 </section>

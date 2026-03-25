@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from typing import Any
 
@@ -9,6 +10,7 @@ from django.core.exceptions import ValidationError
 from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
 from interactive_templates.utils import (
     build_review_items,
+    choice_texts,
     correct_option,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -17,8 +19,7 @@ from interactive_templates.utils import (
 )
 
 
-class MatchingEditorForm(forms.Form):
-    shuffle = forms.BooleanField(required=False, initial=True, label="Перемешивать ответы")
+class SnakeEditorForm(forms.Form):
     reveal_correct_answer = forms.BooleanField(
         required=False,
         initial=True,
@@ -32,10 +33,11 @@ def _sample_items() -> list[dict[str, Any]]:
     return [
         {
             "id": f"item-{index}",
-            "prompt": f"Match prompt {index}",
+            "prompt": f"Snake question {index}",
             "options": [
-                {"id": f"item-{index}-option-1", "text": f"Answer {index}", "is_correct": True},
-                {"id": f"item-{index}-option-2", "text": f"Wrong {index}", "is_correct": False},
+                {"id": f"item-{index}-option-1", "text": f"Correct {index}", "is_correct": True},
+                {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
+                {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
             ],
             "points": 1,
         }
@@ -43,21 +45,68 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
-class MatchingDefinition(BaseTemplateDefinition):
+def _distance(first: tuple[float, float], second: tuple[float, float]) -> float:
+    return math.hypot(first[0] - second[0], first[1] - second[1])
+
+
+def _grid_scatter_positions(count: int, rng: random.Random) -> list[tuple[float, float]]:
+    if count <= 0:
+        return []
+
+    columns = max(2, math.ceil(math.sqrt(count)))
+    rows = math.ceil(count / columns)
+    slots = [(column, row) for row in range(rows) for column in range(columns)]
+    rng.shuffle(slots)
+
+    positions: list[tuple[float, float]] = []
+    for column, row in slots[:count]:
+        x = 16.0 if columns == 1 else 16.0 + (68.0 * column / max(columns - 1, 1))
+        y = 18.0 if rows == 1 else 18.0 + (60.0 * row / max(rows - 1, 1))
+        if _distance((x, y), (50.0, 50.0)) < 14.0:
+            y = min(82.0, y + 18.0)
+        positions.append((round(x, 2), round(y, 2)))
+    return positions
+
+
+def _build_apple_positions(count: int, seed: str) -> list[tuple[float, float]]:
+    if count <= 0:
+        return []
+
+    rng = random.Random(seed)
+    positions: list[tuple[float, float]] = []
+    min_distance = 16.0 if count <= 8 else 13.0
+
+    for _ in range(count):
+        placed = False
+        for _attempt in range(96):
+            candidate = (rng.uniform(12.0, 88.0), rng.uniform(18.0, 82.0))
+            if _distance(candidate, (50.0, 50.0)) < 12.0:
+                continue
+            if any(_distance(candidate, existing) < min_distance for existing in positions):
+                continue
+            positions.append((round(candidate[0], 2), round(candidate[1], 2)))
+            placed = True
+            break
+        if not placed:
+            return _grid_scatter_positions(count, rng)
+
+    return positions
+
+
+class SnakeDefinition(BaseTemplateDefinition):
     metadata = TemplateMetadata(
-        key="matching",
-        title="Сопоставление",
-        description="Нужно сопоставить каждый вопрос с правильным ответом.",
+        key="snake",
+        title="Змейка",
+        description="Змейка следует за курсором или пальцем, ест яблоки и открывает вопросы.",
         playable=True,
     )
-    editor_form_class = MatchingEditorForm
-    player_template_name = "player/matching.html"
-    preview_template_name = "player/matching.html"
+    editor_form_class = SnakeEditorForm
+    player_template_name = "player/snake.html"
+    preview_template_name = "player/snake.html"
     editor_question_default_points = 1
 
     def default_config(self) -> dict[str, Any]:
         return {
-            "shuffle": True,
             "reveal_correct_answer": True,
             "items": _sample_items(),
         }
@@ -65,7 +114,6 @@ class MatchingDefinition(BaseTemplateDefinition):
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
         items = normalize_question_bank(config, default_points=1)
         return {
-            "shuffle": config.get("shuffle", True),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
             "items_json": serialize_question_bank_editor(items, default_points=1),
             "items_text": serialize_question_bank(items, default_points=1),
@@ -73,7 +121,6 @@ class MatchingDefinition(BaseTemplateDefinition):
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
         return {
-            "shuffle": cleaned_data.get("shuffle", False),
             "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
             "items": question_bank_items_from_payload(
                 cleaned_data.get("items_json"),
@@ -81,13 +128,6 @@ class MatchingDefinition(BaseTemplateDefinition):
                 default_points=1,
             ),
         }
-
-    def validate_config(self, config: dict[str, Any]) -> None:
-        super().validate_config(config)
-        items = normalize_question_bank(config, default_points=1)
-        answers = [correct_option(item)["text"] for item in items]
-        if len(answers) != len(set(answers)):
-            raise ValidationError("Для сопоставления правильные ответы должны быть уникальными.")
 
     def build_runtime_data(
         self,
@@ -100,29 +140,34 @@ class MatchingDefinition(BaseTemplateDefinition):
         if session:
             answer_map = {answer.item_key: answer for answer in session.answers.all()}
 
-        choices = [correct_option(item)["text"] for item in items]
-        seed_base = "preview" if preview else str(session.token) if session else "matching"
-        if activity.config_json.get("shuffle", False):
-            random.Random(seed_base).shuffle(choices)
-
-        rows = []
-        for item in items:
+        seed_base = "preview" if preview else str(session.token) if session else "snake"
+        positions = _build_apple_positions(len(items), seed_base)
+        apples = []
+        for index, item in enumerate(items, start=1):
             answer = answer_map.get(item["id"])
-            rows.append(
+            shuffled_options = list(choice_texts(item))
+            random.Random(f"{seed_base}-item-{index}").shuffle(shuffled_options)
+            apples.append(
                 {
                     "id": item["id"],
+                    "number": index,
                     "prompt": item["prompt"],
-                    "selected": answer.submitted_value.get("choice", "") if answer else "",
+                    "options": shuffled_options,
                     "correct_option": correct_option(item)["text"],
+                    "selected_option": answer.submitted_value.get("choice", "") if answer else "",
+                    "is_correct": answer.is_correct if answer else None,
                     "points": item.get("points", 1),
+                    "x_percent": positions[index - 1][0],
+                    "y_percent": positions[index - 1][1],
                 }
             )
 
         return {
-            "rows": rows,
-            "choices": choices,
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "apples": apples,
+            "answered_count": len(answer_map),
+            "total_items": len(items),
             "max_score": self.get_max_score(activity.config_json),
+            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
             "review_items": build_review_items(items, answer_map),
         }
 
@@ -136,15 +181,21 @@ class MatchingDefinition(BaseTemplateDefinition):
         session: Any,
         payload: dict[str, Any],
     ) -> TemplateEvaluation:
-        if payload.get("action") != "submit_matching":
-            raise ValidationError("Неизвестное действие для шаблона 'Сопоставление'.")
+        if payload.get("action") != "submit_snake":
+            raise ValidationError("Неизвестное действие для шаблона 'Змейка'.")
 
         items = normalize_question_bank(activity.config_json, default_points=1)
         answers = []
         score = 0
+        missing_answers = False
+
         for item in items:
-            field_name = f"match_{item['id']}"
+            field_name = f"question_{item['id']}"
             choice = str(payload.get(field_name, "")).strip()
+            if not choice:
+                missing_answers = True
+                continue
+
             is_correct = choice == correct_option(item)["text"]
             if is_correct:
                 score += item.get("points", 1)
@@ -160,6 +211,9 @@ class MatchingDefinition(BaseTemplateDefinition):
                     "score_awarded": item.get("points", 1) if is_correct else 0,
                 }
             )
+
+        if missing_answers or len(answers) != len(items):
+            raise ValidationError("Сначала ответьте на все вопросы, чтобы завершить змейку.")
 
         return TemplateEvaluation(
             score=score,

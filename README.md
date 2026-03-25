@@ -8,15 +8,12 @@ Quizzart is a Python-first MVP for building classroom interactives in a single D
 - Activity drafts, publish-by-link and duplication
 - Public player with saved results
 - Basic analytics by activity
-- Registered templates:
+- Playable templates:
   - `choose_a_box`
   - `quiz`
   - `wheel_of_fortune`
   - `matching`
   - `categorize`
-- End-to-end playable templates:
-  - `choose_a_box`
-  - `quiz`
 
 ## Stack
 
@@ -85,6 +82,8 @@ Open:
 ## Project notes
 
 - The template system is code-registered and Python-driven.
+- All template editors are backed by a shared question bank format:
+  - `Prompt | *Correct answer | Wrong answer 1 | Wrong answer 2 | 100 optional points`
 - Each template definition owns:
   - metadata
   - editor form
@@ -94,6 +93,7 @@ Open:
   - result calculator / submission evaluator
 - `choose_a_box` supports incremental box answering.
 - `quiz` supports single-answer quiz submission and end-of-run scoring.
+- `wheel_of_fortune`, `matching`, and `categorize` reuse the same question bank and adapt it into their own runtime layouts.
 
 ## Tests
 

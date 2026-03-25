@@ -5,9 +5,9 @@
 {% block content %}
 <section class="player-shell player-shell-centered">
     <article class="card auth-card">
-        <p class="eyebrow">Student mode</p>
+        <p class="eyebrow">Режим ученика</p>
         <h1>{{ activity.title }}</h1>
-        <p>{{ activity.description|default:"Open the activity and submit your answers." }}</p>
+        <p>{{ activity.description|default:"Откройте интерактив и выполните задание." }}</p>
         <form method="post" class="stack-form">
             {% csrf_token %}
             {{ form.non_field_errors }}
@@ -18,7 +18,7 @@
                     {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
             {% endfor %}
-            <button class="button" type="submit" name="action" value="start">Start activity</button>
+            <button class="button" type="submit" name="action" value="start">Начать</button>
         </form>
     </article>
 </section>

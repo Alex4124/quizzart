@@ -15,7 +15,7 @@ def ensure_share_link(activity: Activity) -> ShareLink:
 def duplicate_activity(activity: Activity) -> Activity:
     return Activity.objects.create(
         owner=activity.owner,
-        title=f"{activity.title} (Copy)",
+        title=f"{activity.title} (Копия)",
         description=activity.description,
         template_key=activity.template_key,
         config_json=deepcopy(activity.config_json),

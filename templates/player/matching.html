@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section
+    class="player-shell"
+    data-matching-player
+    data-preview="{{ preview|yesno:'1,0' }}"
+    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+>
+    <div class="player-header">
+        <div>
+            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Сопоставление{% endif %}</p>
+            <h1>{{ activity.title }}</h1>
+            <p>{{ activity.description }}</p>
+        </div>
+        <div class="stats-row compact-stats">
+            <div><strong>{{ runtime.rows|length }}</strong><span>Пар</span></div>
+            {% if session %}
+                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post" class="stack-form matching-flow">
+        {% csrf_token %}
+        {% if not preview %}
+            <input type="hidden" name="action" value="submit_matching">
+        {% endif %}
+        {% for row in runtime.rows %}
+            <input type="hidden" name="match_{{ row.id }}" value="{{ row.selected }}" data-answer-target="{{ row.id }}">
+        {% endfor %}
+
+        <div class="matching-stage">
+            {% for row in runtime.rows %}
+                <article
+                    class="card question-card matching-card"
+                    data-matching-question
+                    data-item-id="{{ row.id }}"
+                    data-correct-option="{{ row.correct_option }}"
+                    data-reveal-stagger
+                >
+                    <p class="eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.rows|length }}</p>
+                    <h2>{{ row.prompt }}</h2>
+                    <p class="muted">{{ row.points }} балл.</p>
+                    <p class="muted question-feedback" data-question-feedback hidden></p>
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="matching-bank" data-matching-bank>
+            {% for choice in runtime.choices %}
+                <button class="option-row matching-choice" type="button" data-matching-choice data-choice-value="{{ choice }}">
+                    <span>{{ choice }}</span>
+                </button>
+            {% endfor %}
+        </div>
+
+        {% if preview %}
+            <div class="message" data-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы пройти шаблон заново.</div>
+        {% else %}
+            <button class="button" type="submit" data-matching-submit>Завершить сопоставление</button>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}

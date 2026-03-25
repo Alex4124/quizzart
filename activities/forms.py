@@ -7,9 +7,16 @@ from interactive_templates.registry import registry
 
 
 class ActivityForm(forms.ModelForm):
+    template_key = forms.ChoiceField(widget=forms.HiddenInput())
+
     class Meta:
         model = Activity
         fields = ("title", "description", "template_key")
+        labels = {
+            "title": "Название",
+            "description": "Описание",
+            "template_key": "Шаблон",
+        }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3}),
         }
@@ -17,7 +24,7 @@ class ActivityForm(forms.ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.fields["template_key"].choices = registry.choices()
-        self.fields["title"].widget.attrs.update({"placeholder": "Weekly revision game"})
+        self.fields["title"].widget.attrs.update({"placeholder": "Повторение по теме"})
         self.fields["description"].widget.attrs.update(
-            {"placeholder": "Short note for students or colleagues."}
+            {"placeholder": "Короткое описание для учеников."}
         )

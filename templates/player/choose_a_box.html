@@ -3,19 +3,25 @@
 {% block title %}{{ activity.title }}{% endblock %}
 
 {% block content %}
-<section class="player-shell">
+<section
+    class="player-shell"
+    data-box-player
+    data-preview="{{ preview|yesno:'1,0' }}"
+    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+    data-no-repeat="{{ runtime.no_repeat|yesno:'1,0' }}"
+>
     <div class="player-header">
         <div>
-            <p class="eyebrow">{% if preview %}Teacher preview{% else %}Choose a Box{% endif %}</p>
+            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Выбери коробку{% endif %}</p>
             <h1>{{ activity.title }}</h1>
             <p>{{ activity.description }}</p>
         </div>
         <div class="stats-row compact-stats">
             {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Score</span></div>
+                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
             {% endif %}
-            <div><strong>{{ runtime.answered_count }}</strong><span>Answered</span></div>
-            <div><strong>{{ runtime.total_boxes }}</strong><span>Total boxes</span></div>
+            <div><strong>{{ runtime.answered_count }}</strong><span>Отвечено</span></div>
+            <div><strong>{{ runtime.total_boxes }}</strong><span>Коробок с вопросами</span></div>
         </div>
     </div>
 
@@ -25,38 +31,87 @@
 
     <div class="box-grid box-grid-{{ runtime.grid_size }}">
         {% for box in runtime.boxes %}
-            <article class="box-card box-card-{{ box.state }}">
+            <article
+                class="box-card box-card-{{ box.state }}"
+                data-reveal-stagger
+                data-box-card
+                data-box-id="{{ box.id }}"
+            >
                 <div class="box-card-head">
-                    <span class="box-label">{{ box.label }}</span>
-                    <span class="muted">{{ box.points }} pts</span>
+                    <span class="box-label">#{{ box.number }}</span>
+                    <span class="muted">{{ box.points }} балл.</span>
                 </div>
 
-                {% if preview %}
-                    <p>{{ box.prompt }}</p>
-                    <p class="muted">Expected answer: {{ box.expected_answer }}</p>
+                {% if box.is_placeholder %}
+                    <p class="muted">Пустой слот</p>
+                {% elif preview %}
+                    <button class="button button-small" type="button" data-preview-open-box>Открыть коробку</button>
+                    <div class="box-question" data-preview-box-panel hidden>
+                        <p>{{ box.prompt }}</p>
+                        <form
+                            class="stack-form"
+                            data-answer-form
+                            data-preview="1"
+                            data-correct-option="{{ box.expected_answer }}"
+                            data-local-complete="box"
+                        >
+                            <div class="option-list">
+                                {% for option in box.options %}
+                                    <label class="option-row">
+                                        <input type="radio" name="preview_box_{{ box.id }}" value="{{ option }}">
+                                        <span>{{ option }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            <p class="muted question-feedback" data-question-feedback hidden></p>
+                        </form>
+                    </div>
                 {% elif box.state == "unopened" %}
-                    <form method="post" class="stack-form">
+                    <form
+                        method="post"
+                        class="stack-form"
+                        data-delay-submit="420"
+                        data-animate-target=".box-card"
+                        data-animate-class="box-card-opening"
+                    >
                         {% csrf_token %}
                         <input type="hidden" name="action" value="open_box">
                         <input type="hidden" name="item_key" value="{{ box.id }}">
-                        <button class="button button-small" type="submit">Open box</button>
+                        <button class="button button-small" type="submit">Открыть коробку</button>
                     </form>
                 {% elif box.state == "opened" %}
-                    <p>{{ box.prompt }}</p>
-                    <form method="post" class="stack-form">
+                    <div class="box-question">
+                        <p>{{ box.prompt }}</p>
+                    </div>
+                    <form
+                        method="post"
+                        class="stack-form"
+                        data-answer-form
+                        data-preview="0"
+                        data-correct-option="{{ box.expected_answer }}"
+                    >
                         {% csrf_token %}
                         <input type="hidden" name="action" value="answer_box">
                         <input type="hidden" name="item_key" value="{{ box.id }}">
-                        <label for="answer-{{ box.id }}">Your answer</label>
-                        <input id="answer-{{ box.id }}" type="text" name="answer" required>
-                        <button class="button button-small" type="submit">Submit answer</button>
+                        <div class="option-list">
+                            {% for option in box.options %}
+                                <label class="option-row">
+                                    <input type="radio" name="answer" value="{{ option }}" required>
+                                    <span>{{ option }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <p class="muted question-feedback" data-question-feedback hidden></p>
+                        <button class="button button-small" type="submit" data-answer-submit>Ответить</button>
                     </form>
                 {% else %}
                     <p>{{ box.prompt }}</p>
-                    <p class="muted">Your answer: {{ box.submitted_answer|default:"No answer" }}</p>
-                    <p class="muted">Correct answer: {{ box.expected_answer }}</p>
+                    <p class="muted">Ваш ответ: {{ box.submitted_answer|default:"Нет ответа" }}</p>
+                    {% if runtime.reveal_correct_answer %}
+                        <p class="muted">Правильный ответ: {{ box.expected_answer }}</p>
+                    {% endif %}
                     <span class="status-chip {% if box.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
-                        {% if box.is_correct %}Correct{% else %}Incorrect{% endif %}
+                        {% if box.is_correct %}Верно{% else %}Неверно{% endif %}
                     </span>
                 {% endif %}
             </article>
@@ -66,7 +121,7 @@
     {% if not preview and runtime.show_finish %}
         <form method="post" class="hero-actions">
             {% csrf_token %}
-            <button class="button button-secondary" type="submit" name="action" value="finish">Finish activity</button>
+            <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
         </form>
     {% endif %}
 </section>

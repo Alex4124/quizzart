@@ -14,8 +14,8 @@ def generate_share_slug() -> str:
 
 class Activity(models.Model):
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        PUBLISHED = "published", "Published"
+        DRAFT = "draft", "Черновик"
+        PUBLISHED = "published", "Опубликован"
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -1,56 +1,56 @@
 {% extends "base.html" %}
 
-{% block title %}Analytics · {{ activity.title }}{% endblock %}
+{% block title %}Аналитика · {{ activity.title }}{% endblock %}
 
 {% block content %}
 <section class="section-heading">
     <div>
-        <p class="eyebrow">Analytics</p>
+        <p class="eyebrow">Аналитика</p>
         <h1>{{ activity.title }}</h1>
     </div>
     <div class="hero-actions">
-        <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Back to editor</a>
+        <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Назад в редактор</a>
     </div>
 </section>
 
 <section class="stats-grid">
     <article class="metric-card">
-        <span class="metric-label">Launches</span>
+        <span class="metric-label">Запуски</span>
         <strong>{{ launches }}</strong>
     </article>
     <article class="metric-card">
-        <span class="metric-label">Completions</span>
+        <span class="metric-label">Завершения</span>
         <strong>{{ completions }}</strong>
     </article>
     <article class="metric-card">
-        <span class="metric-label">Average score</span>
+        <span class="metric-label">Средний результат</span>
         <strong>{{ average_score|floatformat:1 }}%</strong>
     </article>
 </section>
 
 <section class="card">
-    <h2>Attempts</h2>
+    <h2>Прохождения</h2>
     <div class="table-wrap">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Participant</th>
-                    <th>Status</th>
-                    <th>Score</th>
-                    <th>Started</th>
+                    <th>Ученик</th>
+                    <th>Статус</th>
+                    <th>Результат</th>
+                    <th>Начато</th>
                 </tr>
             </thead>
             <tbody>
                 {% for session in sessions %}
                     <tr>
-                        <td>{{ session.participant_name|default:"Anonymous" }}</td>
-                        <td>{{ session.status }}</td>
+                        <td>{{ session.participant_name|default:"Анонимно" }}</td>
+                        <td>{{ session.get_status_display }}</td>
                         <td>{{ session.score }} / {{ session.max_score }}</td>
                         <td>{{ session.started_at }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="4">No attempts recorded yet.</td>
+                        <td colspan="4">Пока нет сохраненных прохождений.</td>
                     </tr>
                 {% endfor %}
             </tbody>

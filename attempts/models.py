@@ -10,9 +10,9 @@ from activities.models import Activity, ShareLink
 
 class ActivitySession(models.Model):
     class Status(models.TextChoices):
-        STARTED = "started", "Started"
-        COMPLETED = "completed", "Completed"
-        ABANDONED = "abandoned", "Abandoned"
+        STARTED = "started", "Начато"
+        COMPLETED = "completed", "Завершено"
+        ABANDONED = "abandoned", "Прервано"
 
     activity = models.ForeignKey(
         Activity,

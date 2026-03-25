@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<section
+    class="player-shell"
+    data-categorize-player
+    data-preview="{{ preview|yesno:'1,0' }}"
+    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+>
+    <div class="player-header">
+        <div>
+            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Категории{% endif %}</p>
+            <h1>{{ activity.title }}</h1>
+            <p>{{ activity.description }}</p>
+        </div>
+        <div class="stats-row compact-stats">
+            <div><strong>{{ runtime.categories|length }}</strong><span>Категорий</span></div>
+            <div><strong>{{ runtime.rows|length }}</strong><span>Элементов</span></div>
+        </div>
+    </div>
+
+    <form method="post" class="stack-form categorize-flow">
+        {% csrf_token %}
+        {% if not preview %}
+            <input type="hidden" name="action" value="submit_categorize">
+        {% endif %}
+        {% for row in runtime.rows %}
+            <input type="hidden" name="category_{{ row.id }}" value="{{ row.selected }}" data-answer-target="{{ row.id }}">
+        {% endfor %}
+
+        <div class="categorize-stage">
+            {% for row in runtime.rows %}
+                <article
+                    class="card categorize-card"
+                    data-categorize-question
+                    data-item-id="{{ row.id }}"
+                    data-correct-option="{{ row.correct_option }}"
+                    data-reveal-stagger
+                >
+                    <div class="categorize-layout">
+                        <div class="categorize-question-cell">
+                            <p class="eyebrow">Элемент {{ forloop.counter }} из {{ runtime.rows|length }}</p>
+                            <h2>{{ row.prompt }}</h2>
+                            <div class="categorize-dock" data-categorize-dock hidden>
+                                <span class="status-chip" data-categorize-dock-text></span>
+                            </div>
+                            <p class="muted question-feedback" data-question-feedback hidden></p>
+                        </div>
+                        <div class="categorize-answer-grid">
+                            {% for category in runtime.categories %}
+                                <button class="option-row categorize-choice" type="button" data-categorize-choice data-choice-value="{{ category }}">
+                                    <span>{{ category }}</span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        {% if preview %}
+            <div class="message" data-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы пройти шаблон заново.</div>
+        {% else %}
+            <button class="button" type="submit" data-categorize-submit>Завершить категории</button>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}

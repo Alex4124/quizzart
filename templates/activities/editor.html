@@ -1,83 +1,176 @@
 {% extends "base.html" %}
 
-{% block title %}{% if activity %}Edit{% else %}Create{% endif %} Activity{% endblock %}
+{% block title %}{% if activity %}Редактирование{% else %}Создание{% endif %} интерактива{% endblock %}
 
 {% block content %}
 <section class="section-heading">
     <div>
-        <p class="eyebrow">Activity editor</p>
-        <h1>{% if activity %}{{ activity.title }}{% else %}New activity{% endif %}</h1>
+        <p class="eyebrow">Редактор интерактива</p>
+        <h1>{% if activity %}{{ activity.title }}{% else %}Новый интерактив{% endif %}</h1>
     </div>
     <div class="hero-actions">
         {% if activity %}
-            <a class="button button-secondary" href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Teacher preview</a>
-            <a class="button button-secondary" href="{% url 'dashboard:analytics' activity.pk %}">Analytics</a>
-            <a class="button button-secondary" href="{% url 'activities:duplicate' activity.pk %}">Duplicate</a>
+            <a class="button button-secondary" href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Открыть предпросмотр</a>
+            <a class="button button-secondary" href="{% url 'dashboard:analytics' activity.pk %}">Аналитика</a>
+            <a class="button button-secondary" href="{% url 'activities:duplicate' activity.pk %}">Дублировать</a>
+            <form method="post" action="{% url 'activities:delete' activity.pk %}" class="inline-form" onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
+                {% csrf_token %}
+                <button class="button button-danger" type="submit">Удалить</button>
+            </form>
         {% endif %}
     </div>
 </section>
 
 <section class="editor-layout">
     <aside class="card">
-        <h2>Template registry</h2>
-        <form method="get">
-            <label for="template-switch">Template</label>
-            <select id="template-switch" name="template_key" onchange="this.form.submit()">
+        <h2>Шаблон интерактива</h2>
+        <div class="form-row">
+            <label for="template-switch">Шаблон</label>
+            <select id="template-switch" data-template-switch>
                 {% for template in templates %}
                     <option value="{{ template.metadata.key }}" {% if template.metadata.key == template_definition.metadata.key %}selected{% endif %}>
                         {{ template.metadata.title }}
                     </option>
                 {% endfor %}
             </select>
-        </form>
+            <small class="muted">При смене шаблона вопросы и ответы сохраняются и подстраиваются под новый формат.</small>
+        </div>
         <p class="muted">{{ template_definition.metadata.description }}</p>
         <p class="muted">
-            Runtime:
+            Режим публикации:
             {% if template_definition.metadata.playable %}
-                ready for public play
+                доступен
             {% else %}
-                registered only
+                только зарегистрирован
             {% endif %}
         </p>
         {% if share_url %}
             <div class="share-box">
-                <strong>Public link</strong>
+                <strong>Публичная ссылка</strong>
                 <a href="{{ share_url }}" target="_blank" rel="noreferrer">{{ share_url }}</a>
             </div>
         {% endif %}
     </aside>
 
     <section class="card">
-        <form method="post" class="stack-form">
+        <form method="post" class="stack-form" id="activity-editor-form" data-activity-editor-form>
             {% csrf_token %}
-            <div class="form-grid">
-                {% for field in activity_form %}
-                    <div class="form-row">
+            {% for field in activity_form.hidden_fields %}{{ field }}{% endfor %}
+            {% for field in config_form.hidden_fields %}{{ field }}{% endfor %}
+            <button type="submit" name="action" value="switch_template" hidden data-switch-template-submit></button>
+
+            <div class="editor-brief-grid">
+                {% for field in activity_form.visible_fields %}
+                    <section class="editor-input-card">
                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {{ field }}
                         {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
                         {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-                    </div>
+                    </section>
                 {% endfor %}
             </div>
 
-            <div class="card inset-card">
-                <h2>{{ template_definition.metadata.title }} config</h2>
-                {% for field in config_form %}
-                    <div class="form-row">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
-                        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            <section
+                class="card inset-card question-bank-editor"
+                data-question-bank-editor
+                data-default-points="{{ template_definition.editor_question_default_points }}"
+            >
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Банк вопросов</p>
+                        <h2>Вопросы и ответы</h2>
                     </div>
+                    <button class="button button-secondary" type="button" data-add-question>Добавить вопрос</button>
+                </div>
+                <p class="muted">Каждый вопрос и каждый ответ редактируются в отдельной ячейке. Отметьте галочкой правильный ответ.</p>
+
+                {% if config_form.non_field_errors or config_form.items_json.errors or config_form.items_text.errors %}
+                    <div class="message-stack">
+                        {% for error in config_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
+                        {% for error in config_form.items_json.errors %}<div class="message">{{ error }}</div>{% endfor %}
+                        {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="question-bank-list" data-question-bank-list></div>
+
+                <template data-question-template>
+                    <article class="question-editor-card" data-question-card>
+                        <div class="question-editor-head">
+                            <strong data-question-title></strong>
+                            <button class="link-button danger-link" type="button" data-remove-question>Удалить вопрос</button>
+                        </div>
+                        <div class="question-editor-grid">
+                            <label class="question-editor-cell question-editor-cell-wide">
+                                <span class="editor-cell-label">Вопрос</span>
+                                <textarea rows="3" data-question-prompt placeholder="Введите текст вопроса"></textarea>
+                            </label>
+                            <label class="question-editor-cell question-editor-points">
+                                <span class="editor-cell-label">Баллы</span>
+                                <input type="number" min="0" step="1" data-question-points>
+                            </label>
+                        </div>
+                        <div class="answer-editor-grid" data-answer-list></div>
+                        <button class="button button-secondary" type="button" data-add-answer>Добавить ответ</button>
+                    </article>
+                </template>
+
+                <template data-answer-template>
+                    <label class="question-editor-cell answer-editor-cell" data-answer-card>
+                        <span class="editor-cell-label" data-answer-title></span>
+                        <input type="text" data-answer-text placeholder="Введите вариант ответа">
+                        <span class="answer-editor-controls">
+                            <span class="answer-correct-toggle">
+                                <input type="checkbox" data-answer-correct>
+                                <span>Верный ответ</span>
+                            </span>
+                            <button class="link-button danger-link" type="button" data-remove-answer>Удалить</button>
+                        </span>
+                    </label>
+                </template>
+            </section>
+
+            <section class="card inset-card">
+                <h2>Настройки шаблона "{{ template_definition.metadata.title }}"</h2>
+                {% for field in config_form.visible_fields %}
+                    {% if field.name != "items_json" and field.name != "items_text" %}
+                        <div class="form-row">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+                            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                        </div>
+                    {% endif %}
                 {% endfor %}
-            </div>
+            </section>
 
             <div class="hero-actions">
-                <button class="button button-secondary" type="submit" name="action" value="save_draft">Save draft</button>
-                <button class="button" type="submit" name="action" value="publish">Publish</button>
+                <button class="button button-secondary" type="submit" name="action" value="save_draft">Сохранить черновик</button>
+                <button class="button" type="submit" name="action" value="publish">Опубликовать</button>
             </div>
         </form>
     </section>
+</section>
+
+<section class="card preview-pane">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Как это видит ученик</p>
+            <h2>Живой предпросмотр</h2>
+        </div>
+        {% if activity %}
+            <span class="muted">Предпросмотр обновляется после сохранения.</span>
+        {% endif %}
+    </div>
+    {% if activity %}
+        <iframe
+            class="preview-frame"
+            src="{% url 'activities:preview' activity.pk %}"
+            title="Предпросмотр интерактива"
+            loading="lazy"
+        ></iframe>
+    {% else %}
+        <p class="muted">Сначала сохраните интерактив, и здесь появится тот же интерфейс, который увидит ученик.</p>
+    {% endif %}
 </section>
 {% endblock %}

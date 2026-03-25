@@ -40,14 +40,15 @@ Each definition is responsible for:
 Rules:
 
 - Prefer Django forms for editor schema in MVP.
+- Prefer the shared question bank input model first: `prompt + options + correct marker + optional points`.
 - Keep configs serializable into `Activity.config_json`.
 - Do not special-case templates in models; special behavior belongs in the definition.
 - New templates should register through `register_all_templates()`.
 
 ## MVP priorities
 
-- Keep `choose_a_box` and `quiz` fully working end-to-end.
-- Other templates may stay registered-but-not-playable until their runtime is implemented.
+- Keep all registered templates publishable and launchable.
+- Preserve the shared authoring contract unless there is a strong product reason to split it.
 - Avoid overengineering editor UX before the player flow and result persistence are stable.
 
 ## Coding rules

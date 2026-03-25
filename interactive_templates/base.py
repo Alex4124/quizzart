@@ -32,6 +32,7 @@ class BaseTemplateDefinition(ABC):
     editor_form_class: type[forms.Form]
     player_template_name = "player/not_implemented.html"
     preview_template_name = "player/not_implemented.html"
+    editor_question_default_points = 1
 
     def get_editor_form(
         self,
