@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -52,10 +53,10 @@
                         class="snake-apple"
                         data-snake-apple
                         data-item-id="{{ apple.id }}"
-                        data-x="{{ apple.x_percent }}"
-                        data-y="{{ apple.y_percent }}"
+                        data-x="{{ apple.x_percent|unlocalize }}"
+                        data-y="{{ apple.y_percent|unlocalize }}"
                         data-points="{{ apple.points }}"
-                        style="left: {{ apple.x_percent }}%; top: {{ apple.y_percent }}%; --snake-apple-index: {{ forloop.counter0 }};"
+                        style="left: {{ apple.x_percent|unlocalize }}%; top: {{ apple.y_percent|unlocalize }}%; --snake-apple-index: {{ forloop.counter0 }};"
                     >
                         <span class="snake-apple-leaf" aria-hidden="true"></span>
                         <span class="snake-apple-core" aria-hidden="true"></span>

@@ -1030,10 +1030,17 @@
             let lastTimestamp = 0;
             let headPoint = { x: 0, y: 0 };
             let targetPoint = { x: 0, y: 0 };
-            let trail = [];
+            let heading = { x: 1, y: 0 };
+            const bodyPoints = [];
             const segments = [];
             const baseSegmentCount = 5;
             const totalItems = appleElements.length;
+            const headRadius = 20;
+            const segmentRadius = 14;
+            const beaconRadius = 22;
+            const contactOverlap = 2;
+            const headSegmentDistance = headRadius + segmentRadius - contactOverlap;
+            const segmentDistance = segmentRadius + segmentRadius - contactOverlap;
 
             function clamp(value, min, max) {
                 return Math.min(max, Math.max(min, value));
@@ -1041,6 +1048,17 @@
 
             function distance(first, second) {
                 return Math.hypot(first.x - second.x, first.y - second.y);
+            }
+
+            function normalizeVector(dx, dy, fallback) {
+                const vectorLength = Math.hypot(dx, dy);
+                if (vectorLength > 0.0001) {
+                    return {
+                        x: dx / vectorLength,
+                        y: dy / vectorLength,
+                    };
+                }
+                return fallback;
             }
 
             function boardCenter() {
@@ -1064,19 +1082,23 @@
                 if (resetPosition) {
                     headPoint = { x: center.x, y: center.y };
                     targetPoint = { x: center.x, y: center.y };
-                    trail = Array.from({ length: 120 }, () => ({ x: center.x, y: center.y }));
+                    heading = { x: 1, y: 0 };
+                    bodyPoints.length = 0;
                     return;
                 }
 
-                const margin = 22;
                 headPoint = {
-                    x: clamp(headPoint.x, margin, boardRect.width - margin),
-                    y: clamp(headPoint.y, margin, boardRect.height - margin),
+                    x: clamp(headPoint.x, headRadius, boardRect.width - headRadius),
+                    y: clamp(headPoint.y, headRadius, boardRect.height - headRadius),
                 };
                 targetPoint = {
-                    x: clamp(targetPoint.x, margin, boardRect.width - margin),
-                    y: clamp(targetPoint.y, margin, boardRect.height - margin),
+                    x: clamp(targetPoint.x, headRadius, boardRect.width - headRadius),
+                    y: clamp(targetPoint.y, headRadius, boardRect.height - headRadius),
                 };
+                bodyPoints.forEach((point) => {
+                    point.x = clamp(point.x, segmentRadius, boardRect.width - segmentRadius);
+                    point.y = clamp(point.y, segmentRadius, boardRect.height - segmentRadius);
+                });
             }
 
             function getApplePoint(apple) {
@@ -1093,18 +1115,42 @@
                     segment.className = "snake-segment";
                     segmentHost.appendChild(segment);
                     segments.push(segment);
+                    const anchorPoint = !bodyPoints.length
+                        ? {
+                            x: headPoint.x - heading.x * headSegmentDistance,
+                            y: headPoint.y - heading.y * headSegmentDistance,
+                        }
+                        : segments.length > baseSegmentCount
+                            ? bodyPoints[bodyPoints.length - 1]
+                            : {
+                                x: bodyPoints[bodyPoints.length - 1].x - heading.x * segmentDistance,
+                                y: bodyPoints[bodyPoints.length - 1].y - heading.y * segmentDistance,
+                            };
+                    bodyPoints.push({ x: anchorPoint.x, y: anchorPoint.y });
                 }
             }
 
-            function sampleTrail(offset) {
-                const trailIndex = Math.min(trail.length - 1, offset);
-                return trail[trailIndex] || headPoint;
+            function solveBodyChain() {
+                bodyPoints.forEach((point, index) => {
+                    const previousPoint = index === 0 ? headPoint : bodyPoints[index - 1];
+                    const desiredDistance = index === 0 ? headSegmentDistance : segmentDistance;
+                    const direction = normalizeVector(
+                        point.x - previousPoint.x,
+                        point.y - previousPoint.y,
+                        { x: -heading.x, y: -heading.y },
+                    );
+
+                    point.x = previousPoint.x + direction.x * desiredDistance;
+                    point.y = previousPoint.y + direction.y * desiredDistance;
+                    point.x = clamp(point.x, segmentRadius, boardRect.width - segmentRadius);
+                    point.y = clamp(point.y, segmentRadius, boardRect.height - segmentRadius);
+                });
             }
 
             function renderSnake() {
                 setElementPoint(head, headPoint);
                 segments.forEach((segment, index) => {
-                    setElementPoint(segment, sampleTrail((index + 1) * 7));
+                    setElementPoint(segment, bodyPoints[index] || headPoint);
                 });
             }
 
@@ -1250,7 +1296,7 @@
             }
 
             function checkCollisions() {
-                const threshold = Math.max(26, boardRect.width * 0.048);
+                const threshold = headRadius + beaconRadius - 6;
                 appleElements.some((apple) => {
                     if (apple.dataset.eaten === "1") {
                         return false;
@@ -1263,10 +1309,9 @@
                 if (!boardRect) {
                     return;
                 }
-                const margin = 18;
                 targetPoint = {
-                    x: clamp(clientX - boardRect.left, margin, boardRect.width - margin),
-                    y: clamp(clientY - boardRect.top, margin, boardRect.height - margin),
+                    x: clamp(clientX - boardRect.left, headRadius, boardRect.width - headRadius),
+                    y: clamp(clientY - boardRect.top, headRadius, boardRect.height - headRadius),
                 };
             }
 
@@ -1279,33 +1324,42 @@
                 if (!lastTimestamp) {
                     lastTimestamp = timestamp;
                 }
-                const delta = Math.min(timestamp - lastTimestamp, 28);
+                const delta = Math.min(timestamp - lastTimestamp, 32);
                 lastTimestamp = timestamp;
 
                 if (!paused && !completed) {
+                    const dt = delta / 1000;
                     const dx = targetPoint.x - headPoint.x;
                     const dy = targetPoint.y - headPoint.y;
                     const distanceToTarget = Math.hypot(dx, dy);
-                    const step = Math.min(distanceToTarget, delta * 0.26);
+                    const alpha = 1 - Math.exp(-7 * dt);
+                    const previousHead = { x: headPoint.x, y: headPoint.y };
 
                     if (distanceToTarget > 0.5) {
                         headPoint = {
-                            x: headPoint.x + (dx / distanceToTarget) * step,
-                            y: headPoint.y + (dy / distanceToTarget) * step,
+                            x: headPoint.x + dx * alpha,
+                            y: headPoint.y + dy * alpha,
                         };
                     }
 
-                    const margin = 18;
                     headPoint = {
-                        x: clamp(headPoint.x, margin, boardRect.width - margin),
-                        y: clamp(headPoint.y, margin, boardRect.height - margin),
+                        x: clamp(headPoint.x, headRadius, boardRect.width - headRadius),
+                        y: clamp(headPoint.y, headRadius, boardRect.height - headRadius),
                     };
 
-                    trail.unshift({ x: headPoint.x, y: headPoint.y });
-                    trail = trail.slice(0, segments.length * 8 + 24);
+                    const movement = {
+                        x: headPoint.x - previousHead.x,
+                        y: headPoint.y - previousHead.y,
+                    };
+                    if (Math.hypot(movement.x, movement.y) > 0.5) {
+                        heading = normalizeVector(movement.x, movement.y, heading);
+                    }
+
+                    solveBodyChain();
                     renderSnake();
                     checkCollisions();
                 } else {
+                    solveBodyChain();
                     renderSnake();
                 }
 
@@ -1331,6 +1385,10 @@
             });
 
             playfield.addEventListener("pointermove", (event) => {
+                updateTarget(event.clientX, event.clientY);
+            });
+
+            playfield.addEventListener("pointerenter", (event) => {
                 updateTarget(event.clientX, event.clientY);
             });
 
