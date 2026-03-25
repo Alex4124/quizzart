@@ -53,6 +53,51 @@ class PublicPlayTests(TestCase):
         self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
         self.assertEqual(session.score, 1)
 
+    def test_quiz_results_show_submitted_answers(self):
+        link = self._create_published_activity(
+            "quiz",
+            {
+                "show_result_at_end": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Capital of France?",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Paris", "is_correct": True},
+                            {"id": "b", "text": "Rome", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start", "participant_name": "Student"})
+        self.client.post(
+            f"/p/{link.slug}/",
+            {
+                "action": "submit_quiz",
+                "question_item-1": "4",
+                "question_item-2": "Paris",
+            },
+        )
+
+        response = self.client.get(f"/p/{link.slug}/results/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ваш ответ: 4")
+        self.assertContains(response, "Ваш ответ: Paris")
+        self.assertContains(response, "100%")
+
     def test_student_can_answer_choose_a_box(self):
         link = self._create_published_activity(
             "choose_a_box",

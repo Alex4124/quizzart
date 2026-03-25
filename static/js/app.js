@@ -25,10 +25,32 @@
         card.classList.toggle("card-selected", Boolean(select.value));
     }
 
+    function preserveSubmittedValue(selectedInput) {
+        const form = selectedInput.form || selectedInput.closest("form");
+        const inputName = selectedInput.name;
+        if (!form || !inputName) {
+            return;
+        }
+
+        let mirror = Array.from(form.querySelectorAll("input[type='hidden'][data-preserved-answer]")).find(
+            (candidate) => candidate.dataset.preservedAnswer === inputName,
+        );
+        if (!mirror) {
+            mirror = document.createElement("input");
+            mirror.type = "hidden";
+            mirror.name = inputName;
+            mirror.dataset.preservedAnswer = inputName;
+            form.appendChild(mirror);
+        }
+        mirror.value = selectedInput.value;
+    }
+
     function revealChoiceState(scope, selectedInput, revealCorrect) {
         const correctOption = scope.dataset.correctOption || "";
         const feedback = scope.querySelector("[data-question-feedback]");
         const isCorrectAnswer = selectedInput.value === correctOption;
+
+        preserveSubmittedValue(selectedInput);
 
         scope.querySelectorAll(".option-row").forEach((row) => {
             const input = row.querySelector("input[type='radio']");
