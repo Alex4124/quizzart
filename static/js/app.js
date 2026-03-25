@@ -1328,13 +1328,6 @@
 
             playfield.addEventListener("pointerdown", (event) => {
                 updateTarget(event.clientX, event.clientY);
-                if (playfield.setPointerCapture && event.pointerId !== undefined) {
-                    try {
-                        playfield.setPointerCapture(event.pointerId);
-                    } catch (error) {
-                        // Ignore pointer capture failures in unsupported environments.
-                    }
-                }
             });
 
             playfield.addEventListener("pointermove", (event) => {

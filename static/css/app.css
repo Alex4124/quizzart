@@ -1049,6 +1049,11 @@ button.option-row {
     backdrop-filter: blur(10px);
 }
 
+.snake-question-layer[hidden],
+.snake-question-card[hidden] {
+    display: none !important;
+}
+
 .snake-question-card {
     width: min(520px, 100%);
     border-radius: 26px;
