@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 from django.test import TestCase
 
+from accounts.models import UserProfile
 from activities.models import Activity, ShareLink
 from attempts.models import ActivitySession
 
@@ -351,3 +352,42 @@ class PublicPlayTests(TestCase):
         session = ActivitySession.objects.get(activity__template_key="snake")
         self.assertEqual(session.status, ActivitySession.Status.STARTED)
         self.assertEqual(session.answers.count(), 0)
+
+    def test_authenticated_student_launch_attaches_account_and_prefills_name(self):
+        student = User.objects.create_user(
+            username="student-player",
+            password="pass12345",
+            first_name="Иван",
+            last_name="Петров",
+        )
+        UserProfile.objects.create(
+            user=student,
+            role=UserProfile.Role.STUDENT,
+            patronymic="Сергеевич",
+        )
+        quiz = self._create_published_activity(
+            "quiz",
+            {
+                "show_result_at_end": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    }
+                ],
+            },
+        )
+
+        self.client.force_login(student)
+        launch_response = self.client.get(f"/p/{quiz.slug}/")
+        self.assertContains(launch_response, "Петров Иван Сергеевич")
+
+        self.client.post(f"/p/{quiz.slug}/", {"action": "start", "participant_name": ""})
+        session = ActivitySession.objects.get(activity__template_key="quiz")
+        self.assertEqual(session.participant_user, student)
+        self.assertEqual(session.participant_name, "Петров Иван Сергеевич")

@@ -6,7 +6,9 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import UserProfile
 from activities.models import Activity
+from activities.services import ensure_share_link
 from interactive_templates.registry import registry
 
 
@@ -53,6 +55,26 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(activity.status, Activity.Status.DRAFT)
         self.assertEqual(activity.template_key, "choose_a_box")
         self.assertEqual(len(activity.config_json["items"]), 2)
+
+    def test_student_is_redirected_from_teacher_editor(self):
+        student = User.objects.create_user(username="student-editor", password="pass12345")
+        UserProfile.objects.create(user=student, role=UserProfile.Role.STUDENT)
+        self.client.force_login(student)
+
+        response = self.client.get(reverse("activities:create"))
+
+        self.assertRedirects(response, reverse("accounts:profile"))
+
+    def test_new_editor_renders_workspace_shell_with_tabs_and_disabled_preview(self):
+        response = self.client.get(reverse("activities:create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Общие настройки")
+        self.assertContains(response, "Контент / Вопросы")
+        self.assertContains(response, "Параметры шаблона")
+        self.assertContains(response, "Публикация")
+        self.assertContains(response, "Сначала сохраните интерактив")
+        self.assertContains(response, "data-template-card", html=False)
 
     def test_teacher_can_publish_every_template(self):
         payloads = {
@@ -109,6 +131,23 @@ class ActivityEditorTests(TestCase):
                 activity = Activity.objects.get(title=f"Activity {template_key}")
                 self.assertEqual(activity.status, Activity.Status.PUBLISHED)
                 self.assertIsNotNone(activity.active_share_link)
+
+    def test_saved_editor_renders_preview_publish_block_and_quick_actions(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Preview shell",
+            description="Saved editor shell",
+            template_key="quiz",
+            config_json=registry.get("quiz").default_config(),
+        )
+
+        response = self.client.get(reverse("activities:edit", args=[activity.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Открыть полную симуляцию")
+        self.assertContains(response, reverse("dashboard:analytics", args=[activity.pk]))
+        self.assertContains(response, reverse("activities:duplicate", args=[activity.pk]))
+        self.assertContains(response, reverse("activities:delete", args=[activity.pk]))
 
     def test_teacher_can_save_question_bank_from_structured_editor_payload(self):
         response = self.client.post(
@@ -175,6 +214,94 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, 'option value="quiz" selected')
         self.assertContains(response, "Largest ocean?")
         self.assertContains(response, "Pacific")
+
+    def test_save_changes_keeps_published_activity_published(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Published quiz",
+            description="Original",
+            template_key="quiz",
+            config_json=registry.get("quiz").default_config(),
+        )
+        activity.publish()
+        activity.save(update_fields=["status", "published_at", "updated_at"])
+        ensure_share_link(activity)
+
+        response = self.client.post(
+            reverse("activities:edit", args=[activity.pk]),
+            {
+                "title": "Published quiz updated",
+                "description": "Updated description",
+                "template_key": "quiz",
+                "show_result_at_end": "on",
+                "reveal_correct_answer": "on",
+                "items_json": json.dumps(
+                    [
+                        {
+                            "prompt": "Updated question?",
+                            "points": 5,
+                            "options": [
+                                {"text": "Correct", "is_correct": True},
+                                {"text": "Wrong", "is_correct": False},
+                            ],
+                        }
+                    ],
+                    ensure_ascii=False,
+                ),
+                "items_text": "",
+                "active_tab": "general",
+                "action": "save_changes",
+            },
+        )
+
+        self.assertRedirects(response, reverse("activities:edit", args=[activity.pk]))
+        activity.refresh_from_db()
+        self.assertEqual(activity.status, Activity.Status.PUBLISHED)
+        self.assertEqual(activity.title, "Published quiz updated")
+        self.assertIsNotNone(activity.active_share_link)
+
+    def test_save_draft_unpublishes_existing_activity(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Publish me",
+            description="Original",
+            template_key="quiz",
+            config_json=registry.get("quiz").default_config(),
+        )
+        activity.publish()
+        activity.save(update_fields=["status", "published_at", "updated_at"])
+        ensure_share_link(activity)
+
+        response = self.client.post(
+            reverse("activities:edit", args=[activity.pk]),
+            {
+                "title": "Publish me",
+                "description": "Now draft",
+                "template_key": "quiz",
+                "show_result_at_end": "on",
+                "reveal_correct_answer": "on",
+                "items_json": json.dumps(
+                    [
+                        {
+                            "prompt": "Question?",
+                            "points": 1,
+                            "options": [
+                                {"text": "Correct", "is_correct": True},
+                                {"text": "Wrong", "is_correct": False},
+                            ],
+                        }
+                    ],
+                    ensure_ascii=False,
+                ),
+                "items_text": "",
+                "active_tab": "publish",
+                "action": "save_draft",
+            },
+        )
+
+        self.assertRedirects(response, reverse("activities:edit", args=[activity.pk]))
+        activity.refresh_from_db()
+        self.assertEqual(activity.status, Activity.Status.DRAFT)
 
     def test_switching_template_on_saved_activity_preserves_questions(self):
         activity = Activity.objects.create(

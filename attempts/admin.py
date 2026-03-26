@@ -12,9 +12,17 @@ class ActivityAnswerInline(admin.TabularInline):
 
 @admin.register(ActivitySession)
 class ActivitySessionAdmin(admin.ModelAdmin):
-    list_display = ("activity", "participant_name", "status", "score", "max_score", "started_at")
+    list_display = (
+        "activity",
+        "participant_name",
+        "participant_user",
+        "status",
+        "score",
+        "max_score",
+        "started_at",
+    )
     list_filter = ("status", "activity__template_key")
-    search_fields = ("activity__title", "participant_name")
+    search_fields = ("activity__title", "participant_name", "participant_user__username")
     inlines = [ActivityAnswerInline]
 
 

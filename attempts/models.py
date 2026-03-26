@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -28,6 +29,13 @@ class ActivitySession(models.Model):
     )
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     participant_name = models.CharField(max_length=120, blank=True)
+    participant_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="activity_sessions",
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

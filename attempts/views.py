@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from accounts.services import ensure_user_profile, profile_full_name
 from activities.models import Activity, ShareLink
 from attempts.forms import LaunchForm
 from attempts.models import ActivitySession
@@ -52,10 +53,20 @@ def _get_share_link_or_404(slug: str) -> ShareLink:
     return share_link
 
 
+def _get_student_identity(request) -> tuple[object | None, str]:
+    if not request.user.is_authenticated:
+        return None, ""
+    profile = ensure_user_profile(request.user)
+    if not profile.is_student:
+        return None, ""
+    return profile, profile_full_name(request.user, profile)
+
+
 def play(request, slug: str):
     share_link = _get_share_link_or_404(slug)
     activity = share_link.activity
     definition = registry.get(activity.template_key)
+    student_profile, student_name = _get_student_identity(request)
 
     if not definition.metadata.playable:
         return render(
@@ -85,10 +96,12 @@ def play(request, slug: str):
             if not current_session:
                 form = LaunchForm(request.POST)
                 if form.is_valid():
+                    participant_name = form.cleaned_data["participant_name"].strip() or student_name
                     current_session = ActivitySession.objects.create(
                         activity=activity,
                         share_link=share_link,
-                        participant_name=form.cleaned_data["participant_name"],
+                        participant_name=participant_name,
+                        participant_user=request.user if student_profile else None,
                         max_score=definition.get_max_score(activity.config_json),
                     )
                     request.session[_active_session_key(slug)] = str(current_session.token)
@@ -135,7 +148,7 @@ def play(request, slug: str):
             {
                 "activity": activity,
                 "share_link": share_link,
-                "form": LaunchForm(),
+                "form": LaunchForm(initial={"participant_name": student_name}),
             },
         )
 

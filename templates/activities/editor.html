@@ -1,176 +1,475 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if activity %}Редактирование{% else %}Создание{% endif %} интерактива{% endblock %}
 
-{% block content %}
-<section class="section-heading">
-    <div>
-        <p class="eyebrow">Редактор интерактива</p>
-        <h1>{% if activity %}{{ activity.title }}{% else %}Новый интерактив{% endif %}</h1>
-    </div>
-    <div class="hero-actions">
-        {% if activity %}
-            <a class="button button-secondary" href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Открыть предпросмотр</a>
-            <a class="button button-secondary" href="{% url 'dashboard:analytics' activity.pk %}">Аналитика</a>
-            <a class="button button-secondary" href="{% url 'activities:duplicate' activity.pk %}">Дублировать</a>
-            <form method="post" action="{% url 'activities:delete' activity.pk %}" class="inline-form" onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
-                {% csrf_token %}
-                <button class="button button-danger" type="submit">Удалить</button>
-            </form>
-        {% endif %}
-    </div>
-</section>
+{% block extra_head %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/editor.css' %}">
+{% endblock %}
 
-<section class="editor-layout">
-    <aside class="card">
-        <h2>Шаблон интерактива</h2>
-        <div class="form-row">
-            <label for="template-switch">Шаблон</label>
-            <select id="template-switch" data-template-switch>
-                {% for template in templates %}
-                    <option value="{{ template.metadata.key }}" {% if template.metadata.key == template_definition.metadata.key %}selected{% endif %}>
-                        {{ template.metadata.title }}
-                    </option>
-                {% endfor %}
-            </select>
-            <small class="muted">При смене шаблона вопросы и ответы сохраняются и подстраиваются под новый формат.</small>
-        </div>
-        <p class="muted">{{ template_definition.metadata.description }}</p>
-        <p class="muted">
-            Режим публикации:
-            {% if template_definition.metadata.playable %}
-                доступен
-            {% else %}
-                только зарегистрирован
-            {% endif %}
-        </p>
-        {% if share_url %}
-            <div class="share-box">
-                <strong>Публичная ссылка</strong>
-                <a href="{{ share_url }}" target="_blank" rel="noreferrer">{{ share_url }}</a>
+{% block body_class %}editor-workspace-page{% endblock %}
+
+{% block site_header %}
+    <header class="editor-header">
+        <div class="editor-header__inner">
+            <a class="editor-header__back" href="{{ quick_actions.dashboard_url }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14.71 6.29 13.29 4.87 6.17 12l7.12 7.12 1.42-1.41L10 13h8v-2h-8l4.71-4.71Z"></path>
+                </svg>
+                <span>Панель учителя</span>
+            </a>
+
+            <a class="editor-header__brand" href="{{ quick_actions.dashboard_url }}">
+                <span class="editor-header__brand-mark">Q</span>
+                <span class="editor-header__brand-name">Quizzart</span>
+            </a>
+
+            <div class="editor-header__actions">
+                {% if is_saved %}
+                    <a class="button button-secondary editor-header__ghost" href="{{ preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
+                {% else %}
+                    <span class="editor-header__ghost is-disabled" aria-disabled="true">Предпросмотр</span>
+                {% endif %}
+
+                {% if is_saved %}
+                    <button class="button editor-header__primary" type="submit" form="activity-editor-form" name="action" value="save_changes">Сохранить изменения</button>
+                {% else %}
+                    <button class="button editor-header__primary" type="submit" form="activity-editor-form" name="action" value="save_draft">Сохранить черновик</button>
+                {% endif %}
             </div>
-        {% endif %}
+        </div>
+    </header>
+{% endblock %}
+
+{% block main_class %}editor-workspace-main{% endblock %}
+
+{% block content %}
+<section class="editor-shell" id="editor-workspace" data-editor-shell data-active-tab="{{ active_tab }}">
+    <aside class="editor-shell__sidebar">
+        <div class="editor-shell__workspace-card">
+            <div class="editor-shell__workspace-mark">✦</div>
+            <div>
+                <strong>Quizzart Pro</strong>
+                <p>Рабочее пространство учителя</p>
+            </div>
+        </div>
+
+        <nav class="editor-shell__nav" aria-label="Разделы редактора">
+            {% for tab in editor_tabs %}
+                <a
+                    class="editor-shell__nav-link {% if tab.is_active %}is-active{% endif %}"
+                    href="{{ tab.href }}"
+                    data-editor-tab-trigger="{{ tab.key }}"
+                >
+                    {% if tab.icon == "gear" %}
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m19.14 12.94.04-.94-.04-.94 2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.49.42l-.37 2.54c-.58.22-1.12.53-1.62.94l-2.4-.96a.5.5 0 0 0-.6.22L2.6 8.48a.5.5 0 0 0 .12.64l2.03 1.58-.04.94.04.94-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.4 1.04.72 1.63.94l.36 2.54A.5.5 0 0 0 10 22h4a.5.5 0 0 0 .49-.42l.37-2.54c.58-.22 1.12-.53 1.62-.94l2.4.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
+                        </svg>
+                    {% elif tab.icon == "questions" %}
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 1.5V9h4.5L14 4.5ZM8 12h8v1.8H8V12Zm0 4h6v1.8H8V16Z"></path>
+                        </svg>
+                    {% elif tab.icon == "palette" %}
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a1.5 1.5 0 0 1 0-3h1.5A4.5 4.5 0 0 0 18 8.5C18 5.46 15.09 3 12 3Zm-4 6.5A1.5 1.5 0 1 1 8 6.5a1.5 1.5 0 0 1 0 3Zm3-2A1.5 1.5 0 1 1 11 4.5a1.5 1.5 0 0 1 0 3Zm4 1A1.5 1.5 0 1 1 15 5.5a1.5 1.5 0 0 1 0 3Zm2 4A1.5 1.5 0 1 1 17 9.5a1.5 1.5 0 0 1 0 3Z"></path>
+                        </svg>
+                    {% else %}
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 5h14v2H5V5Zm3 4h8v2H8V9Zm-2 4h12v2H6v-2Zm3 4h6v2H9v-2Z"></path>
+                        </svg>
+                    {% endif %}
+                    <span>{{ tab.label }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+
+        <div class="editor-shell__status-card editor-shell__status-card--{{ current_step_key }}">
+            <p>Статус интерактива</p>
+            {% if is_published %}
+                <strong>Опубликован</strong>
+                <span>Ссылка для учеников уже активна и доступна в блоке публикации.</span>
+            {% elif is_saved %}
+                <strong>Черновик настроен</strong>
+                <span>Контент сохранён. Осталось опубликовать или открыть симуляцию предпросмотра.</span>
+            {% else %}
+                <strong>Новый черновик</strong>
+                <span>Сначала сохраните интерактив, чтобы открыть симуляцию и публикацию.</span>
+            {% endif %}
+        </div>
     </aside>
 
-    <section class="card">
-        <form method="post" class="stack-form" id="activity-editor-form" data-activity-editor-form>
+    <section class="editor-shell__main">
+        <section class="editor-stepper">
+            <div class="editor-stepper__track" aria-hidden="true"></div>
+            <ol class="editor-stepper__list">
+                {% for step in editor_steps %}
+                    <li class="editor-stepper__item editor-stepper__item--{{ step.state }}">
+                        <span class="editor-stepper__node">
+                            {% if step.state == "complete" %}
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="m9.55 16.6-3.9-3.89L4.24 14.1l5.31 5.3L20 8.95l-1.41-1.41L9.55 16.6Z"></path>
+                                </svg>
+                            {% else %}
+                                {{ step.index }}
+                            {% endif %}
+                        </span>
+                        <div class="editor-stepper__copy">
+                            <span class="editor-stepper__label">{{ step.label }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
+        </section>
+
+        <section class="editor-overview">
+            <div>
+                <p class="editor-overview__eyebrow">Режим редактора</p>
+                <h1>{% if activity %}{{ activity.title }}{% else %}Общие настройки{% endif %}</h1>
+                <p>
+                    {% if activity %}
+                        Соберите контент, настройте правила показа и проверьте, как интерактив выглядит для ученика.
+                    {% else %}
+                        Начните с общей информации, выберите шаблон и сохраните черновик, чтобы открыть полную симуляцию.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="editor-overview__actions">
+                {% if is_saved %}
+                    <a class="button button-secondary" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть симуляцию</a>
+                {% else %}
+                    <span class="editor-overview__hint">Предпросмотр станет доступен после первого сохранения.</span>
+                {% endif %}
+            </div>
+        </section>
+
+        <form method="post" class="editor-form" id="activity-editor-form" data-activity-editor-form>
             {% csrf_token %}
             {% for field in activity_form.hidden_fields %}{{ field }}{% endfor %}
             {% for field in config_form.hidden_fields %}{{ field }}{% endfor %}
+            <input type="hidden" name="active_tab" value="{{ active_tab }}" data-editor-active-tab>
             <button type="submit" name="action" value="switch_template" hidden data-switch-template-submit></button>
 
-            <div class="editor-brief-grid">
-                {% for field in activity_form.visible_fields %}
-                    <section class="editor-input-card">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
-                        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-                    </section>
-                {% endfor %}
-            </div>
+            <label class="editor-template-switch-native" aria-hidden="true">
+                <span>Template switch</span>
+                <select id="template-switch" data-template-switch tabindex="-1">
+                    {% for template in templates %}
+                        <option value="{{ template.metadata.key }}" {% if template.metadata.key == template_definition.metadata.key %}selected{% endif %}>
+                            {{ template.metadata.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </label>
 
-            <section
-                class="card inset-card question-bank-editor"
-                data-question-bank-editor
-                data-default-points="{{ template_definition.editor_question_default_points }}"
-            >
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Банк вопросов</p>
-                        <h2>Вопросы и ответы</h2>
-                    </div>
-                    <button class="button button-secondary" type="button" data-add-question>Добавить вопрос</button>
-                </div>
-                <p class="muted">Каждый вопрос и каждый ответ редактируются в отдельной ячейке. Отметьте галочкой правильный ответ.</p>
-
-                {% if config_form.non_field_errors or config_form.items_json.errors or config_form.items_text.errors %}
-                    <div class="message-stack">
-                        {% for error in config_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
-                        {% for error in config_form.items_json.errors %}<div class="message">{{ error }}</div>{% endfor %}
-                        {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}
-                    </div>
-                {% endif %}
-
-                <div class="question-bank-list" data-question-bank-list></div>
-
-                <template data-question-template>
-                    <article class="question-editor-card" data-question-card>
-                        <div class="question-editor-head">
-                            <strong data-question-title></strong>
-                            <button class="link-button danger-link" type="button" data-remove-question>Удалить вопрос</button>
+            <div class="editor-panels" data-editor-panels>
+                <section class="editor-panel {% if active_tab == 'general' %}is-active{% endif %}" id="tab-general" data-editor-panel="general">
+                    <div class="editor-panel-card">
+                        <div class="editor-panel-card__head">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Общие настройки</p>
+                                <h2>Название и описание</h2>
+                            </div>
                         </div>
-                        <div class="question-editor-grid">
-                            <label class="question-editor-cell question-editor-cell-wide">
-                                <span class="editor-cell-label">Вопрос</span>
-                                <textarea rows="3" data-question-prompt placeholder="Введите текст вопроса"></textarea>
+
+                        <div class="editor-field-grid">
+                            <label class="editor-field">
+                                <span>{{ activity_form.title.label }}</span>
+                                {{ activity_form.title }}
+                                {% if activity_form.title.help_text %}<small>{{ activity_form.title.help_text }}</small>{% endif %}
+                                {% for error in activity_form.title.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                             </label>
-                            <label class="question-editor-cell question-editor-points">
-                                <span class="editor-cell-label">Баллы</span>
-                                <input type="number" min="0" step="1" data-question-points>
+
+                            <label class="editor-field editor-field--full">
+                                <span>{{ activity_form.description.label }}</span>
+                                {{ activity_form.description }}
+                                {% if activity_form.description.help_text %}<small>{{ activity_form.description.help_text }}</small>{% endif %}
+                                {% for error in activity_form.description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                             </label>
                         </div>
-                        <div class="answer-editor-grid" data-answer-list></div>
-                        <button class="button button-secondary" type="button" data-add-answer>Добавить ответ</button>
-                    </article>
-                </template>
+                    </div>
 
-                <template data-answer-template>
-                    <label class="question-editor-cell answer-editor-cell" data-answer-card>
-                        <span class="editor-cell-label" data-answer-title></span>
-                        <input type="text" data-answer-text placeholder="Введите вариант ответа">
-                        <span class="answer-editor-controls">
-                            <span class="answer-correct-toggle">
-                                <input type="checkbox" data-answer-correct>
-                                <span>Верный ответ</span>
+                    <div class="editor-panel-card">
+                        <div class="editor-panel-card__head">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Интерактивный шаблон</p>
+                                <h2>Выберите формат урока</h2>
+                            </div>
+                            <p class="editor-panel-card__meta">Смена шаблона сохраняет отправленный банк вопросов и перестраивает интерфейс редактора.</p>
+                        </div>
+
+                        {% if activity_form.non_field_errors %}
+                            <div class="message-stack">
+                                {% for error in activity_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="editor-template-grid" role="list">
+                            {% for template_card in template_cards %}
+                                <button
+                                    class="editor-template-card editor-template-card--{{ template_card.tone }} {% if template_card.is_selected %}is-selected{% endif %}"
+                                    type="button"
+                                    data-template-card
+                                    data-template-key="{{ template_card.key }}"
+                                    data-editor-target-tab="general"
+                                >
+                                    <span class="editor-template-card__icon" aria-hidden="true">
+                                        {% if template_card.icon == "quiz" %}
+                                            <svg viewBox="0 0 24 24"><path d="M6 4h12v16H6V4Zm3 3v2h6V7H9Zm0 4v2h6v-2H9Zm0 4v2h4v-2H9Z"></path></svg>
+                                        {% elif template_card.icon == "wheel" %}
+                                            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 2.08A8.03 8.03 0 0 1 18.92 10H13V4.08ZM11 4.08V10H5.08A8.03 8.03 0 0 1 11 4.08ZM5.08 12H11v5.92A8.03 8.03 0 0 1 5.08 12ZM13 17.92V12h5.92A8.03 8.03 0 0 1 13 17.92Z"></path></svg>
+                                        {% elif template_card.icon == "matching" %}
+                                            <svg viewBox="0 0 24 24"><path d="M4 7h7v3H4V7Zm9 0h7v3h-7V7ZM4 14h7v3H4v-3Zm9 0h7v3h-7v-3Zm-3-3h4v2h-4v-2Z"></path></svg>
+                                        {% elif template_card.icon == "categorize" %}
+                                            <svg viewBox="0 0 24 24"><path d="M5 4h6v6H5V4Zm8 0h6v4h-6V4ZM5 12h4v7H5v-7Zm6 0h8v7h-8v-7Z"></path></svg>
+                                        {% elif template_card.icon == "boxes" %}
+                                            <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 4h7v3h-7v-3Z"></path></svg>
+                                        {% elif template_card.icon == "snake" %}
+                                            <svg viewBox="0 0 24 24"><path d="M15.5 4A3.5 3.5 0 0 0 12 7.5v2A2.5 2.5 0 1 1 9.5 12H7a4.5 4.5 0 1 0 9 0V9.5a1.5 1.5 0 1 1 3 0h2A3.5 3.5 0 0 0 17.5 6 3.48 3.48 0 0 0 15.5 4ZM8 18a2 2 0 1 0 0 .01V18Zm8.75.25a1.25 1.25 0 1 0 0 .01v-.01Z"></path></svg>
+                                        {% else %}
+                                            <svg viewBox="0 0 24 24"><path d="m12 3 2.44 5.43L20 9.24l-4 3.89.98 5.63L12 15.92l-4.98 2.84L8 13.13l-4-3.9 5.56-.8L12 3Z"></path></svg>
+                                        {% endif %}
+                                    </span>
+                                    <span class="editor-template-card__title">{{ template_card.title }}</span>
+                                    <span class="editor-template-card__description">{{ template_card.description }}</span>
+                                    {% if not template_card.playable %}
+                                        <span class="editor-template-card__status">runtime pending</span>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
+                        </div>
+
+                        <div class="editor-template-summary">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Текущий шаблон</p>
+                                <h3>{{ template_definition.metadata.title }}</h3>
+                                <p>{{ template_definition.metadata.description }}</p>
+                            </div>
+                            <span class="editor-template-summary__badge {% if template_definition.metadata.playable %}is-live{% else %}is-disabled{% endif %}">
+                                {% if template_definition.metadata.playable %}Публикация доступна{% else %}Только редактор{% endif %}
                             </span>
-                            <button class="link-button danger-link" type="button" data-remove-answer>Удалить</button>
-                        </span>
-                    </label>
-                </template>
-            </section>
-
-            <section class="card inset-card">
-                <h2>Настройки шаблона "{{ template_definition.metadata.title }}"</h2>
-                {% for field in config_form.visible_fields %}
-                    {% if field.name != "items_json" and field.name != "items_text" %}
-                        <div class="form-row">
-                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
-                            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                         </div>
-                    {% endif %}
-                {% endfor %}
-            </section>
+                    </div>
+                </section>
 
-            <div class="hero-actions">
-                <button class="button button-secondary" type="submit" name="action" value="save_draft">Сохранить черновик</button>
-                <button class="button" type="submit" name="action" value="publish">Опубликовать</button>
+                <section class="editor-panel {% if active_tab == 'content' %}is-active{% endif %}" id="tab-content" data-editor-panel="content">
+                    <section
+                        class="editor-panel-card question-bank-editor"
+                        data-question-bank-editor
+                        data-default-points="{{ template_definition.editor_question_default_points }}"
+                    >
+                        <div class="editor-panel-card__head">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Контент / Вопросы</p>
+                                <h2>Банк вопросов</h2>
+                            </div>
+                            <button class="button button-secondary" type="button" data-add-question>Добавить вопрос</button>
+                        </div>
+                        <p class="editor-panel-card__meta">Каждый вопрос и ответ редактируются прямо в карточках ниже. Отметьте один правильный ответ на вопрос.</p>
+
+                        {% if config_form.non_field_errors or config_form.items_json.errors or config_form.items_text.errors %}
+                            <div class="message-stack">
+                                {% for error in config_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
+                                {% for error in config_form.items_json.errors %}<div class="message">{{ error }}</div>{% endfor %}
+                                {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="question-bank-list" data-question-bank-list></div>
+
+                        <template data-question-template>
+                            <article class="question-editor-card" data-question-card>
+                                <div class="question-editor-head">
+                                    <strong data-question-title></strong>
+                                    <button class="link-button danger-link" type="button" data-remove-question>Удалить вопрос</button>
+                                </div>
+                                <div class="question-editor-grid">
+                                    <label class="question-editor-cell question-editor-cell-wide">
+                                        <span class="editor-cell-label">Вопрос</span>
+                                        <textarea rows="3" data-question-prompt placeholder="Введите текст вопроса"></textarea>
+                                    </label>
+                                    <label class="question-editor-cell question-editor-points">
+                                        <span class="editor-cell-label">Баллы</span>
+                                        <input type="number" min="0" step="1" data-question-points>
+                                    </label>
+                                </div>
+                                <div class="answer-editor-grid" data-answer-list></div>
+                                <button class="button button-secondary" type="button" data-add-answer>Добавить ответ</button>
+                            </article>
+                        </template>
+
+                        <template data-answer-template>
+                            <label class="question-editor-cell answer-editor-cell" data-answer-card>
+                                <span class="editor-cell-label" data-answer-title></span>
+                                <input type="text" data-answer-text placeholder="Введите вариант ответа">
+                                <span class="answer-editor-controls">
+                                    <span class="answer-correct-toggle">
+                                        <input type="checkbox" data-answer-correct>
+                                        <span>Верный ответ</span>
+                                    </span>
+                                    <button class="link-button danger-link" type="button" data-remove-answer>Удалить</button>
+                                </span>
+                            </label>
+                        </template>
+                    </section>
+                </section>
+
+                <section class="editor-panel {% if active_tab == 'settings' %}is-active{% endif %}" id="tab-settings" data-editor-panel="settings">
+                    <section class="editor-panel-card">
+                        <div class="editor-panel-card__head">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Параметры шаблона</p>
+                                <h2>Логика показа и поведение</h2>
+                            </div>
+                        </div>
+
+                        {% if template_settings_available %}
+                            <div class="editor-settings-grid">
+                                {% for field in template_setting_fields %}
+                                    <label class="editor-setting-card">
+                                        <span class="editor-setting-card__label">{{ field.label }}</span>
+                                        {{ field }}
+                                        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                                        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="editor-panel-card__empty">У этого шаблона нет дополнительных параметров, кроме контента и публикации.</p>
+                        {% endif %}
+                    </section>
+                </section>
+
+                <section class="editor-panel {% if active_tab == 'publish' %}is-active{% endif %}" id="tab-publish" data-editor-panel="publish">
+                    <section class="editor-panel-card">
+                        <div class="editor-panel-card__head">
+                            <div>
+                                <p class="editor-panel-card__eyebrow">Публикация</p>
+                                <h2>Статус и действия</h2>
+                            </div>
+                        </div>
+
+                        <div class="editor-publish-grid">
+                            <article class="editor-publish-card">
+                                <p class="editor-publish-card__label">Текущее состояние</p>
+                                {% if is_published %}
+                                    <strong>Активность опубликована</strong>
+                                    <p>Ученики могут запускать интерактив по ссылке. Изменения можно сохранять без снятия публикации.</p>
+                                {% elif is_saved %}
+                                    <strong>Сохранённый черновик</strong>
+                                    <p>Контент уже сохранён. Опубликуйте активность, когда будете готовы открыть её классу.</p>
+                                {% else %}
+                                    <strong>Новый интерактив</strong>
+                                    <p>Сначала сохраните черновик, чтобы открыть предпросмотр и активировать блок публикации.</p>
+                                {% endif %}
+                            </article>
+
+                            <article class="editor-publish-card">
+                                <p class="editor-publish-card__label">Ссылка для учеников</p>
+                                {% if is_published and share_url %}
+                                    <a class="editor-publish-card__share" href="{{ share_url }}" target="_blank" rel="noreferrer">{{ share_url }}</a>
+                                    <p>Эта ссылка уже ведёт на опубликованный интерактив.</p>
+                                {% elif share_url %}
+                                    <p>Ссылка сохранена, но интерактив сейчас не опубликован. После публикации она снова станет рабочей.</p>
+                                {% else %}
+                                    <p>Ссылка появится автоматически после первой публикации интерактива.</p>
+                                {% endif %}
+                            </article>
+                        </div>
+
+                        <div class="editor-publish-actions">
+                            <button class="button" type="submit" name="action" value="publish">
+                                {% if is_published %}Обновить публикацию{% else %}Опубликовать интерактив{% endif %}
+                            </button>
+
+                            {% if is_saved %}
+                                <button class="button button-secondary" type="submit" name="action" value="save_changes">Сохранить без снятия публикации</button>
+                            {% endif %}
+
+                            <button class="button button-secondary" type="submit" name="action" value="save_draft">
+                                {% if is_published %}Снять с публикации{% else %}Сохранить как черновик{% endif %}
+                            </button>
+                        </div>
+                    </section>
+                </section>
             </div>
         </form>
     </section>
-</section>
 
-<section class="card preview-pane">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Как это видит ученик</p>
-            <h2>Живой предпросмотр</h2>
-        </div>
-        {% if activity %}
-            <span class="muted">Предпросмотр обновляется после сохранения.</span>
-        {% endif %}
-    </div>
-    {% if activity %}
-        <iframe
-            class="preview-frame"
-            src="{% url 'activities:preview' activity.pk %}"
-            title="Предпросмотр интерактива"
-            loading="lazy"
-        ></iframe>
-    {% else %}
-        <p class="muted">Сначала сохраните интерактив, и здесь появится тот же интерфейс, который увидит ученик.</p>
-    {% endif %}
+    <aside class="editor-shell__aside">
+        <section class="editor-aside-card editor-preview-card">
+            <div class="editor-aside-card__head">
+                <div>
+                    <p class="editor-panel-card__eyebrow">Предпросмотр активности</p>
+                    <h2>Как это увидит ученик</h2>
+                </div>
+            </div>
+
+            {% if is_saved %}
+                <div class="editor-preview-card__frame">
+                    <iframe
+                        class="editor-preview-card__iframe"
+                        src="{{ preview_url }}"
+                        title="Компактный предпросмотр интерактива"
+                        loading="lazy"
+                    ></iframe>
+                </div>
+                <p class="editor-preview-card__copy">Откройте полную симуляцию, если нужно проверить flow целиком и пройти интерактив как ученик.</p>
+                <a class="editor-preview-card__link" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть полную симуляцию</a>
+            {% else %}
+                <div class="editor-preview-card__placeholder" aria-hidden="true">
+                    <span>▶</span>
+                </div>
+                <p class="editor-preview-card__copy">Сначала сохраните интерактив. После этого справа появится живая мини-симуляция и ссылка на полный preview.</p>
+                <span class="editor-preview-card__link is-disabled" aria-disabled="true">Сначала сохраните интерактив</span>
+            {% endif %}
+        </section>
+
+        <section class="editor-aside-card editor-publish-side-card">
+            <div class="editor-aside-card__head">
+                <div>
+                    <p class="editor-panel-card__eyebrow">Публикация и действия</p>
+                    <h2>{% if is_published %}Интерактив в эфире{% elif is_saved %}Готов к публикации{% else %}Сохраните первый черновик{% endif %}</h2>
+                </div>
+            </div>
+
+            <ul class="editor-side-list">
+                <li>
+                    <span>Статус</span>
+                    <strong>{% if is_published %}Опубликован{% elif is_saved %}Черновик{% else %}Не сохранён{% endif %}</strong>
+                </li>
+                <li>
+                    <span>Шаблон</span>
+                    <strong>{{ template_definition.metadata.title }}</strong>
+                </li>
+                <li>
+                    <span>Публикация</span>
+                    <strong>{% if template_definition.metadata.playable %}Доступна{% else %}Только редактор{% endif %}</strong>
+                </li>
+            </ul>
+
+            {% if is_saved %}
+                <div class="editor-side-actions">
+                    <a href="{{ quick_actions.analytics_url }}">Открыть аналитику</a>
+                    <a href="{{ quick_actions.duplicate_url }}">Дублировать</a>
+                    {% if share_url %}<a href="{{ share_url }}" target="_blank" rel="noreferrer">Ссылка для учеников</a>{% endif %}
+                </div>
+
+                <form method="post" action="{{ quick_actions.delete_url }}" class="editor-side-delete" onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
+                    {% csrf_token %}
+                    <button class="button button-danger" type="submit">Удалить интерактив</button>
+                </form>
+            {% else %}
+                <p class="editor-side-note">После первого сохранения здесь появятся аналитика, дубликат и рабочая ссылка для учеников.</p>
+            {% endif %}
+        </section>
+    </aside>
 </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'js/app.js' %}"></script>
+    <script src="{% static 'js/editor.js' %}"></script>
 {% endblock %}

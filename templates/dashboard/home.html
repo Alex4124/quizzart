@@ -1,43 +1,313 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Панель учителя{% endblock %}
 
-{% block content %}
-<section class="section-heading">
-    <div>
-        <p class="eyebrow">Панель учителя</p>
-        <h1>Ваши интерактивы</h1>
-    </div>
-    <a class="button" href="{% url 'activities:create' %}">Создать интерактив</a>
-</section>
+{% block extra_head %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
 
-<section class="activity-list">
-    {% for activity in activities %}
-        <article class="card">
-            <div class="card-head">
+{% block body_class %}teacher-dashboard-page{% endblock %}
+
+{% block site_header %}
+    <header class="teacher-header">
+        <div class="teacher-header__inner">
+            <a class="teacher-header__brand" href="{% url 'dashboard:home' %}">
+                <span class="teacher-header__brand-mark">Q</span>
+                <span class="teacher-header__brand-name">Quizzart</span>
+            </a>
+
+            <nav class="teacher-header__nav" aria-label="Разделы кабинета">
+                <a href="#dashboard-overview">Панель</a>
+                <a href="#recent-activities">Активности</a>
+                <a href="#recent-events">События</a>
+            </nav>
+
+            <form class="teacher-header__search" method="get" action="{% url 'dashboard:home' %}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.42 1.41-1.41-4.42-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"></path>
+                </svg>
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Поиск активности..."
+                    aria-label="Поиск по активностям"
+                >
+                {% if q %}
+                    <a class="teacher-header__search-clear" href="{% url 'dashboard:home' %}">Сбросить</a>
+                {% endif %}
+            </form>
+
+            <div class="teacher-header__actions">
+                <a class="button teacher-header__create" href="{% url 'activities:create' %}">Создать интерактив</a>
+                <a class="teacher-header__profile-link" href="{% url 'accounts:profile' %}" aria-label="Открыть личный кабинет">
+                    <span class="teacher-header__avatar" aria-hidden="true">
+                        {% if teacher_avatar_url %}
+                            <img src="{{ teacher_avatar_url }}" alt="">
+                        {% else %}
+                            {{ teacher_initial }}
+                        {% endif %}
+                    </span>
+                </a>
+            </div>
+        </div>
+    </header>
+{% endblock %}
+
+{% block main_class %}teacher-dashboard-main{% endblock %}
+
+{% block content %}
+<section class="teacher-dashboard-grid" id="dashboard-overview">
+    <aside class="teacher-sidebar">
+        <div class="teacher-sidebar__panel">
+            <div class="teacher-sidebar__workspace">
+                <div class="teacher-sidebar__workspace-mark">Q</div>
                 <div>
-                    <h2>{{ activity.title }}</h2>
-                    <p class="muted">{{ activity.template_key }}</p>
+                    <strong>Quizzart Pro</strong>
+                    <p>Teacher workspace</p>
                 </div>
-                <span class="status-chip status-chip-{{ activity.status }}">{{ activity.get_status_display }}</span>
             </div>
-            <p>{{ activity.description|default:"No description yet." }}</p>
-            <div class="stats-row">
-                <div><strong>{{ activity.launches }}</strong><span>Запуски</span></div>
-                <div><strong>{{ activity.completions }}</strong><span>Завершения</span></div>
-                <div><strong>{{ activity.avg_percent|default:0|floatformat:0 }}%</strong><span>Средний результат</span></div>
+
+            <nav class="teacher-sidebar__nav" aria-label="Навигация учителя">
+                <a class="is-active" href="#dashboard-overview">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path>
+                    </svg>
+                    <span>Панель</span>
+                </a>
+                <a href="#recent-activities">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 4h10v2H7V4Zm-2 4h14v12H5V8Zm2 2v8h10v-8H7Zm2 1h2v5H9v-5Zm4 2h2v3h-2v-3Z"></path>
+                    </svg>
+                    <span>Активности</span>
+                </a>
+                <a href="#recent-events">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L13 11h8V3l-2.52 2.52A8.97 8.97 0 0 0 12 3Zm-1 4h2v6h-2V7Zm1 10a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 12 17Z"></path>
+                    </svg>
+                    <span>События</span>
+                </a>
+                <a href="{% url 'activities:create' %}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path>
+                    </svg>
+                    <span>Создать интерактив</span>
+                </a>
+            </nav>
+
+            {% if q %}
+                <div class="teacher-sidebar__search-state">
+                    <p>Поиск активен</p>
+                    <strong>{{ q }}</strong>
+                    <a href="{% url 'dashboard:home' %}">Сбросить фильтр</a>
+                </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
+                {% csrf_token %}
+                <button type="submit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path>
+                    </svg>
+                    <span>Выйти</span>
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="teacher-dashboard-center">
+        <section class="teacher-hero">
+            <p class="teacher-section__eyebrow">Teacher dashboard</p>
+            <h1>С возвращением, {{ teacher_display_name }}</h1>
+            <p>{{ hero_text }}</p>
+            {% if q %}
+                <div class="teacher-hero__query">
+                    <span>Фильтр:</span>
+                    <strong>{{ q }}</strong>
+                    <a href="{% url 'dashboard:home' %}">Сбросить поиск</a>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="teacher-summary" id="dashboard-metrics">
+            {% for card in summary_cards %}
+                <article class="teacher-metric teacher-metric--{{ card.tone }}">
+                    <div class="teacher-metric__icon" aria-hidden="true">
+                        {% if card.icon == "stack" %}
+                            <svg viewBox="0 0 24 24">
+                                <path d="M6 4h12v3H6V4Zm-1 5h14v3H5V9Zm1 5h12v3H6v-3Z"></path>
+                            </svg>
+                        {% elif card.icon == "pulse" %}
+                            <svg viewBox="0 0 24 24">
+                                <path d="M4 13h4l2-4 3 8 2-4h5v-2h-4l-2 4-3-8-2 4H4v2Z"></path>
+                            </svg>
+                        {% else %}
+                            <svg viewBox="0 0 24 24">
+                                <path d="m12 3 2.44 5.43L20 9.24l-4 3.89.98 5.63L12 15.92l-4.98 2.84L8 13.13l-4-3.9 5.56-.8L12 3Z"></path>
+                            </svg>
+                        {% endif %}
+                    </div>
+                    <p class="teacher-metric__label">{{ card.label }}</p>
+                    <strong>{{ card.value }}</strong>
+                    <p class="teacher-metric__note">{{ card.note }}</p>
+                    {% if card.progress is not None %}
+                        <div class="teacher-metric__progress" aria-hidden="true">
+                            <span style="width: {{ card.progress|floatformat:0 }}%;"></span>
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </section>
+
+        <section class="teacher-section" id="recent-activities">
+            <div class="teacher-section__heading">
+                <div>
+                    <p class="teacher-section__eyebrow">Список активностей</p>
+                    <h2>{{ recent_activity_heading }}</h2>
+                </div>
+                {% if q %}
+                    <div class="teacher-section__actions">
+                        <span class="teacher-section__meta">{{ search_result_count }} найдено</span>
+                        <a class="teacher-section__link" href="{% url 'dashboard:home' %}">Сбросить поиск</a>
+                    </div>
+                {% else %}
+                    <a class="teacher-section__link" href="{% url 'activities:create' %}">Новая активность</a>
+                {% endif %}
             </div>
-            <div class="card-actions">
-                <a href="{% url 'activities:edit' activity.pk %}">Редактировать</a>
-                <a href="{% url 'activities:preview' activity.pk %}" target="_blank" rel="noreferrer">Предпросмотр</a>
-                <a href="{% url 'dashboard:analytics' activity.pk %}">Аналитика</a>
+
+            <div class="teacher-activity-grid">
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                        <article class="teacher-activity-card">
+                            <div class="teacher-activity-card__cover teacher-activity-card__cover--{{ activity.cover_variant }} {% if activity.is_published %}is-published{% else %}is-draft{% endif %}">
+                                <span class="teacher-activity-card__cover-chip">{{ activity.status_display }}</span>
+                                <span class="teacher-activity-card__shape teacher-activity-card__shape--a"></span>
+                                <span class="teacher-activity-card__shape teacher-activity-card__shape--b"></span>
+                                <span class="teacher-activity-card__shape teacher-activity-card__shape--c"></span>
+                            </div>
+
+                            <div class="teacher-activity-card__content">
+                                <div class="teacher-activity-card__head">
+                                    <div>
+                                        <p class="teacher-card__eyebrow">{{ activity.template_title }}</p>
+                                        <h3>{{ activity.title }}</h3>
+                                    </div>
+                                </div>
+
+                                <p class="teacher-activity-card__text">
+                                    {{ activity.description|default:"Описание пока не заполнено, но активность уже готова к настройке и запуску." }}
+                                </p>
+
+                                <div class="teacher-activity-card__meta">
+                                    {% comment %}
+                                    <span>Обновлено {{ activity.updated_at|date:"d.m.Y" }}</span>
+                                    <span>{{ activity.question_count }} вопросов</span>
+                                    <span>{{ activity.launches }} запусков</span>
+                                    <span>{{ activity.completions }} завершений</span>
+                                    {% if activity.completions %}
+                                        <span>{{ activity.average_score|floatformat:0 }}% средний результат</span>
+                                    {% endif %}
+                                    {% endcomment %}{% comment %}
+                                    <span>РћР±РЅРѕРІР»РµРЅРѕ {{ activity.updated_at|date:"d.m.Y" }}</span>
+                                    <span>{{ activity.question_count }} РІРѕРїСЂРѕСЃРѕРІ</span>
+                                    {% endcomment %}
+                                    <span>{{ activity.updated_label }} {{ activity.updated_at|date:"d.m.Y" }}</span>
+                                    <span>{{ activity.question_count_label }}</span>
+                                </div>
+
+                                <div class="teacher-activity-card__actions">
+                                    <a href="{{ activity.edit_url }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path>
+                                        </svg>
+                                        <span>Редактировать</span>
+                                    </a>
+                                    <a href="{{ activity.preview_url }}" target="_blank" rel="noreferrer">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M12 5c5.5 0 9.5 5.23 9.67 5.45l.33.45-.33.45C21.5 11.57 17.5 16.8 12 16.8S2.5 11.57 2.33 11.35L2 10.9l.33-.45C2.5 10.23 6.5 5 12 5Zm0 2c-3.65 0-6.57 2.95-7.59 3.9C5.43 11.85 8.35 14.8 12 14.8s6.57-2.95 7.59-3.9C18.57 9.95 15.65 7 12 7Zm0 1.5a2.4 2.4 0 1 1 0 4.8 2.4 2.4 0 0 1 0-4.8Z"></path>
+                                        </svg>
+                                        <span>Предпросмотр</span>
+                                    </a>
+                                    <a href="{{ activity.analytics_url }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M5 19V9h3v10H5Zm5 0V5h3v14h-3Zm5 0v-7h3v7h-3Z"></path>
+                                        </svg>
+                                        <span>Аналитика</span>
+                                    </a>
+                                    {% comment %}
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M8 7V4h11v13h-3v3H5V7h3Zm2 0h6v8H10V7Zm-3 2v9h7v-1H9V9H7Z"></path>
+                                        </svg>
+                                        <span>Дублировать</span>
+                                    {% endcomment %}
+                                    {% if activity.share_url %}
+                                        <a href="{{ activity.share_url }}" target="_blank" rel="noreferrer">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M9.5 13.5a3.5 3.5 0 0 0 4.95 0l2.1-2.1a3.5 3.5 0 1 0-4.95-4.95l-1 1 1.41 1.41 1-1a1.5 1.5 0 0 1 2.12 2.12l-2.1 2.1a1.5 1.5 0 0 1-2.12 0l-.29-.29-1.41 1.41.29.3Zm-2.05-3-2.1 2.1a3.5 3.5 0 1 0 4.95 4.95l1-1-1.41-1.41-1 1a1.5 1.5 0 0 1-2.12-2.12l2.1-2.1a1.5 1.5 0 0 1 2.12 0l.29.29 1.41-1.41-.29-.29a3.5 3.5 0 0 0-4.95 0Z"></path>
+                                            </svg>
+                                            <span>Ссылка</span>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <article class="teacher-activity-empty">
+                        <p class="teacher-section__eyebrow">Пока пусто</p>
+                        <h3>{% if q %}По этому запросу ничего не найдено{% else %}Ещё нет активностей{% endif %}</h3>
+                        <p>
+                            {% if q %}
+                                Попробуйте другой запрос или сбросьте фильтр, чтобы снова увидеть все сохранённые активности.
+                            {% else %}
+                                Создайте первый интерактив, и здесь появятся карточки с шаблоном, статистикой и быстрыми действиями.
+                            {% endif %}
+                        </p>
+                    </article>
+                {% endif %}
+
+                <a class="teacher-activity-card teacher-activity-card--create" href="{% url 'activities:create' %}">
+                    <span class="teacher-activity-card__create-icon">+</span>
+                    <strong>Создать новую активность</strong>
+                    <span>Начните с нуля или возьмите существующий шаблон и соберите урок быстрее.</span>
+                </a>
             </div>
-        </article>
-    {% empty %}
-        <article class="card empty-card">
-            <h2>Пока нет интерактивов</h2>
-            <p>Создайте первый черновик и настройте его под нужный шаблон.</p>
-        </article>
-    {% endfor %}
+        </section>
+    </div>
+
+    <aside class="teacher-feed" id="recent-events">
+        <section class="teacher-feed__card">
+            <div class="teacher-feed__head">
+                <p class="teacher-section__eyebrow">Лента обновлений</p>
+                <h2>Последние события</h2>
+            </div>
+
+            {% if recent_events %}
+                <ol class="teacher-feed__timeline">
+                    {% for event in recent_events %}
+                        <li class="teacher-feed__item teacher-feed__item--{{ event.kind }}">
+                            <span class="teacher-feed__dot" aria-hidden="true"></span>
+                            <div class="teacher-feed__entry">
+                                <h3>{{ event.title }}</h3>
+                                <p>{{ event.body }}</p>
+                                <div class="teacher-feed__meta">
+                                    <span>{{ event.at|timesince }} назад</span>
+                                    <a href="{{ event.link }}">{{ event.link_label }}</a>
+                                </div>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% else %}
+                <div class="teacher-feed__empty">
+                    <p>Пока нет событий для этой выборки. Первые обновления появятся после публикации или запуска активности учениками.</p>
+                </div>
+            {% endif %}
+        </section>
+    </aside>
 </section>
 {% endblock %}

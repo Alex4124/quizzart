@@ -1,35 +1,288 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Quizzart{% endblock %}
+{% block title %}Quizzart — интерактивное обучение для современных педагогов{% endblock %}
+
+{% block body_class %}landing-page{% endblock %}
+
+{% block extra_head %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+{% endblock %}
+
+{% block site_header %}
+    <header class="landing-header">
+        <div class="landing-container landing-header__inner">
+            <a class="landing-brand" href="{% url 'dashboard:landing' %}">Quizzart</a>
+            <nav class="landing-nav" aria-label="Основная навигация">
+                <a href="#features">Преимущества</a>
+                <a href="#templates">Шаблоны</a>
+                <a href="#results">Результаты</a>
+            </nav>
+            <div class="landing-header__actions">
+                <a class="landing-link" href="{% url 'accounts:login' %}">Войти</a>
+                <a class="landing-button landing-button-small" href="{% url 'accounts:register' %}">Создать интерактив</a>
+            </div>
+        </div>
+    </header>
+{% endblock %}
+
+{% block main_class %}landing-main{% endblock %}
 
 {% block content %}
-<section class="hero">
-    <div class="hero-copy">
-        <p class="eyebrow">Python-first конструктор учебных интерактивов</p>
-        <h1>Создавайте интерактивы быстро, публикуйте по ссылке и сохраняйте результаты.</h1>
-        <p class="hero-text">
-            Quizzart — это прагматичный Django-монолит для учителей, которым нужен быстрый запуск
-            форматов вроде "Выбери коробку", "Викторина", "Колесо фортуны", "Сопоставление"
-            и "Категории".
-        </p>
-        <div class="hero-actions">
-            <a class="button" href="{% url 'accounts:register' %}">Начать как учитель</a>
-            <a class="button button-secondary" href="{% url 'accounts:login' %}">Войти</a>
+    <section class="landing-hero-section" id="top">
+        <div class="landing-container landing-hero">
+            <div class="landing-hero__copy">
+                <p class="landing-kicker">MVP для учителя · публикация по ссылке</p>
+                <h1>
+                    Сделайте обучение
+                    <span>интерактивным</span>
+                </h1>
+                <p class="landing-hero__text">
+                    Самый простой способ для учителя собрать викторину, игровое задание или проверку знаний,
+                    открыть её классу по ссылке и сохранить результаты в одном рабочем потоке.
+                </p>
+                <div class="landing-hero__actions">
+                    <a class="landing-button" href="{% url 'accounts:register' %}">Начать бесплатно</a>
+                    <a class="landing-button landing-button-secondary" href="#templates">Посмотреть шаблоны</a>
+                </div>
+                <div class="landing-hero__meta">
+                    <span>6 шаблонов в редакторе</span>
+                    <span>Без установки для учеников</span>
+                    <span>Результаты сохраняются автоматически</span>
+                </div>
+            </div>
+            <div class="landing-hero__visual">
+                <div class="landing-preview">
+                    <div class="landing-preview__window">
+                        <div class="landing-preview__chrome">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="landing-preview__body">
+                            <aside class="landing-preview__sidebar">
+                                <div class="landing-preview__menu-item landing-preview__menu-item-active"></div>
+                                <div class="landing-preview__menu-item"></div>
+                                <div class="landing-preview__menu-item"></div>
+                                <div class="landing-preview__menu-item"></div>
+                            </aside>
+                            <div class="landing-preview__workspace">
+                                <div class="landing-preview__workspace-top">
+                                    <div class="landing-preview__title"></div>
+                                    <div class="landing-preview__pill"></div>
+                                </div>
+                                <div class="landing-preview__stats">
+                                    <div class="landing-preview__stat-card">
+                                        <span class="landing-preview__stat-label"></span>
+                                        <span class="landing-preview__stat-bar landing-preview__stat-bar-wide"></span>
+                                    </div>
+                                    <div class="landing-preview__stat-card">
+                                        <span class="landing-preview__stat-label"></span>
+                                        <span class="landing-preview__stat-bar"></span>
+                                    </div>
+                                </div>
+                                <div class="landing-preview__chart">
+                                    <span style="--bar-size: 72%"></span>
+                                    <span style="--bar-size: 54%"></span>
+                                    <span style="--bar-size: 86%"></span>
+                                    <span style="--bar-size: 62%"></span>
+                                </div>
+                                <div class="landing-preview__table">
+                                    <div class="landing-preview__row">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                    <div class="landing-preview__row">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                    <div class="landing-preview__row">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </div>
+                                </div>
+                                <div class="landing-preview__toolbar">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="landing-preview__badge">
+                        <span class="landing-preview__badge-icon">↗</span>
+                        <div>
+                            <strong>6 шаблонов готовы к уроку</strong>
+                            <span>От викторины до змейки в одном редакторе.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="hero-panel">
-        <div class="metric-card">
-            <span class="metric-label">Приоритет</span>
-            <strong>Практичный MVP</strong>
+    </section>
+
+    <section class="landing-section landing-section-soft" id="features">
+        <div class="landing-container">
+            <div class="landing-section-heading">
+                <p class="landing-section-heading__eyebrow">Создано для современных педагогов</p>
+                <h2>Все, что нужно для перехода от статичного контента к живому классному опыту.</h2>
+            </div>
+            <div class="landing-feature-grid">
+                {% for feature in features %}
+                    <article class="landing-card landing-feature-card">
+                        <span class="landing-feature-card__icon" aria-hidden="true">
+                            {% if feature.icon == "bank" %}
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M6 7.5h12M6 12h8M6 16.5h10M4.5 4.5h15a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V6a1.5 1.5 0 0 1 1.5-1.5Z" />
+                                </svg>
+                            {% elif feature.icon == "share" %}
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="m14 5 5 5m0-5-5 5M19 14v2.5A2.5 2.5 0 0 1 16.5 19h-9A2.5 2.5 0 0 1 5 16.5v-9A2.5 2.5 0 0 1 7.5 5H10" />
+                                </svg>
+                            {% else %}
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M5 18V9m7 9V5m7 13v-6M3.5 20.5h17" />
+                                </svg>
+                            {% endif %}
+                        </span>
+                        <h3>{{ feature.title }}</h3>
+                        <p>{{ feature.description }}</p>
+                    </article>
+                {% endfor %}
+            </div>
         </div>
-        <div class="metric-card">
-            <span class="metric-label">Архитектура</span>
-            <strong>Единый template engine</strong>
+    </section>
+
+    <section class="landing-section" id="templates">
+        <div class="landing-container">
+            <div class="landing-section-heading landing-section-heading-split">
+                <div>
+                    <p class="landing-section-heading__eyebrow">Шаблоны</p>
+                    <h2>Выберите свой стиль проведения занятия.</h2>
+                </div>
+                <p class="landing-section-heading__note">В MVP уже доступны шесть игровых и проверочных форматов.</p>
+            </div>
+            <div class="landing-template-grid">
+                {% for template_card in template_cards %}
+                    <article class="landing-template-card {{ template_card.accent_class }}">
+                        <div class="landing-template-card__panel" aria-hidden="true">
+                            {% if template_card.eyebrow == "quiz" %}
+                                <span class="landing-template-card__glyph landing-template-card__glyph-card">
+                                    <span></span>
+                                    <strong>?</strong>
+                                </span>
+                            {% elif template_card.eyebrow == "wheel_of_fortune" %}
+                                <span class="landing-template-card__glyph landing-template-card__glyph-wheel">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            {% elif template_card.eyebrow == "matching" %}
+                                <span class="landing-template-card__glyph landing-template-card__glyph-grid">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            {% else %}
+                                <span class="landing-template-card__glyph landing-template-card__glyph-snake">
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                            {% endif %}
+                        </div>
+                        <p class="landing-template-card__eyebrow">{{ template_card.eyebrow }}</p>
+                        <h3>{{ template_card.title }}</h3>
+                        <p>{{ template_card.description }}</p>
+                    </article>
+                {% endfor %}
+            </div>
         </div>
-        <div class="metric-card">
-            <span class="metric-label">Стек</span>
-            <strong>Django 5 + PostgreSQL</strong>
+    </section>
+
+    <section class="landing-section landing-section-muted" id="results">
+        <div class="landing-container landing-showcase-stack">
+            {% for showcase in showcases %}
+                <article class="landing-showcase{% cycle '' ' landing-showcase-reverse' %}">
+                    <div class="landing-showcase__copy">
+                        <p class="landing-section-heading__eyebrow">{{ showcase.eyebrow }}</p>
+                        <h2>
+                            {{ showcase.title }}
+                            <span>{{ showcase.accent }}</span>
+                        </h2>
+                        <p class="landing-showcase__description">{{ showcase.description }}</p>
+                        <ul class="landing-bullet-list">
+                            {% for bullet in showcase.bullets %}
+                                <li>{{ bullet }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="landing-showcase__media">
+                        <div class="landing-showcase__frame{% if showcase.frame_class %} {{ showcase.frame_class }}{% endif %}">
+                            <img
+                                class="{% if showcase.image_class %}{{ showcase.image_class }}{% endif %}"
+                                src="{% static showcase.image %}"
+                                alt="{{ showcase.image_alt }}"
+                                loading="lazy"
+                            >
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
         </div>
-    </div>
-</section>
+    </section>
+
+    <section class="landing-section landing-section-cta" id="cta">
+        <div class="landing-container">
+            <div class="landing-final-cta">
+                <p class="landing-section-heading__eyebrow">Начать можно сразу после регистрации</p>
+                <h2>Готовы изменить свой класс?</h2>
+                <p class="landing-final-cta__text">
+                    Ученикам не нужна установка или отдельный аккаунт. Вы создаёте интерактив,
+                    публикуете ссылку и получаете сохранённые результаты в панели учителя.
+                </p>
+                <div class="landing-final-cta__actions">
+                    <a class="landing-button" href="{% url 'accounts:register' %}">Начать бесплатно</a>
+                    <a class="landing-button landing-button-outline" href="{% url 'accounts:login' %}">Войти в кабинет</a>
+                </div>
+                <p class="landing-final-cta__note">Без установки для класса · С серверным рендерингом · С аналитикой по прохождениям</p>
+            </div>
+        </div>
+    </section>
 {% endblock %}
+
+{% block site_footer %}
+    <footer class="landing-footer">
+        <div class="landing-container landing-footer__inner">
+            <div class="landing-footer__intro">
+                <a class="landing-brand" href="{% url 'dashboard:landing' %}">Quizzart</a>
+                <p>
+                    Python-first конструктор учебных интерактивов для учителя, которому нужен
+                    быстрый запуск, публикация по ссылке и сохранение результатов.
+                </p>
+                <p class="landing-footer__copyright">© {% now "Y" %} Quizzart. MVP для classroom workflows.</p>
+            </div>
+            {% for column in footer_columns %}
+                <div class="landing-footer__column">
+                    <h3>{{ column.title }}</h3>
+                    <ul>
+                        {% for link in column.links %}
+                            <li><a href="{{ link.href }}">{{ link.label }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+    </footer>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

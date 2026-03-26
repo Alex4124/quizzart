@@ -76,6 +76,36 @@ textarea {
     flex-wrap: wrap;
 }
 
+.topbar-profile {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 32, 28, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.avatar-badge,
+.profile-avatar-frame {
+    display: grid;
+    place-items: center;
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #20263b, #4a5373);
+    color: #fff;
+    font-weight: 800;
+}
+
+.avatar-badge img,
+.profile-avatar-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .page-shell {
     width: min(1180px, calc(100% - 2rem));
     margin: 0 auto;
@@ -237,6 +267,18 @@ textarea {
     background: var(--surface);
 }
 
+.auth-form-alert {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    background: rgba(13, 107, 99, 0.08);
+    border: 1px solid rgba(13, 107, 99, 0.14);
+    color: var(--accent-strong);
+}
+
+.auth-form-alert p {
+    margin: 0;
+}
+
 .editor-layout {
     grid-template-columns: 320px minmax(0, 1fr);
 }
@@ -377,6 +419,58 @@ textarea {
 .auth-shell,
 .player-shell-centered {
     justify-items: center;
+}
+
+.profile-shell {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.profile-hero {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: center;
+}
+
+.profile-avatar-frame {
+    width: 7rem;
+    height: 7rem;
+    border: 4px solid rgba(13, 107, 99, 0.14);
+    font-size: 1.8rem;
+}
+
+.profile-hero__copy {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.profile-hero__copy h1 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1;
+}
+
+.profile-hero__meta,
+.profile-hero__status {
+    margin: 0;
+    color: var(--muted);
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.profile-card {
+    display: grid;
+    gap: 1rem;
+}
+
+.profile-card h2 {
+    margin: 0.2rem 0 0;
+    font-size: 1.4rem;
 }
 
 .auth-card {
@@ -1095,6 +1189,11 @@ button.option-row {
 
     .question-editor-grid {
         grid-template-columns: 1fr;
+    }
+
+    .profile-hero {
+        grid-template-columns: 1fr;
+        justify-items: start;
     }
 
     .wheel-figure {

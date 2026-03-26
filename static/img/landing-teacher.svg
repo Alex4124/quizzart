@@ -1,0 +1,112 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="teacher-scene" x1="320" y1="24" x2="320" y2="396" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D6777"/>
+      <stop offset="1" stop-color="#224C59"/>
+    </linearGradient>
+    <linearGradient id="teacher-card" x1="442" y1="58" x2="442" y2="162" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5E5FF"/>
+      <stop offset="1" stop-color="#E7D7F8"/>
+    </linearGradient>
+    <linearGradient id="teacher-panel" x1="158" y1="52" x2="158" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#356F80"/>
+      <stop offset="1" stop-color="#2D6272"/>
+    </linearGradient>
+    <linearGradient id="teacher-blazer" x1="401" y1="255" x2="401" y2="389" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2E6080"/>
+      <stop offset="1" stop-color="#244B67"/>
+    </linearGradient>
+    <linearGradient id="teacher-shirt" x1="401" y1="274" x2="401" y2="381" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAEFE9"/>
+      <stop offset="1" stop-color="#E9D7D2"/>
+    </linearGradient>
+    <linearGradient id="teacher-laptop" x1="394" y1="300" x2="394" y2="386" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#404D71"/>
+      <stop offset="1" stop-color="#2E3654"/>
+    </linearGradient>
+    <radialGradient id="teacher-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(453 120) rotate(90) scale(92 106)">
+      <stop stop-color="#FFD8C4" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFD8C4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="teacher-shadow" x="248" y="136" width="314" height="269" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="14"/>
+      <feGaussianBlur stdDeviation="16"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.102 0 0 0 0 0.137 0 0 0 0 0.212 0 0 0 0.24 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="640" height="420" rx="28" fill="#245968"/>
+  <rect x="24" y="24" width="592" height="372" rx="24" fill="url(#teacher-scene)"/>
+  <rect x="24" y="24" width="592" height="372" rx="24" fill="url(#teacher-glow)"/>
+
+  <circle cx="120" cy="105" r="24" fill="#8FD7F1" opacity="0.1"/>
+  <circle cx="560" cy="92" r="18" fill="#EAD8FF" opacity="0.12"/>
+  <circle cx="523" cy="310" r="36" fill="#102B34" opacity="0.16"/>
+
+  <rect x="48" y="50" width="220" height="136" rx="22" fill="url(#teacher-panel)"/>
+  <rect x="66" y="72" width="108" height="11" rx="5.5" fill="#86D9F9"/>
+  <rect x="66" y="95" width="176" height="10" rx="5" fill="#C8EEFF" opacity="0.52"/>
+  <rect x="66" y="118" width="154" height="10" rx="5" fill="#C8EEFF" opacity="0.4"/>
+  <rect x="66" y="141" width="138" height="10" rx="5" fill="#C8EEFF" opacity="0.36"/>
+  <rect x="66" y="164" width="102" height="8" rx="4" fill="#5FC2E8" opacity="0.46"/>
+
+  <rect x="298" y="58" width="290" height="104" rx="22" fill="url(#teacher-card)"/>
+  <rect x="323" y="78" width="104" height="12" rx="6" fill="#9E64E9"/>
+  <rect x="323" y="103" width="214" height="11" rx="5.5" fill="#CDB5F2"/>
+  <rect x="323" y="126" width="174" height="11" rx="5.5" fill="#CDB5F2"/>
+  <circle cx="553" cy="91" r="8" fill="#B589EF" opacity="0.55"/>
+
+  <rect x="50" y="192" width="540" height="174" rx="28" fill="#2B6070"/>
+  <rect x="72" y="214" width="496" height="130" rx="24" fill="#32697B" opacity="0.86"/>
+  <path d="M92 274H228" stroke="#7BCDEA" stroke-width="7" stroke-linecap="round" opacity="0.18"/>
+  <path d="M102 298H236" stroke="#7BCDEA" stroke-width="7" stroke-linecap="round" opacity="0.12"/>
+  <path d="M490 277H538" stroke="#7BCDEA" stroke-width="7" stroke-linecap="round" opacity="0.14"/>
+
+  <g filter="url(#teacher-shadow)">
+    <ellipse cx="400" cy="321" rx="92" ry="72" fill="#102C36" opacity="0.2"/>
+
+    <path d="M359 255H441V287C441 299 431 309 419 309H381C369 309 359 299 359 287V255Z" fill="#E9A785"/>
+    <path d="M384 299H416L430 321H370L384 299Z" fill="#D98F71"/>
+    <rect x="391" y="238" width="18" height="32" rx="9" fill="#E6A17F"/>
+
+    <path d="M349 226C349 192 370 164 401 158C435 152 464 174 470 208C476 242 455 274 424 280C391 286 359 266 351 236L349 226Z" fill="#F2B48F"/>
+    <path d="M355 223C354 194 372 170 398 165C429 159 457 174 465 199C451 203 437 201 421 193C415 211 401 224 382 232L358 242L355 223Z" fill="#77493C"/>
+    <path d="M349 218C350 192 367 171 392 165C381 184 382 210 396 232L376 242C362 237 352 229 349 218Z" fill="#7D4DE0"/>
+    <path d="M423 173C441 180 455 195 460 214C462 226 461 238 457 248C449 258 439 265 428 270C436 248 433 222 423 173Z" fill="#875846"/>
+    <ellipse cx="366" cy="228" rx="10" ry="14" fill="#F2B48F"/>
+    <circle cx="391" cy="223" r="4.8" fill="#232534"/>
+    <circle cx="426" cy="226" r="4.8" fill="#232534"/>
+    <path d="M407 229C406 238 409 243 416 246" stroke="#D48D72" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M394 252C402 258 412 260 424 258" stroke="#B86858" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M380 223C384 218 389 216 395 217" stroke="#48353A" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M421 219C426 216 432 216 437 220" stroke="#48353A" stroke-width="3.2" stroke-linecap="round"/>
+    <rect x="375" y="214" width="21" height="16" rx="8" stroke="#2A3145" stroke-width="3"/>
+    <rect x="414" y="217" width="21" height="16" rx="8" stroke="#2A3145" stroke-width="3"/>
+    <path d="M396 222H414" stroke="#2A3145" stroke-width="3" stroke-linecap="round"/>
+
+    <path d="M352 384C354 328 360 292 374 276C383 266 393 262 400 262C408 262 418 266 428 276C445 293 450 327 451 384H352Z" fill="url(#teacher-shirt)"/>
+    <path d="M332 384C336 329 349 287 366 267C375 256 387 249 400 249C412 249 424 255 434 266C453 286 468 328 471 384H332Z" fill="url(#teacher-blazer)"/>
+    <path d="M378 274L399 303L422 274" fill="#FBF5F2"/>
+    <path d="M391 303H408L416 384H384L391 303Z" fill="#1D364E"/>
+
+    <path d="M342 274C326 285 317 302 315 320L312 340H335L344 314L352 295L342 274Z" fill="#F2B48F"/>
+    <path d="M458 273C473 282 484 298 488 316L495 345H517L514 319C510 298 498 281 480 268L458 273Z" fill="#F2B48F"/>
+    <path d="M336 288C342 284 347 281 353 279L339 345H311C313 329 318 316 324 305C327 299 331 293 336 288Z" fill="#2E6080"/>
+    <path d="M452 279C458 282 464 286 469 291C479 301 486 314 491 329L484 345H461L447 302L452 279Z" fill="#2C5776"/>
+
+    <path d="M487 286L518 203" stroke="#583730" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="519" cy="201" r="8.5" fill="#1E1C2A"/>
+
+    <g>
+      <path d="M312 300H474C480 300 485 305 485 311V377C485 384 480 389 474 389H310C303 389 298 384 298 377V314C298 307 304 301 312 300Z" fill="url(#teacher-laptop)"/>
+      <path d="M336 300H474C480 300 485 305 485 311V377C485 384 480 389 474 389H274L308 313C313 304 321 300 336 300Z" fill="#384262"/>
+      <path d="M337 321H418" stroke="#7FD7F3" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+      <rect x="386" y="336" width="16" height="16" rx="8" fill="#62A3FF"/>
+      <path d="M274 389H455L486 300H307L274 389Z" fill="#313852"/>
+    </g>
+  </g>
+</svg>
