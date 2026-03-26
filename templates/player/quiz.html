@@ -1,37 +1,24 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section
-    class="player-shell"
-    data-quiz-player
-    data-preview="{{ preview|yesno:'1,0' }}"
-    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
->
-    <div class="player-header">
-        <div>
-            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Викторина{% endif %}</p>
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-        </div>
-        <div class="stats-row compact-stats">
-            <div><strong>{{ runtime.questions|length }}</strong><span>Вопросов</span></div>
-            {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
-            {% endif %}
-        </div>
-    </div>
-
+{% block player_board %}
     {% if player_error %}
         <div class="message">{{ player_error }}</div>
     {% endif %}
 
-    <form method="post" class="stack-form quiz-flow">
+    <form
+        method="post"
+        class="player-quiz-form"
+        data-quiz-player
+        data-preview="{{ preview|yesno:'1,0' }}"
+        data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+    >
         {% csrf_token %}
         {% if not preview %}
             <input type="hidden" name="action" value="submit_quiz">
         {% endif %}
+
         {% for question in runtime.questions %}
             <article
                 class="card question-card"
@@ -40,7 +27,7 @@
                 data-question-index="{{ forloop.counter0 }}"
                 data-correct-option="{{ question.correct_option }}"
             >
-                <p class="eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
+                <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
                 <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
                 <p class="muted">{{ question.points }} балл.</p>
                 <div class="option-list">
@@ -59,11 +46,29 @@
                 <p class="muted question-feedback" data-question-feedback hidden></p>
             </article>
         {% endfor %}
+
         {% if not preview %}
             <button class="button" type="submit" data-quiz-submit>Завершить викторину</button>
         {% else %}
-            <div class="message" data-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы пройти викторину заново.</div>
+            <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти викторину.</div>
         {% endif %}
     </form>
-</section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Викторина</p>
+    <h2>Ответьте на все вопросы</h2>
+    <p>
+        {% if runtime.show_result_at_end %}
+            Результат и разбор ответов будут доступны сразу после завершения.
+        {% else %}
+            После завершения вы увидите только итоговый счёт без разбора ответов.
+        {% endif %}
+    </p>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Формат</p>
+    <h3>Классическая викторина</h3>
+    <p>Все вопросы собраны на одном экране, а выбранные варианты сохраняются в рамках текущей попытки.</p>
 {% endblock %}

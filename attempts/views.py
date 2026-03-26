@@ -8,6 +8,7 @@ from accounts.services import ensure_user_profile, profile_full_name
 from activities.models import Activity, ShareLink
 from attempts.forms import LaunchForm
 from attempts.models import ActivitySession
+from attempts.presentation import build_player_shell_context
 from attempts.services import persist_template_answers
 from interactive_templates.registry import registry
 
@@ -62,6 +63,36 @@ def _get_student_identity(request) -> tuple[object | None, str]:
     return profile, profile_full_name(request.user, profile)
 
 
+def _player_context(
+    request,
+    activity: Activity,
+    definition,
+    runtime: dict,
+    *,
+    session: ActivitySession | None = None,
+    preview: bool = False,
+    mode: str = "play",
+    participant_name: str = "",
+) -> dict:
+    return {
+        "activity": activity,
+        "template_definition": definition,
+        "runtime": runtime,
+        "session": session,
+        "preview": preview,
+        "player_shell": build_player_shell_context(
+            request,
+            activity,
+            definition,
+            runtime,
+            session=session,
+            preview=preview,
+            mode=mode,
+            participant_name=participant_name,
+        ),
+    }
+
+
 def play(request, slug: str):
     share_link = _get_share_link_or_404(slug)
     activity = share_link.activity
@@ -69,14 +100,11 @@ def play(request, slug: str):
     student_profile, student_name = _get_student_identity(request)
 
     if not definition.metadata.playable:
+        runtime = definition.build_runtime_data(activity)
         return render(
             request,
             "player/not_implemented.html",
-            {
-                "activity": activity,
-                "template_definition": definition,
-                "runtime": definition.build_runtime_data(activity),
-            },
+            _player_context(request, activity, definition, runtime, mode="launch", participant_name=student_name),
         )
 
     current_session = _get_current_session(request, share_link)
@@ -113,15 +141,20 @@ def play(request, slug: str):
         try:
             evaluation = definition.evaluate_submission(activity, current_session, request.POST)
         except ValidationError as exc:
+            runtime = definition.build_runtime_data(activity, session=current_session)
             return render(
                 request,
                 definition.player_template_name,
                 {
-                    "activity": activity,
-                    "template_definition": definition,
-                    "runtime": definition.build_runtime_data(activity, session=current_session),
-                    "session": current_session,
-                    "preview": False,
+                    **_player_context(
+                        request,
+                        activity,
+                        definition,
+                        runtime,
+                        session=current_session,
+                        mode="play",
+                        participant_name=current_session.participant_name or student_name,
+                    ),
                     "player_error": exc.messages[0],
                 },
             )
@@ -142,11 +175,12 @@ def play(request, slug: str):
         return redirect("attempts:play", slug=slug)
 
     if not current_session:
+        runtime = definition.build_runtime_data(activity)
         return render(
             request,
             "player/launch.html",
             {
-                "activity": activity,
+                **_player_context(request, activity, definition, runtime, mode="launch", participant_name=student_name),
                 "share_link": share_link,
                 "form": LaunchForm(initial={"participant_name": student_name}),
             },
@@ -156,13 +190,15 @@ def play(request, slug: str):
     return render(
         request,
         definition.player_template_name,
-        {
-            "activity": activity,
-            "template_definition": definition,
-            "runtime": runtime,
-            "session": current_session,
-            "preview": False,
-        },
+        _player_context(
+            request,
+            activity,
+            definition,
+            runtime,
+            session=current_session,
+            mode="play",
+            participant_name=current_session.participant_name or student_name,
+        ),
     )
 
 
@@ -178,10 +214,13 @@ def results(request, slug: str):
     return render(
         request,
         "player/results.html",
-        {
-            "activity": activity,
-            "session": result_session,
-            "runtime": runtime,
-            "template_definition": definition,
-        },
+        _player_context(
+            request,
+            activity,
+            definition,
+            runtime,
+            session=result_session,
+            mode="results",
+            participant_name=result_session.participant_name,
+        ),
     )

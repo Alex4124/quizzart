@@ -1,40 +1,26 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 {% load l10n %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section
-    class="player-shell"
+{% block player_layout_attrs %}
     data-snake-player
     data-preview="{{ preview|yesno:'1,0' }}"
     data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
     data-initial-score="{{ session.score|default:0 }}"
->
-    <div class="player-header">
-        <div>
-            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Змейка{% endif %}</p>
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-        </div>
-        <div class="stats-row compact-stats">
-            <div><strong data-snake-progress>{{ runtime.answered_count }}</strong><span>Съедено яблок</span></div>
-            <div><strong data-snake-remaining>{{ runtime.total_items }}</strong><span>Осталось</span></div>
-            <div><strong data-snake-score>{{ session.score|default:0 }}</strong><span>Баллы</span></div>
-        </div>
-    </div>
+{% endblock %}
 
+{% block player_board %}
     {% if player_error %}
         <div class="message">{{ player_error }}</div>
     {% endif %}
 
     <section class="card snake-shell">
-        <div class="section-heading">
+        <div class="player-panel__identity">
             <div>
-                <p class="eyebrow">Мини-игра</p>
+                <p class="player-panel__eyebrow">Мини-игра</p>
                 <h2>Ведите змейку к яблокам</h2>
             </div>
-            <p class="muted">На компьютере ведите курсором, на телефоне — пальцем по полю.</p>
         </div>
 
         <div class="snake-board" data-snake-board>
@@ -73,7 +59,7 @@
                             data-points="{{ apple.points }}"
                             hidden
                         >
-                            <p class="eyebrow">Яблоко {{ apple.number }} из {{ runtime.apples|length }}</p>
+                            <p class="player-panel__eyebrow">Яблоко {{ apple.number }} из {{ runtime.apples|length }}</p>
                             <h2>{{ apple.prompt }}</h2>
                             <p class="muted">{{ apple.points }} балл.</p>
                             <div class="option-list">
@@ -89,13 +75,13 @@
                     {% endfor %}
 
                     <article class="card snake-question-card snake-question-card-final" data-snake-submit-state hidden>
-                        <p class="eyebrow">Финиш</p>
+                        <p class="player-panel__eyebrow">Финиш</p>
                         <h2>Все яблоки собраны</h2>
                         <p class="muted">Подсчитываем результат и сохраняем прохождение.</p>
                     </article>
 
                     <article class="card snake-question-card snake-question-card-final" data-snake-preview-complete hidden>
-                        <p class="eyebrow">Предпросмотр завершен</p>
+                        <p class="player-panel__eyebrow">Предпросмотр завершён</p>
                         <h2>Змейка прошла весь маршрут</h2>
                         <p class="muted">Обновите страницу, чтобы снова протестировать шаблон.</p>
                     </article>
@@ -113,5 +99,16 @@
             {% endfor %}
         </form>
     </section>
-</section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Управление</p>
+    <h2>Ведите курсор или палец по полю</h2>
+    <p>Когда змейка касается яблока, открывается вопрос. После ответа яблоко исчезает, а прогресс обновляется в реальном времени.</p>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Сценарий</p>
+    <h3>Змейка</h3>
+    <p>Все ответы собираются прямо по ходу движения, а финальный submit отправляется автоматически после последнего яблока.</p>
 {% endblock %}

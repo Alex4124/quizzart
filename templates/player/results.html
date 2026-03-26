@@ -1,39 +1,66 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}Результат · {{ activity.title }}{% endblock %}
 
-{% block content %}
-<section class="player-shell">
-    <article class="card">
-        <p class="eyebrow">Результат</p>
-        <h1>{{ activity.title }}</h1>
-        <div class="stats-row">
-            <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
-            <div><strong>{{ session.max_score }}</strong><span>Максимум</span></div>
-            <div><strong>{{ session.percent_score|floatformat:0 }}%</strong><span>Процент</span></div>
-        </div>
-        <form method="post" action="{% url 'attempts:play' session.share_link.slug %}">
-            {% csrf_token %}
-            <button class="button button-secondary" type="submit" name="action" value="restart">Начать заново</button>
-        </form>
-    </article>
-
-    {% if activity.template_key == "quiz" and not runtime.show_result_at_end %}
+{% block player_board %}
+    <section class="player-results-summary">
         <article class="card">
-            <p class="muted">Для этой викторины включен режим завершения без подробного разбора ответов.</p>
+            <p class="player-panel__eyebrow">Результат</p>
+            <h2>{{ activity.title }}</h2>
+            <p>Прохождение завершено. Ниже сохранены ваши баллы и разбор ответов.</p>
+
+            <div class="student-player__stats">
+                <article class="student-player__stat student-player__stat--accent">
+                    <span>Баллы</span>
+                    <strong>{{ session.score }}</strong>
+                </article>
+                <article class="student-player__stat student-player__stat--peach">
+                    <span>Максимум</span>
+                    <strong>{{ session.max_score }}</strong>
+                </article>
+                <article class="student-player__stat student-player__stat--violet">
+                    <span>Процент</span>
+                    <strong>{{ session.percent_score|floatformat:0 }}%</strong>
+                </article>
+            </div>
+
+            <form method="post" action="{% url 'attempts:play' session.share_link.slug %}" class="stack-form">
+                {% csrf_token %}
+                <button class="button button-secondary" type="submit" name="action" value="restart">Пройти заново</button>
+            </form>
         </article>
-    {% else %}
-        {% for item in runtime.review_items %}
-            <article class="card question-card">
-                <h2>{{ forloop.counter }}. {{ item.prompt }}</h2>
-                <p class="muted">Ваш ответ: {{ item.submitted|default:"Нет ответа" }}</p>
-                <p class="muted">Правильный ответ: {{ item.correct }}</p>
-                <p class="muted">{{ item.points }} балл.</p>
-                <span class="status-chip {% if item.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
-                    {% if item.is_correct %}Верно{% else %}Неверно{% endif %}
-                </span>
+
+        {% if activity.template_key == "quiz" and not runtime.show_result_at_end %}
+            <article class="card">
+                <p class="muted">Для этой викторины включён режим завершения без подробного разбора ответов.</p>
             </article>
-        {% endfor %}
-    {% endif %}
-</section>
+        {% else %}
+            <div class="player-review-grid">
+                {% for item in runtime.review_items %}
+                    <article class="card question-card">
+                        <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }}</p>
+                        <h2>{{ item.prompt }}</h2>
+                        <p class="muted">Ваш ответ: {{ item.submitted|default:"Нет ответа" }}</p>
+                        <p class="muted">Правильный ответ: {{ item.correct }}</p>
+                        <p class="muted">{{ item.points }} балл.</p>
+                        <span class="status-chip {% if item.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
+                            {% if item.is_correct %}Верно{% else %}Неверно{% endif %}
+                        </span>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Итог</p>
+    <h2>{{ session.percent_score|floatformat:0 }}% результата</h2>
+    <p>Баллы и ответы уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">После прохождения</p>
+    <h3>Разберите ответы</h3>
+    <p>Используйте эту страницу как короткий разбор ошибок и сильных ответов по каждому заданию.</p>
 {% endblock %}

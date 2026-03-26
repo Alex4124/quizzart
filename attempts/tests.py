@@ -95,6 +95,8 @@ class PublicPlayTests(TestCase):
         response = self.client.get(f"/p/{link.slug}/results/")
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "player-topbar")
+        self.assertContains(response, "student-player__footer")
         self.assertContains(response, "Ваш ответ: 4")
         self.assertContains(response, "Ваш ответ: Paris")
         self.assertContains(response, "100%")
@@ -190,6 +192,91 @@ class PublicPlayTests(TestCase):
                 link = self._create_published_activity(template_key, config_json)
                 response = self.client.get(f"/p/{link.slug}/")
                 self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "player-topbar")
+                self.assertContains(response, "student-player__layout")
+
+    def test_matching_flow_renders_one_question_scene_and_global_answer_bank(self):
+        link = self._create_published_activity(
+            "matching",
+            {
+                "shuffle": False,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Python creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Guido", "is_correct": True},
+                            {"id": "b", "text": "Dennis", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Django creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Adrian", "is_correct": True},
+                            {"id": "b", "text": "James", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        response = self.client.post(f"/p/{link.slug}/", {"action": "start"}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "matching-flow")
+        self.assertContains(response, "matching-card-current", count=1)
+        self.assertContains(response, 'class="matching-dock" data-matching-dock', count=2)
+        self.assertContains(response, "data-matching-choice", count=4)
+        self.assertContains(response, "Guido")
+        self.assertContains(response, "Adrian")
+        self.assertContains(response, "Dennis")
+        self.assertContains(response, "James")
+
+    def test_matching_submit_scores_only_correct_hidden_values(self):
+        link = self._create_published_activity(
+            "matching",
+            {
+                "shuffle": False,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Python creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Guido", "is_correct": True},
+                            {"id": "b", "text": "Dennis", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Django creator",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Adrian", "is_correct": True},
+                            {"id": "b", "text": "James", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        submit_response = self.client.post(
+            f"/p/{link.slug}/",
+            {
+                "action": "submit_matching",
+                "match_item-1": "Dennis",
+                "match_item-2": "Adrian",
+            },
+        )
+
+        self.assertEqual(submit_response.status_code, 302)
+        session = ActivitySession.objects.get(activity__template_key="matching")
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 1)
 
     def test_student_can_complete_wheel_matching_and_categorize(self):
         wheel = self._create_published_activity(

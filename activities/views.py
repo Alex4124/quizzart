@@ -12,6 +12,7 @@ from accounts.decorators import teacher_required
 from activities.forms import ActivityForm
 from activities.models import Activity
 from activities.services import duplicate_activity, ensure_share_link
+from attempts.presentation import build_player_shell_context
 from interactive_templates.registry import registry
 
 
@@ -331,5 +332,13 @@ def preview_activity(request, pk: int):
             "template_definition": definition,
             "runtime": runtime,
             "preview": True,
+            "player_shell": build_player_shell_context(
+                request,
+                activity,
+                definition,
+                runtime,
+                preview=True,
+                mode="preview",
+            ),
         },
     )

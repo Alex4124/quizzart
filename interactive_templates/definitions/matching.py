@@ -18,11 +18,10 @@ from interactive_templates.utils import (
 
 
 class MatchingEditorForm(forms.Form):
-    shuffle = forms.BooleanField(required=False, initial=True, label="Перемешивать ответы")
-    reveal_correct_answer = forms.BooleanField(
+    shuffle = forms.BooleanField(
         required=False,
         initial=True,
-        label="Показывать правильный ответ сразу после выбора",
+        label="\u041f\u0435\u0440\u0435\u043c\u0435\u0448\u0438\u0432\u0430\u0442\u044c \u043e\u0442\u0432\u0435\u0442\u044b",
     )
     items_json = forms.CharField(required=False, widget=forms.HiddenInput())
     items_text = forms.CharField(required=False, widget=forms.HiddenInput())
@@ -46,8 +45,8 @@ def _sample_items() -> list[dict[str, Any]]:
 class MatchingDefinition(BaseTemplateDefinition):
     metadata = TemplateMetadata(
         key="matching",
-        title="Сопоставление",
-        description="Нужно сопоставить каждый вопрос с правильным ответом.",
+        title="\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435",
+        description="\u041d\u0443\u0436\u043d\u043e \u0441\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043a\u0430\u0436\u0434\u044b\u0439 \u0432\u043e\u043f\u0440\u043e\u0441 \u0441 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u043c \u043e\u0442\u0432\u0435\u0442\u043e\u043c.",
         playable=True,
     )
     editor_form_class = MatchingEditorForm
@@ -58,7 +57,6 @@ class MatchingDefinition(BaseTemplateDefinition):
     def default_config(self) -> dict[str, Any]:
         return {
             "shuffle": True,
-            "reveal_correct_answer": True,
             "items": _sample_items(),
         }
 
@@ -66,7 +64,6 @@ class MatchingDefinition(BaseTemplateDefinition):
         items = normalize_question_bank(config, default_points=1)
         return {
             "shuffle": config.get("shuffle", True),
-            "reveal_correct_answer": config.get("reveal_correct_answer", True),
             "items_json": serialize_question_bank_editor(items, default_points=1),
             "items_text": serialize_question_bank(items, default_points=1),
         }
@@ -74,7 +71,6 @@ class MatchingDefinition(BaseTemplateDefinition):
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "shuffle": cleaned_data.get("shuffle", False),
-            "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
             "items": question_bank_items_from_payload(
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
@@ -87,7 +83,9 @@ class MatchingDefinition(BaseTemplateDefinition):
         items = normalize_question_bank(config, default_points=1)
         answers = [correct_option(item)["text"] for item in items]
         if len(answers) != len(set(answers)):
-            raise ValidationError("Для сопоставления правильные ответы должны быть уникальными.")
+            raise ValidationError(
+                "\u0414\u043b\u044f \u0441\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0435 \u043e\u0442\u0432\u0435\u0442\u044b \u0434\u043e\u043b\u0436\u043d\u044b \u0431\u044b\u0442\u044c \u0443\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u043c\u0438."
+            )
 
     def build_runtime_data(
         self,
@@ -100,28 +98,43 @@ class MatchingDefinition(BaseTemplateDefinition):
         if session:
             answer_map = {answer.item_key: answer for answer in session.answers.all()}
 
-        choices = [correct_option(item)["text"] for item in items]
+        answer_bank = []
+        for item in items:
+            for option in item["options"]:
+                answer_bank.append(
+                    {
+                        "id": option["id"],
+                        "item_id": item["id"],
+                        "text": option["text"],
+                        "used": False,
+                        "is_correct": option.get("is_correct", False),
+                    }
+                )
         seed_base = "preview" if preview else str(session.token) if session else "matching"
         if activity.config_json.get("shuffle", False):
-            random.Random(seed_base).shuffle(choices)
+            random.Random(seed_base).shuffle(answer_bank)
 
         rows = []
         for item in items:
             answer = answer_map.get(item["id"])
+            correct_answer = correct_option(item)
             rows.append(
                 {
                     "id": item["id"],
                     "prompt": item["prompt"],
                     "selected": answer.submitted_value.get("choice", "") if answer else "",
-                    "correct_option": correct_option(item)["text"],
+                    "correct_choice_id": correct_answer["id"],
+                    "correct_choice_text": correct_answer["text"],
+                    "correct_option": correct_answer["text"],
                     "points": item.get("points", 1),
                 }
             )
 
         return {
             "rows": rows,
-            "choices": choices,
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "answer_bank": answer_bank,
+            "choices": [choice["text"] for choice in answer_bank],
+            "reveal_correct_answer": True,
             "max_score": self.get_max_score(activity.config_json),
             "review_items": build_review_items(items, answer_map),
         }
@@ -137,7 +150,9 @@ class MatchingDefinition(BaseTemplateDefinition):
         payload: dict[str, Any],
     ) -> TemplateEvaluation:
         if payload.get("action") != "submit_matching":
-            raise ValidationError("Неизвестное действие для шаблона 'Сопоставление'.")
+            raise ValidationError(
+                "\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0434\u043b\u044f \u0448\u0430\u0431\u043b\u043e\u043d\u0430 '\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435'."
+            )
 
         items = normalize_question_bank(activity.config_json, default_points=1)
         answers = []

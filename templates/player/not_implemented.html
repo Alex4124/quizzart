@@ -1,18 +1,26 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section class="player-shell player-shell-centered">
-    <article class="card auth-card">
-        <p class="eyebrow">{{ template_definition.metadata.title }}</p>
-        <h1>Шаблон зарегистрирован</h1>
-        <p>
-            Шаблон есть в Python-реестре и редакторе, но публичный runtime для него еще не завершен.
-        </p>
+{% block player_board %}
+    <article class="card player-launch-card">
+        <p class="player-panel__eyebrow">{{ player_shell.template_title }}</p>
+        <h2>Шаблон зарегистрирован</h2>
+        <p>Шаблон уже есть в редакторе и в Python-реестре, но публичный runtime для него ещё не завершён.</p>
         {% if runtime.summary %}
             <p class="muted">{{ runtime.summary }}</p>
         {% endif %}
     </article>
-</section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Статус</p>
+    <h2>Пока только подготовка</h2>
+    <p>Когда runtime будет готов, эта страница автоматически унаследует тот же student shell.</p>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Описание</p>
+    <h3>{{ player_shell.template_title }}</h3>
+    <p>{{ player_shell.template_description }}</p>
 {% endblock %}

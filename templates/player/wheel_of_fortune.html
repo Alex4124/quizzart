@@ -1,65 +1,58 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section
-    class="player-shell"
+{% block player_layout_attrs %}
     data-wheel-player
     data-preview="{{ preview|yesno:'1,0' }}"
     data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
     data-no-repeat="{{ runtime.no_repeat|yesno:'1,0' }}"
     {% if runtime.active_item %}data-active-item="{{ runtime.active_item.id }}"{% endif %}
->
-    <div class="player-header">
-        <div>
-            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Колесо фортуны{% endif %}</p>
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-        </div>
-        <div class="stats-row compact-stats">
-            <div><strong>{{ runtime.answered_count }}</strong><span>Отвечено</span></div>
-            <div><strong>{{ runtime.total_items }}</strong><span>Секторов</span></div>
-            {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
-            {% endif %}
-        </div>
-    </div>
+{% endblock %}
 
-    <div class="wheel-board">
-        <div class="wheel-figure">
-            <div class="wheel-pointer" aria-hidden="true"></div>
-            <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
-                {% for sector in runtime.sectors %}
-                    <div
-                    class="wheel-sector {% if sector.is_active %}wheel-sector-active{% endif %} {% if sector.is_answered %}wheel-sector-answered{% endif %}"
-                    data-wheel-sector
-                    data-item-id="{{ sector.id }}"
-                    data-answered="{{ sector.is_answered|yesno:'1,0' }}"
-                    data-sector-index="{{ forloop.counter0 }}"
-                    style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {% cycle '#cfeee4' '#ffd8bf' '#fff0a8' '#d9d5ff' '#ffd5e2' '#cdeaff' %};"
-                >
-                        <div class="wheel-sector-content">
-                            <span class="wheel-sector-label">{{ sector.prompt }}</span>
+{% block player_board %}
+    <section class="player-wheel-layout">
+        <div class="wheel-board">
+            <div class="wheel-figure">
+                <div class="wheel-pointer" aria-hidden="true"></div>
+                <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
+                    {% for sector in runtime.sectors %}
+                        <div
+                            class="wheel-sector {% if sector.is_active %}wheel-sector-active{% endif %} {% if sector.is_answered %}wheel-sector-answered{% endif %}"
+                            data-wheel-sector
+                            data-item-id="{{ sector.id }}"
+                            data-answered="{{ sector.is_answered|yesno:'1,0' }}"
+                            data-sector-index="{{ forloop.counter0 }}"
+                            style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {% cycle '#7d44c8' '#8d1df1' '#ff9368' '#c11755' '#aa7af1' '#ff9f76' %};"
+                        >
+                            <div class="wheel-sector-content">
+                                <span class="wheel-sector-label">{{ sector.prompt }}</span>
+                            </div>
                         </div>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="hero-actions wheel-controls">
-        <button class="button" type="button" data-wheel-start>Старт</button>
-        <button class="button button-secondary" type="button" data-wheel-stop disabled>Стоп</button>
-        {% if not preview and runtime.answered_count %}
-            <form method="post" class="inline-form">
-                {% csrf_token %}
-                <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
-            </form>
-        {% endif %}
-    </div>
+        <div class="wheel-controls hero-actions">
+            <button class="button" type="button" data-wheel-start>Крутить</button>
+            <button class="button button-secondary" type="button" data-wheel-stop disabled>Остановить</button>
+            {% if not preview and runtime.answered_count %}
+                <form method="post" class="inline-form">
+                    {% csrf_token %}
+                    <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
+                </form>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
 
+{% block player_sidebar_spotlight %}
     <div class="wheel-question-stack">
+        <p class="player-panel__eyebrow">Текущий вопрос</p>
+        <h2>{% if runtime.active_item %}Готовы к новому испытанию?{% else %}Крутите колесо, чтобы получить вопрос{% endif %}</h2>
+        <p>{% if runtime.active_item %}Выберите верный вариант ответа после остановки колеса.{% else %}Каждый сектор открывает отдельный вопрос и сохраняет результат после ответа.{% endif %}</p>
+
         {% for sector in runtime.sectors %}
             <article
                 class="card question-card question-card-reveal"
@@ -114,8 +107,13 @@
         {% endfor %}
 
         {% if preview %}
-            <div class="message" data-wheel-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы прокрутить колесо заново.</div>
+            <div class="message" data-wheel-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы прокрутить колесо заново.</div>
         {% endif %}
     </div>
-</section>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Сценарий</p>
+    <h3>Колесо фортуны</h3>
+    <p>Сначала крутите колесо, затем отвечайте на выпавший вопрос. Повторы и раскрытие ответов зависят от настроек шаблона.</p>
 {% endblock %}

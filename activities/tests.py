@@ -346,6 +346,8 @@ class ActivityEditorTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("X-Frame-Options"), "SAMEORIGIN")
+        self.assertContains(response, "player-topbar")
+        self.assertContains(response, "player-page--preview")
 
     def test_teacher_can_delete_activity_from_edit_mode(self):
         activity = Activity.objects.create(
@@ -428,7 +430,7 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, "data-wheel-stop")
         self.assertContains(response, "Largest ocean?")
 
-    def test_matching_and_categorize_runtime_expose_reveal_toggle(self):
+    def test_matching_runtime_uses_global_correct_answer_bank(self):
         matching_activity = Activity(
             title="Matching preview",
             template_key="matching",
@@ -448,31 +450,19 @@ class ActivityEditorTests(TestCase):
                 ],
             },
         )
-        categorize_activity = Activity(
-            title="Categorize preview",
-            template_key="categorize",
-            config_json={
-                "shuffle": True,
-                "reveal_correct_answer": False,
-                "items": [
-                    {
-                        "id": "item-1",
-                        "prompt": "Cat",
-                        "points": 1,
-                        "options": [
-                            {"id": "a", "text": "Animals", "is_correct": True},
-                            {"id": "b", "text": "Plants", "is_correct": False},
-                        ],
-                    }
-                ],
-            },
-        )
-
         matching_runtime = registry.get("matching").build_runtime_data(matching_activity, preview=True)
-        categorize_runtime = registry.get("categorize").build_runtime_data(categorize_activity, preview=True)
 
-        self.assertFalse(matching_runtime["reveal_correct_answer"])
-        self.assertFalse(categorize_runtime["reveal_correct_answer"])
+        self.assertCountEqual(
+            [choice["id"] for choice in matching_runtime["answer_bank"]],
+            ["a", "b"],
+        )
+        self.assertCountEqual(
+            [choice["text"] for choice in matching_runtime["answer_bank"]],
+            ["Guido", "Dennis"],
+        )
+        self.assertCountEqual(matching_runtime["choices"], ["Guido", "Dennis"])
+        self.assertTrue(matching_runtime["reveal_correct_answer"])
+        self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "a")
 
     def test_matching_and_categorize_preview_render_animation_hooks(self):
         matching = Activity.objects.create(
@@ -521,9 +511,11 @@ class ActivityEditorTests(TestCase):
         matching_response = self.client.get(reverse("activities:preview", args=[matching.pk]))
         categorize_response = self.client.get(reverse("activities:preview", args=[categorize.pk]))
 
+        self.assertContains(matching_response, "matching-flow")
         self.assertContains(matching_response, "data-matching-choice")
         self.assertContains(matching_response, "data-matching-question")
         self.assertContains(matching_response, "data-matching-bank")
+        self.assertContains(matching_response, "data-matching-dock")
         self.assertContains(categorize_response, "data-categorize-choice")
         self.assertContains(categorize_response, "data-categorize-dock")
         self.assertContains(categorize_response, "categorize-question-cell")

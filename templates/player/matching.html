@@ -1,29 +1,15 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section
-    class="player-shell"
+{% block player_layout_attrs %}
     data-matching-player
     data-preview="{{ preview|yesno:'1,0' }}"
     data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
->
-    <div class="player-header">
-        <div>
-            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Сопоставление{% endif %}</p>
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-        </div>
-        <div class="stats-row compact-stats">
-            <div><strong>{{ runtime.rows|length }}</strong><span>Пар</span></div>
-            {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
-            {% endif %}
-        </div>
-    </div>
+{% endblock %}
 
-    <form method="post" class="stack-form matching-flow">
+{% block player_board %}
+    <form method="post" class="stack-form player-matching-layout matching-flow" id="matching-flow-form" data-matching-flow>
         {% csrf_token %}
         {% if not preview %}
             <input type="hidden" name="action" value="submit_matching">
@@ -35,14 +21,25 @@
         <div class="matching-stage">
             {% for row in runtime.rows %}
                 <article
-                    class="card question-card matching-card"
+                    class="card question-card matching-card{% if forloop.first %} matching-card-current{% endif %}"
                     data-matching-question
                     data-item-id="{{ row.id }}"
                     data-correct-option="{{ row.correct_option }}"
+                    data-correct-choice-id="{{ row.correct_choice_id }}"
                     data-reveal-stagger
+                    {% if not forloop.first %}hidden{% endif %}
                 >
-                    <p class="eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.rows|length }}</p>
+                    <p class="player-panel__eyebrow">Пара {{ forloop.counter }} из {{ runtime.rows|length }}</p>
                     <h2>{{ row.prompt }}</h2>
+                    <div class="matching-dock-shell">
+                        <p class="player-panel__eyebrow">Карточка ответа</p>
+                        <div class="matching-dock" data-matching-dock data-item-id="{{ row.id }}">
+                            <span class="matching-dock-placeholder" data-matching-dock-placeholder>
+                                Выберите подходящую карточку из общего банка ответов.
+                            </span>
+                            <div class="matching-dock-card" data-matching-docked-card hidden></div>
+                        </div>
+                    </div>
                     <p class="muted">{{ row.points }} балл.</p>
                     <p class="muted question-feedback" data-question-feedback hidden></p>
                 </article>
@@ -50,18 +47,38 @@
         </div>
 
         <div class="matching-bank" data-matching-bank>
-            {% for choice in runtime.choices %}
-                <button class="option-row matching-choice" type="button" data-matching-choice data-choice-value="{{ choice }}">
-                    <span>{{ choice }}</span>
+            {% for choice in runtime.answer_bank %}
+                <button
+                    class="option-row matching-choice"
+                    type="button"
+                    data-matching-choice
+                    data-choice-id="{{ choice.id }}"
+                    data-choice-item-id="{{ choice.item_id }}"
+                    data-choice-value="{{ choice.text }}"
+                >
+                    <span class="matching-choice__token">{{ forloop.counter }}</span>
+                    <span>{{ choice.text }}</span>
                 </button>
             {% endfor %}
         </div>
 
-        {% if preview %}
-            <div class="message" data-preview-complete hidden>Предпросмотр завершен. Обновите страницу, чтобы пройти шаблон заново.</div>
-        {% else %}
+        {% if not preview %}
             <button class="button" type="submit" data-matching-submit>Завершить сопоставление</button>
         {% endif %}
     </form>
-</section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Сопоставление</p>
+    <h2>Соединяйте вопросы с карточками из общего банка</h2>
+    <p>Вопросы идут по одному, а справа собраны все ответы, которые учитель добавил в этот интерактив.</p>
+    {% if preview %}
+        <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти шаблон.</div>
+    {% endif %}
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Сценарий</p>
+    <h3>Одна карточка вопроса за раз</h3>
+    <p>После выбора ответа в ячейку вопроса вставляется верная карточка, а затем сцена переходит к следующей паре.</p>
 {% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/player.css' %}">
+{% endblock %}
+
+{% block body_class %}player-page{% if preview %} player-page--preview{% endif %}{% endblock %}
+
+{% block site_header %}
+    <header class="player-topbar">
+        <div class="player-topbar__inner">
+            <div class="player-topbar__brand-group">
+                <span class="player-topbar__brand">Quizzart</span>
+                <span class="player-topbar__mode">{{ player_shell.hero_eyebrow }}</span>
+            </div>
+
+            <div class="player-topbar__profile">
+                <div class="player-topbar__profile-copy">
+                    <span>{{ player_shell.participant.label }}</span>
+                    <strong>{{ player_shell.participant.name }}</strong>
+                </div>
+                <span class="player-topbar__avatar" aria-hidden="true">
+                    {% if player_shell.participant.avatar_url %}
+                        <img src="{{ player_shell.participant.avatar_url }}" alt="">
+                    {% else %}
+                        {{ player_shell.participant.initials }}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </header>
+{% endblock %}
+
+{% block main_class %}player-main{% endblock %}
+
+{% block content %}
+    <section class="student-player">
+        <div class="student-player__hero">
+            <div class="student-player__copy">
+                <p class="student-player__eyebrow">{{ player_shell.template_title }}</p>
+                <h1>{{ activity.title }}</h1>
+                <p>{{ activity.description|default:player_shell.template_description }}</p>
+            </div>
+
+            <div class="student-player__stats">
+                {% for stat in player_shell.summary_cards %}
+                    <article class="student-player__stat student-player__stat--{{ stat.tone }}">
+                        <span>{{ stat.label }}</span>
+                        <strong>{{ stat.value }}</strong>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="student-player__layout {% block player_layout_class %}{% endblock %}" {% block player_layout_attrs %}{% endblock %}>
+            <div class="student-player__board">
+                {% block player_board %}{% endblock %}
+            </div>
+
+            <aside class="student-player__sidebar">
+                <section class="player-panel player-panel--spotlight">
+                    {% block player_sidebar_spotlight %}
+                        <p class="player-panel__eyebrow">{{ player_shell.hero_eyebrow }}</p>
+                        <h2>{{ player_shell.spotlight_title }}</h2>
+                        <p>{{ player_shell.spotlight_text }}</p>
+                    {% endblock %}
+                </section>
+
+                <section class="player-panel player-panel--facts">
+                    <div class="player-panel__identity">
+                        <span class="player-panel__identity-avatar" aria-hidden="true">
+                            {% if player_shell.participant.avatar_url %}
+                                <img src="{{ player_shell.participant.avatar_url }}" alt="">
+                            {% else %}
+                                {{ player_shell.participant.initials }}
+                            {% endif %}
+                        </span>
+                        <div>
+                            <p class="player-panel__eyebrow">{{ player_shell.participant.label }}</p>
+                            <h3>{{ player_shell.participant.name }}</h3>
+                        </div>
+                    </div>
+
+                    <dl class="player-panel__facts-list">
+                        {% for fact in player_shell.fact_rows %}
+                            <div>
+                                <dt>{{ fact.label }}</dt>
+                                <dd>{{ fact.value }}</dd>
+                            </div>
+                        {% endfor %}
+                    </dl>
+                </section>
+            </aside>
+        </div>
+
+        <div class="student-player__footer">
+            <section class="player-panel player-panel--progress">
+                <div class="player-progress__head">
+                    <div>
+                        <p class="player-panel__eyebrow">{{ player_shell.footer_title }}</p>
+                        <h2>{{ player_shell.progress_percent }}% готово</h2>
+                    </div>
+                    <div class="player-progress__ring" style="--progress: {{ player_shell.progress_percent }};">
+                        <span>{{ player_shell.progress_percent }}%</span>
+                    </div>
+                </div>
+
+                <div class="player-progress__bar" aria-hidden="true">
+                    <span style="width: {{ player_shell.progress_percent }}%;"></span>
+                </div>
+
+                <div class="player-progress__segments" aria-hidden="true">
+                    {% for segment in player_shell.progress_segments %}
+                        <span class="{% if segment.filled %}is-filled{% endif %}"></span>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="player-panel player-panel--accent">
+                {% block player_footer_accent %}
+                    <p class="player-panel__eyebrow">Статус</p>
+                    <h3>{{ player_shell.spotlight_title }}</h3>
+                    <p>{{ player_shell.footer_text }}</p>
+                {% endblock %}
+            </section>
+        </div>
+    </section>
+{% endblock %}

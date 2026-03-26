@@ -1,13 +1,13 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section class="player-shell player-shell-centered">
-    <article class="card auth-card">
-        <p class="eyebrow">Режим ученика</p>
-        <h1>{{ activity.title }}</h1>
-        <p>{{ activity.description|default:"Откройте интерактив и выполните задание." }}</p>
+{% block player_board %}
+    <article class="card player-launch-card">
+        <p class="player-panel__eyebrow">Старт интерактива</p>
+        <h2>{{ activity.title }}</h2>
+        <p>{{ activity.description|default:"Откройте интерактив и начните прохождение в комфортном темпе." }}</p>
+
         <form method="post" class="stack-form">
             {% csrf_token %}
             {{ form.non_field_errors }}
@@ -18,8 +18,19 @@
                     {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
                 </div>
             {% endfor %}
-            <button class="button" type="submit" name="action" value="start">Начать</button>
+            <button class="button" type="submit" name="action" value="start">Начать интерактив</button>
         </form>
     </article>
-</section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <p class="player-panel__eyebrow">Перед стартом</p>
+    <h2>Все уже настроено для ученика</h2>
+    <p>После запуска Quizzart откроет выбранный шаблон, сохранит прогресс и покажет результаты по завершении.</p>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Шаблон</p>
+    <h3>{{ player_shell.template_title }}</h3>
+    <p>{{ player_shell.template_description }}</p>
 {% endblock %}

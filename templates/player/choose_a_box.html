@@ -1,88 +1,104 @@
-{% extends "base.html" %}
+{% extends "player/player_base.html" %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block content %}
-<section
-    class="player-shell"
+{% block player_layout_attrs %}
     data-box-player
     data-preview="{{ preview|yesno:'1,0' }}"
     data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
     data-no-repeat="{{ runtime.no_repeat|yesno:'1,0' }}"
->
-    <div class="player-header">
-        <div>
-            <p class="eyebrow">{% if preview %}Предпросмотр{% else %}Выбери коробку{% endif %}</p>
-            <h1>{{ activity.title }}</h1>
-            <p>{{ activity.description }}</p>
-        </div>
-        <div class="stats-row compact-stats">
-            {% if session %}
-                <div><strong>{{ session.score }}</strong><span>Баллы</span></div>
-            {% endif %}
-            <div><strong>{{ runtime.answered_count }}</strong><span>Отвечено</span></div>
-            <div><strong>{{ runtime.total_boxes }}</strong><span>Коробок с вопросами</span></div>
-        </div>
-    </div>
+{% endblock %}
 
+{% block player_board %}
     {% if player_error %}
         <div class="message">{{ player_error }}</div>
     {% endif %}
 
-    <div class="box-grid box-grid-{{ runtime.grid_size }}">
-        {% for box in runtime.boxes %}
-            <article
-                class="box-card box-card-{{ box.state }}"
-                data-reveal-stagger
-                data-box-card
-                data-box-id="{{ box.id }}"
-            >
-                <div class="box-card-head">
-                    <span class="box-label">#{{ box.number }}</span>
-                    <span class="muted">{{ box.points }} балл.</span>
-                </div>
+    <section class="card player-box-grid-card">
+        <p class="player-panel__eyebrow">Игровое поле</p>
+        <div class="box-grid box-grid-{{ runtime.grid_size }}">
+            {% for box in runtime.boxes %}
+                <article
+                    class="box-card box-card-{{ box.state }}"
+                    data-reveal-stagger
+                    data-box-card
+                    data-box-id="{{ box.id }}"
+                >
+                    <div class="box-card-head">
+                        <span class="box-label">#{{ box.number }}</span>
+                        <span class="muted">{{ box.points }} балл.</span>
+                    </div>
 
-                {% if box.is_placeholder %}
-                    <p class="muted">Пустой слот</p>
-                {% elif preview %}
-                    <button class="button button-small" type="button" data-preview-open-box>Открыть коробку</button>
-                    <div class="box-question" data-preview-box-panel hidden>
-                        <p>{{ box.prompt }}</p>
+                    {% if box.is_placeholder %}
+                        <p class="muted">Пустой слот</p>
+                    {% elif preview %}
+                        <button class="button button-small" type="button" data-preview-open-box>Открыть коробку</button>
+                        <div class="box-question" data-preview-box-panel hidden>
+                            <p>{{ box.prompt }}</p>
+                            <form
+                                class="stack-form"
+                                data-answer-form
+                                data-preview="1"
+                                data-correct-option="{{ box.expected_answer }}"
+                                data-local-complete="box"
+                            >
+                                <div class="option-list">
+                                    {% for option in box.options %}
+                                        <label class="option-row">
+                                            <input type="radio" name="preview_box_{{ box.id }}" value="{{ option }}">
+                                            <span>{{ option }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <p class="muted question-feedback" data-question-feedback hidden></p>
+                            </form>
+                        </div>
+                    {% elif box.state == "unopened" %}
                         <form
+                            method="post"
                             class="stack-form"
-                            data-answer-form
-                            data-preview="1"
-                            data-correct-option="{{ box.expected_answer }}"
-                            data-local-complete="box"
+                            data-delay-submit="420"
+                            data-animate-target=".box-card"
+                            data-animate-class="box-card-opening"
                         >
-                            <div class="option-list">
-                                {% for option in box.options %}
-                                    <label class="option-row">
-                                        <input type="radio" name="preview_box_{{ box.id }}" value="{{ option }}">
-                                        <span>{{ option }}</span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                            <p class="muted question-feedback" data-question-feedback hidden></p>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="open_box">
+                            <input type="hidden" name="item_key" value="{{ box.id }}">
+                            <button class="button button-small" type="submit">Открыть коробку</button>
                         </form>
-                    </div>
-                {% elif box.state == "unopened" %}
-                    <form
-                        method="post"
-                        class="stack-form"
-                        data-delay-submit="420"
-                        data-animate-target=".box-card"
-                        data-animate-class="box-card-opening"
-                    >
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="open_box">
-                        <input type="hidden" name="item_key" value="{{ box.id }}">
-                        <button class="button button-small" type="submit">Открыть коробку</button>
-                    </form>
-                {% elif box.state == "opened" %}
-                    <div class="box-question">
+                    {% elif box.state == "opened" %}
+                        <p class="muted">Вопрос открыт. Ответьте на него в правой колонке.</p>
+                    {% else %}
                         <p>{{ box.prompt }}</p>
-                    </div>
+                        <p class="muted">Ваш ответ: {{ box.submitted_answer|default:"Нет ответа" }}</p>
+                        {% if runtime.reveal_correct_answer %}
+                            <p class="muted">Правильный ответ: {{ box.expected_answer }}</p>
+                        {% endif %}
+                        <span class="status-chip {% if box.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
+                            {% if box.is_correct %}Верно{% else %}Неверно{% endif %}
+                        </span>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+
+        {% if not preview and runtime.show_finish %}
+            <form method="post" class="hero-actions">
+                {% csrf_token %}
+                <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
+            </form>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block player_sidebar_spotlight %}
+    <section class="player-box-sidebar">
+        <p class="player-panel__eyebrow">Текущая коробка</p>
+        {% for box in runtime.boxes %}
+            {% if box.state == "opened" %}
+                <article class="card question-card">
+                    <h2>{{ box.prompt }}</h2>
+                    <p class="muted">{{ box.points }} балл.</p>
                     <form
                         method="post"
                         class="stack-form"
@@ -104,25 +120,23 @@
                         <p class="muted question-feedback" data-question-feedback hidden></p>
                         <button class="button button-small" type="submit" data-answer-submit>Ответить</button>
                     </form>
-                {% else %}
-                    <p>{{ box.prompt }}</p>
-                    <p class="muted">Ваш ответ: {{ box.submitted_answer|default:"Нет ответа" }}</p>
-                    {% if runtime.reveal_correct_answer %}
-                        <p class="muted">Правильный ответ: {{ box.expected_answer }}</p>
-                    {% endif %}
-                    <span class="status-chip {% if box.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
-                        {% if box.is_correct %}Верно{% else %}Неверно{% endif %}
-                    </span>
-                {% endif %}
-            </article>
+                </article>
+            {% endif %}
+        {% empty %}
         {% endfor %}
-    </div>
 
-    {% if not preview and runtime.show_finish %}
-        <form method="post" class="hero-actions">
-            {% csrf_token %}
-            <button class="button button-secondary" type="submit" name="action" value="finish">Завершить</button>
-        </form>
-    {% endif %}
-</section>
+        {% if preview %}
+            <h2>Открывайте коробки по одной</h2>
+            <p>В preview можно проверить механику открытия, а в реальном прохождении ответы сохраняются после выбора варианта.</p>
+        {% else %}
+            <h2>Выберите коробку на поле</h2>
+            <p>После открытия вопрос появится в этой панели, а прогресс сохранится до завершения всей сетки.</p>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block player_footer_accent %}
+    <p class="player-panel__eyebrow">Сценарий</p>
+    <h3>Выбери коробку</h3>
+    <p>Каждая коробка скрывает отдельный вопрос. Открытые и завершённые ячейки остаются видимыми до конца прохождения.</p>
 {% endblock %}
