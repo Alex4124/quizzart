@@ -727,19 +727,58 @@
     gap: 0.75rem;
 }
 
-.teacher-activity-card__actions a {
+.teacher-activity-card__actions :is(a, button) {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+    padding: 0;
+    border: 0;
+    appearance: none;
+    background: transparent;
     color: #56617b;
     font-size: 0.92rem;
     font-weight: 700;
+    font-family: inherit;
     max-width: 100%;
+    text-decoration: none;
+    cursor: pointer;
 }
 
-.teacher-activity-card__actions a:hover {
+.teacher-activity-card__actions :is(a, button):hover,
+.teacher-activity-card__actions :is(a, button):focus-visible {
     color: var(--teacher-violet);
     transform: translateY(-1px);
+}
+
+.teacher-activity-card__actions button:focus-visible {
+    outline: none;
+}
+
+.teacher-copy-toast {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 30;
+    max-width: min(22rem, calc(100vw - 2rem));
+    padding: 0.9rem 1.1rem;
+    border-radius: 1rem;
+    background: rgba(19, 26, 47, 0.92);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 24px 44px rgba(17, 24, 39, 0.26);
+    opacity: 0;
+    transform: translateY(0.75rem);
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.teacher-copy-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.teacher-copy-toast.is-error {
+    background: rgba(123, 38, 55, 0.96);
 }
 
 .teacher-activity-card--create {

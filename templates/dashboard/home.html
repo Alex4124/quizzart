@@ -245,12 +245,12 @@
                                         <span>Дублировать</span>
                                     {% endcomment %}
                                     {% if activity.share_url %}
-                                        <a href="{{ activity.share_url }}" target="_blank" rel="noreferrer">
+                                        <button type="button" data-copy-link="{{ activity.share_url }}">
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path d="M9.5 13.5a3.5 3.5 0 0 0 4.95 0l2.1-2.1a3.5 3.5 0 1 0-4.95-4.95l-1 1 1.41 1.41 1-1a1.5 1.5 0 0 1 2.12 2.12l-2.1 2.1a1.5 1.5 0 0 1-2.12 0l-.29-.29-1.41 1.41.29.3Zm-2.05-3-2.1 2.1a3.5 3.5 0 1 0 4.95 4.95l1-1-1.41-1.41-1 1a1.5 1.5 0 0 1-2.12-2.12l2.1-2.1a1.5 1.5 0 0 1 2.12 0l.29.29 1.41-1.41-.29-.29a3.5 3.5 0 0 0-4.95 0Z"></path>
                                             </svg>
                                             <span>Ссылка</span>
-                                        </a>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </div>
@@ -310,4 +310,5 @@
         </section>
     </aside>
 </section>
+<div class="teacher-copy-toast" data-copy-toast role="status" aria-live="polite" hidden></div>
 {% endblock %}

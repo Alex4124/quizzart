@@ -244,7 +244,8 @@ class DashboardHomeViewTests(TestCase):
         self.assertContains(response, reverse("dashboard:analytics", kwargs={"pk": activity.pk}))
         self.assertNotIn("teacher-activity-card__cover-label", markup)
         self.assertNotContains(response, reverse("activities:duplicate", kwargs={"pk": activity.pk}))
-        self.assertContains(response, share_link.get_absolute_url())
+        self.assertContains(response, f'data-copy-link="http://testserver{share_link.get_absolute_url()}"')
+        self.assertContains(response, "data-copy-toast")
         self.assertContains(response, "Опубликован", count=1)
 
     def test_dashboard_shows_all_teacher_activities_without_truncation(self):

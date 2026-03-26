@@ -142,7 +142,7 @@ def _count_label(value: int, one: str, few: str, many: str) -> str:
     return f"{value} {form}"
 
 
-def _build_activity_card(activity: Activity) -> dict:
+def _build_activity_card(activity: Activity, request) -> dict:
     active_share_links = getattr(activity, "dashboard_active_share_links", [])
     share_link = active_share_links[0] if active_share_links else None
     template_title = _dashboard_template_title(activity.template_key)
@@ -167,7 +167,7 @@ def _build_activity_card(activity: Activity) -> dict:
         "edit_url": activity.get_absolute_url(),
         "preview_url": activity.get_preview_url(),
         "analytics_url": reverse("dashboard:analytics", kwargs={"pk": activity.pk}),
-        "share_url": share_link.get_absolute_url() if share_link else "",
+        "share_url": request.build_absolute_uri(share_link.get_absolute_url()) if share_link else "",
     }
 
 
@@ -330,7 +330,7 @@ def home(request):
         )
         .order_by("-updated_at")
     )
-    all_activity_cards = [_build_activity_card(activity) for activity in activities]
+    all_activity_cards = [_build_activity_card(activity, request) for activity in activities]
     query = request.GET.get("q", "").strip()
     activity_cards = (
         [activity_card for activity_card in all_activity_cards if _matches_dashboard_query(activity_card, query)]
