@@ -1,0 +1,8 @@
+{% load static %}
+<img
+    class="site-logo{% if logo_class %} {{ logo_class }}{% endif %}{% if logo_extra_class %} {{ logo_extra_class }}{% endif %}"
+    src="{% static 'img/quizzart-logo.png' %}"
+    alt="Quizzart"
+    loading="eager"
+    decoding="async"
+>

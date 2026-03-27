@@ -9,6 +9,8 @@
     --border: #d6ccb7;
     --danger: #8c3c2f;
     --shadow: 0 18px 40px rgba(34, 32, 28, 0.08);
+    --site-logo-width: 260px;
+    --site-logo-height: 90px;
 }
 
 * {
@@ -64,9 +66,27 @@ textarea {
 }
 
 .brand {
+    display: inline-flex;
+    align-items: center;
     font-size: 1.3rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    line-height: 0;
+}
+
+.brand__logo {
+    width: var(--site-logo-width);
+    height: var(--site-logo-height);
+    max-width: min(100%, var(--site-logo-width));
+}
+
+.site-logo {
+    display: block;
+    width: var(--site-logo-width);
+    height: var(--site-logo-height);
+    max-width: min(100%, var(--site-logo-width));
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .topnav {

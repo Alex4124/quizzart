@@ -14,7 +14,9 @@
     <header class="player-topbar">
         <div class="player-topbar__inner">
             <div class="player-topbar__brand-group">
-                <span class="player-topbar__brand">Quizzart</span>
+                <span class="player-topbar__brand">
+                    {% include "includes/site_logo.html" with logo_class="player-topbar__brand-logo" %}
+                </span>
                 <span class="player-topbar__mode">{{ player_shell.hero_eyebrow }}</span>
             </div>
 

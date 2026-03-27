@@ -65,11 +65,19 @@ body.player-page {
 }
 
 .player-topbar__brand {
+    display: inline-flex;
+    align-items: center;
     font-size: 2rem;
-    line-height: 1;
+    line-height: 0;
     font-weight: 800;
     letter-spacing: -0.06em;
     color: #3d35d7;
+}
+
+.player-topbar__brand-logo {
+    width: var(--site-logo-width);
+    height: var(--site-logo-height);
+    max-width: min(100%, var(--site-logo-width));
 }
 
 .player-topbar__mode,
@@ -493,6 +501,28 @@ body.player-page {
     padding: 1.6rem;
 }
 
+.player-page .quiz-stage {
+    display: grid;
+    min-height: 360px;
+}
+
+.player-page .quiz-card {
+    max-width: 760px;
+    width: 100%;
+}
+
+.player-page .quiz-card-enter {
+    animation: quizCardFlipIn 0.42s ease both;
+    transform-origin: center center;
+    backface-visibility: hidden;
+}
+
+.player-page .quiz-card-exit {
+    animation: quizCardFlipOut 0.34s ease both;
+    transform-origin: center center;
+    backface-visibility: hidden;
+}
+
 .player-launch-card,
 .player-results-summary {
     padding: 1.8rem;
@@ -532,30 +562,78 @@ body.player-page {
 }
 
 .player-page .wheel-board {
-    padding: 0;
+    padding: 0.9rem 1.35rem 0.35rem;
+    overflow: visible;
 }
 
 .player-page .wheel-figure {
     width: min(720px, 100%);
     margin: 0 auto;
+    overflow: visible;
 }
 
 .player-page .wheel-pointer {
-    top: -0.4rem;
-    left: 50%;
+    top: 50%;
+    left: -1.1rem;
     width: 0;
     height: 0;
-    transform: translateX(-50%);
-    border-left: 18px solid transparent;
-    border-right: 18px solid transparent;
-    border-top: 0;
-    border-bottom: 42px solid #262a35;
+    transform: translateY(-50%);
+    border-top: 18px solid transparent;
+    border-bottom: 18px solid transparent;
+    border-left: 42px solid #262a35;
+    border-right: 0;
+    z-index: 5;
     filter: drop-shadow(0 8px 18px rgba(38, 42, 53, 0.22));
 }
 
 .player-page .wheel-disc {
+    position: relative;
+    z-index: 3;
     box-shadow: 0 24px 48px rgba(31, 38, 64, 0.16);
     background: radial-gradient(circle at center, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+}
+
+.player-page .wheel-lights {
+    position: absolute;
+    inset: -1.45rem;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.player-page .wheel-light {
+    position: absolute;
+    inset: 0;
+    transform: rotate(calc((360deg / var(--light-count)) * var(--light-index)));
+}
+
+.player-page .wheel-light::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 999px;
+    background: radial-gradient(circle at 35% 35%, #fff8d8 0 32%, #ffd18b 40%, #ff9b5e 72%, #f06f2b 100%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        0 0 0 0.2rem rgba(255, 209, 139, 0.18),
+        0 0 18px rgba(255, 155, 94, 0.52);
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(0.94);
+}
+
+.player-page .wheel-light:nth-child(odd)::before {
+    animation: wheelLightPulseOdd 1.5s steps(1, end) infinite;
+}
+
+.player-page .wheel-light:nth-child(even)::before {
+    animation: wheelLightPulseEven 1.5s steps(1, end) infinite;
+}
+
+.player-page .wheel-disc-live + .wheel-lights .wheel-light:nth-child(odd)::before,
+.player-page .wheel-disc-live + .wheel-lights .wheel-light:nth-child(even)::before {
+    animation-duration: 0.34s;
 }
 
 .player-page .wheel-sector-label {
@@ -577,6 +655,54 @@ body.player-page {
 .player-page .wheel-question-stack {
     display: grid;
     gap: 1rem;
+}
+
+@keyframes wheelLightPulseOdd {
+    0%,
+    49.999% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.08);
+    }
+    50%,
+    100% {
+        opacity: 0.36;
+        transform: translate(-50%, -50%) scale(0.92);
+    }
+}
+
+@keyframes wheelLightPulseEven {
+    0%,
+    49.999% {
+        opacity: 0.36;
+        transform: translate(-50%, -50%) scale(0.92);
+    }
+    50%,
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.08);
+    }
+}
+
+@keyframes quizCardFlipIn {
+    0% {
+        opacity: 0;
+        transform: perspective(1200px) rotateY(-82deg) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(1200px) rotateY(0deg) scale(1);
+    }
+}
+
+@keyframes quizCardFlipOut {
+    0% {
+        opacity: 1;
+        transform: perspective(1200px) rotateY(0deg) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: perspective(1200px) rotateY(84deg) scale(0.97);
+    }
 }
 
 .player-box-grid-card {
@@ -856,6 +982,12 @@ body.player-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .player-page .wheel-light::before {
+        animation: none !important;
+        opacity: 0.9 !important;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
     .player-page *,
     .player-page *::before,
     .player-page *::after {

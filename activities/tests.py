@@ -348,6 +348,8 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(response.headers.get("X-Frame-Options"), "SAMEORIGIN")
         self.assertContains(response, "player-topbar")
         self.assertContains(response, "player-page--preview")
+        self.assertContains(response, "quiz-flow")
+        self.assertContains(response, "quiz-stage")
 
     def test_teacher_can_delete_activity_from_edit_mode(self):
         activity = Activity.objects.create(
@@ -428,6 +430,8 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-wheel-start")
         self.assertContains(response, "data-wheel-stop")
+        self.assertContains(response, "wheel-lights")
+        self.assertContains(response, 'class="wheel-light"', count=24)
         self.assertContains(response, "Largest ocean?")
 
     def test_matching_runtime_uses_global_correct_answer_bank(self):

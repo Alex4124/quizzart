@@ -15,7 +15,9 @@
 {% block site_header %}
     <header class="landing-header">
         <div class="landing-container landing-header__inner">
-            <a class="landing-brand" href="{% url 'dashboard:landing' %}">Quizzart</a>
+            <a class="landing-brand" href="{% url 'dashboard:landing' %}">
+                {% include "includes/site_logo.html" with logo_class="landing-brand__logo" %}
+            </a>
             <nav class="landing-nav" aria-label="Основная навигация">
                 <a href="#features">Преимущества</a>
                 <a href="#templates">Шаблоны</a>
@@ -264,7 +266,9 @@
     <footer class="landing-footer">
         <div class="landing-container landing-footer__inner">
             <div class="landing-footer__intro">
-                <a class="landing-brand" href="{% url 'dashboard:landing' %}">Quizzart</a>
+                <a class="landing-brand" href="{% url 'dashboard:landing' %}">
+                    {% include "includes/site_logo.html" with logo_class="landing-brand__logo" %}
+                </a>
                 <p>
                     Python-first конструктор учебных интерактивов для учителя, которому нужен
                     быстрый запуск, публикация по ссылке и сохранение результатов.

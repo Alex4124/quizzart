@@ -63,10 +63,17 @@
 .teacher-header__brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0;
     font-size: 2rem;
     font-weight: 800;
     color: var(--teacher-indigo);
+    line-height: 0;
+}
+
+.teacher-header__brand-logo {
+    width: var(--site-logo-width);
+    height: var(--site-logo-height);
+    max-width: min(100%, var(--site-logo-width));
 }
 
 .teacher-header__brand-mark,

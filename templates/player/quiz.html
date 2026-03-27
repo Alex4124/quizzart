@@ -9,7 +9,7 @@
 
     <form
         method="post"
-        class="player-quiz-form"
+        class="player-quiz-form quiz-flow"
         data-quiz-player
         data-preview="{{ preview|yesno:'1,0' }}"
         data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
@@ -19,33 +19,36 @@
             <input type="hidden" name="action" value="submit_quiz">
         {% endif %}
 
-        {% for question in runtime.questions %}
-            <article
-                class="card question-card"
-                data-reveal-stagger
-                data-quiz-question
-                data-question-index="{{ forloop.counter0 }}"
-                data-correct-option="{{ question.correct_option }}"
-            >
-                <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
-                <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
-                <p class="muted">{{ question.points }} балл.</p>
-                <div class="option-list">
-                    {% for option in question.options %}
-                        <label class="option-row">
-                            <input
-                                type="radio"
-                                name="question_{{ question.id }}"
-                                value="{{ option }}"
-                                {% if option == question.selected_option %}checked{% endif %}
-                            >
-                            <span>{{ option }}</span>
-                        </label>
-                    {% endfor %}
-                </div>
-                <p class="muted question-feedback" data-question-feedback hidden></p>
-            </article>
-        {% endfor %}
+        <div class="quiz-stage">
+            {% for question in runtime.questions %}
+                <article
+                    class="card question-card quiz-card{% if forloop.first %} question-card-current{% endif %}"
+                    data-reveal-stagger
+                    data-quiz-question
+                    data-question-index="{{ forloop.counter0 }}"
+                    data-correct-option="{{ question.correct_option }}"
+                    {% if not forloop.first %}hidden{% endif %}
+                >
+                    <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
+                    <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
+                    <p class="muted">{{ question.points }} балл.</p>
+                    <div class="option-list">
+                        {% for option in question.options %}
+                            <label class="option-row">
+                                <input
+                                    type="radio"
+                                    name="question_{{ question.id }}"
+                                    value="{{ option }}"
+                                    {% if option == question.selected_option %}checked{% endif %}
+                                >
+                                <span>{{ option }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="muted question-feedback" data-question-feedback hidden></p>
+                </article>
+            {% endfor %}
+        </div>
 
         {% if not preview %}
             <button class="button" type="submit" data-quiz-submit>Завершить викторину</button>
@@ -57,7 +60,7 @@
 
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Викторина</p>
-    <h2>Ответьте на все вопросы</h2>
+    <h2>Отвечайте на вопросы по одному</h2>
     <p>
         {% if runtime.show_result_at_end %}
             Результат и разбор ответов будут доступны сразу после завершения.
@@ -70,5 +73,5 @@
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">Формат</p>
     <h3>Классическая викторина</h3>
-    <p>Все вопросы собраны на одном экране, а выбранные варианты сохраняются в рамках текущей попытки.</p>
+    <p>Вопросы идут последовательно, а карточка мягко переворачивается перед переходом к следующему вопросу.</p>
 {% endblock %}

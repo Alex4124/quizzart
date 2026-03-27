@@ -101,6 +101,43 @@ class PublicPlayTests(TestCase):
         self.assertContains(response, "Ваш ответ: Paris")
         self.assertContains(response, "100%")
 
+    def test_quiz_flow_renders_one_active_question_card(self):
+        link = self._create_published_activity(
+            "quiz",
+            {
+                "show_result_at_end": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Capital of France?",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Paris", "is_correct": True},
+                            {"id": "b", "text": "Rome", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start", "participant_name": "Student"})
+        response = self.client.get(f"/p/{link.slug}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "quiz-flow")
+        self.assertContains(response, "quiz-stage")
+        self.assertContains(response, "data-quiz-question", count=2)
+        self.assertContains(response, "question-card-current", count=1)
+
     def test_student_can_answer_choose_a_box(self):
         link = self._create_published_activity(
             "choose_a_box",

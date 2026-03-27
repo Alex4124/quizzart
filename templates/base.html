@@ -11,7 +11,9 @@
 <body class="{% block body_class %}{% endblock %}">
     {% block site_header %}
         <header class="topbar">
-            <a class="brand" href="{% url 'dashboard:landing' %}">Quizzart</a>
+            <a class="brand" href="{% url 'dashboard:landing' %}">
+                {% include "includes/site_logo.html" with logo_class="brand__logo" %}
+            </a>
             <nav class="topnav">
                 {% if request.user.is_authenticated %}
                     {% if current_user_profile.is_teacher %}

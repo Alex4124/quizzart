@@ -16,8 +16,7 @@
     <header class="teacher-header">
         <div class="teacher-header__inner">
             <a class="teacher-header__brand" href="{% url 'dashboard:home' %}">
-                <span class="teacher-header__brand-mark">Q</span>
-                <span class="teacher-header__brand-name">Quizzart</span>
+                {% include "includes/site_logo.html" with logo_class="teacher-header__brand-logo" %}
             </a>
 
             <nav class="teacher-header__nav" aria-label="Разделы кабинета">

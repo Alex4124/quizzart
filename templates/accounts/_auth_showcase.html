@@ -1,13 +1,7 @@
 {% load static %}
 <aside class="auth-visual-panel">
     <a class="auth-brand" href="{% url 'dashboard:landing' %}">
-        <span class="auth-brand__mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M12 2.5L13.9 8.1L19.5 10L13.9 11.9L12 17.5L10.1 11.9L4.5 10L10.1 8.1L12 2.5Z" />
-                <path d="M18 15.5L18.8 17.7L21 18.5L18.8 19.3L18 21.5L17.2 19.3L15 18.5L17.2 17.7L18 15.5Z" />
-            </svg>
-        </span>
-        <span class="auth-brand__label">Quizzart</span>
+        {% include "includes/site_logo.html" with logo_class="auth-brand__logo" %}
     </a>
 
     <div class="auth-showcase-card">

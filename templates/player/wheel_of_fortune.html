@@ -14,7 +14,6 @@
     <section class="player-wheel-layout">
         <div class="wheel-board">
             <div class="wheel-figure">
-                <div class="wheel-pointer" aria-hidden="true"></div>
                 <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
                     {% for sector in runtime.sectors %}
                         <div
@@ -31,6 +30,12 @@
                         </div>
                     {% endfor %}
                 </div>
+                <div class="wheel-lights" aria-hidden="true" style="--light-count: 24;">
+                    {% for _ in "abcdefghijklmnopqrstuvwx"|make_list %}
+                        <span class="wheel-light" style="--light-index: {{ forloop.counter0 }};"></span>
+                    {% endfor %}
+                </div>
+                <div class="wheel-pointer" aria-hidden="true"></div>
             </div>
         </div>
 
