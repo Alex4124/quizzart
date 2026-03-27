@@ -18,7 +18,7 @@ from interactive_templates.utils import (
 
 
 class CategorizeEditorForm(forms.Form):
-    shuffle = forms.BooleanField(required=False, initial=True, label="Перемешивать элементы и категории")
+    shuffle = forms.BooleanField(required=False, initial=True, label="Перемешивать порядок карточек")
     reveal_correct_answer = forms.BooleanField(
         required=False,
         initial=True,
@@ -32,10 +32,10 @@ def _sample_items() -> list[dict[str, Any]]:
     return [
         {
             "id": f"item-{index}",
-            "prompt": f"Categorize prompt {index}",
+            "prompt": f"Вопрос на карточке {index}",
             "options": [
-                {"id": f"item-{index}-option-1", "text": f"Category {1 if index % 2 else 2}", "is_correct": True},
-                {"id": f"item-{index}-option-2", "text": f"Other {index}", "is_correct": False},
+                {"id": f"item-{index}-option-1", "text": f"Правильный ответ {index}", "is_correct": True},
+                {"id": f"item-{index}-option-2", "text": f"Неверный ответ {index}", "is_correct": False},
             ],
             "points": 1,
         }
@@ -46,8 +46,8 @@ def _sample_items() -> list[dict[str, Any]]:
 class CategorizeDefinition(BaseTemplateDefinition):
     metadata = TemplateMetadata(
         key="categorize",
-        title="Распределение по категориям",
-        description="Нужно разнести элементы по правильным категориям.",
+        title="Карточки",
+        description="Откройте карточку, выберите правильный ответ и постепенно пройдите весь набор вопросов.",
         playable=True,
     )
     editor_form_class = CategorizeEditorForm
@@ -93,33 +93,37 @@ class CategorizeDefinition(BaseTemplateDefinition):
         if session:
             answer_map = {answer.item_key: answer for answer in session.answers.all()}
 
-        categories = []
-        for item in items:
-            category = correct_option(item)["text"]
-            if category not in categories:
-                categories.append(category)
-
         seed_base = "preview" if preview else str(session.token) if session else "categorize"
-        rows = []
+        cards = []
         for item in items:
             answer = answer_map.get(item["id"])
-            rows.append(
+            selected_value = ""
+            if answer:
+                selected_value = answer.submitted_value.get("choice", answer.submitted_value.get("answer", ""))
+            cards.append(
                 {
                     "id": item["id"],
                     "prompt": item["prompt"],
-                    "selected": answer.submitted_value.get("choice", "") if answer else "",
+                    "options": [
+                        {
+                            "id": option["id"],
+                            "text": option["text"],
+                            "is_correct": option["is_correct"],
+                        }
+                        for option in item.get("options", [])
+                    ],
+                    "selected": selected_value,
+                    "is_answered": bool(answer),
                     "correct_option": correct_option(item)["text"],
                     "points": item.get("points", 1),
                 }
             )
 
         if activity.config_json.get("shuffle", False):
-            random.Random(seed_base).shuffle(rows)
-            random.Random(f"{seed_base}-categories").shuffle(categories)
+            random.Random(seed_base).shuffle(cards)
 
         return {
-            "rows": rows,
-            "categories": categories,
+            "cards": cards,
             "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
             "max_score": self.get_max_score(activity.config_json),
             "review_items": build_review_items(items, answer_map),
@@ -136,14 +140,15 @@ class CategorizeDefinition(BaseTemplateDefinition):
         payload: dict[str, Any],
     ) -> TemplateEvaluation:
         if payload.get("action") != "submit_categorize":
-            raise ValidationError("Неизвестное действие для шаблона 'Категории'.")
+            raise ValidationError("Неизвестное действие для шаблона 'Карточки'.")
 
         items = normalize_question_bank(activity.config_json, default_points=1)
         answers = []
         score = 0
         for item in items:
-            field_name = f"category_{item['id']}"
-            choice = str(payload.get(field_name, "")).strip()
+            question_field = f"question_{item['id']}"
+            legacy_field = f"category_{item['id']}"
+            choice = str(payload.get(question_field, payload.get(legacy_field, ""))).strip()
             is_correct = choice == correct_option(item)["text"]
             if is_correct:
                 score += item.get("points", 1)

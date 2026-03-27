@@ -973,133 +973,180 @@
         document.querySelectorAll("[data-categorize-player]").forEach((root) => {
             const preview = root.dataset.preview === "1";
             const revealCorrect = root.dataset.revealCorrect === "1";
-            const form = root.querySelector("form.categorize-flow");
-            const submitButton = root.querySelector("[data-categorize-submit]");
+            const form = root.querySelector("[data-categorize-form]");
+            const board = root.querySelector("[data-categorize-board]");
+            const submitState = root.querySelector("[data-categorize-submit-state]");
             const completeMessage = root.querySelector("[data-preview-complete]");
-            const questions = Array.from(root.querySelectorAll("[data-categorize-question]"));
-            let currentIndex = 0;
+            const cards = Array.from(root.querySelectorAll("[data-categorize-card]"));
+            let activeCard = null;
+            let isSubmitting = false;
 
-            if (!form || !questions.length) {
+            if (!form || !board || !cards.length) {
                 return;
             }
 
-            if (submitButton) {
-                submitButton.hidden = true;
+            function applyChoiceState(card, buttons, selectedButton, feedback) {
+                const correctOption = card.dataset.correctOption || "";
+                const isCorrectAnswer = selectedButton.dataset.choiceValue === correctOption;
+
+                buttons.forEach((button) => {
+                    const isSelected = button === selectedButton;
+                    const isCorrect = button.dataset.choiceValue === correctOption;
+                    button.classList.toggle("is-selected", isSelected);
+                    button.classList.toggle("is-correct", revealCorrect && isCorrect);
+                    button.classList.toggle("is-wrong", revealCorrect && isSelected && !isCorrect);
+                    button.disabled = true;
+                });
+
+                if (feedback) {
+                    if (!revealCorrect) {
+                        feedback.textContent = "Ответ сохранён.";
+                    } else if (isCorrectAnswer) {
+                        feedback.textContent = "Верно. Карточка засчитана.";
+                    } else {
+                        feedback.textContent = `Неверно. Правильный ответ: ${correctOption}`;
+                    }
+                    feedback.hidden = false;
+                }
+
+                return revealCorrect ? 980 : 220;
             }
 
-            function showQuestion(index) {
-                currentIndex = index;
-                questions.forEach((question, questionIndex) => {
-                    const isCurrent = questionIndex === index;
-                    question.hidden = !isCurrent;
-                    question.classList.toggle("categorize-card-current", isCurrent);
-                    question.classList.remove("categorize-card-enter", "categorize-card-exit");
-                    if (isCurrent) {
-                        delete question.dataset.locked;
-                        const dock = question.querySelector("[data-categorize-dock]");
-                        const dockText = question.querySelector("[data-categorize-dock-text]");
-                        const feedback = question.querySelector("[data-question-feedback]");
-                        if (dock) {
-                            dock.hidden = true;
-                            dock.classList.remove("categorize-dock-staging", "categorize-dock-active");
+            function updateBoardState() {
+                board.classList.toggle("cards-board-has-active", Boolean(activeCard));
+                cards.forEach((card) => {
+                    const state = card.dataset.state || "closed";
+                    const isActive = card === activeCard;
+                    const isAnswered = state === "answered";
+                    const isOpen = state === "open";
+                    const isBlocked = Boolean(activeCard) && !isActive && !isAnswered;
+
+                    card.classList.toggle("cards-card-closed", state === "closed");
+                    card.classList.toggle("cards-card-open", isOpen);
+                    card.classList.toggle("cards-card-answered", isAnswered);
+                    card.classList.toggle("cards-card-blocked", isBlocked);
+
+                    card.querySelectorAll("[data-categorize-choice]").forEach((button) => {
+                        if (isAnswered) {
+                            return;
                         }
-                        if (dockText) {
-                            dockText.textContent = "";
-                        }
-                        if (feedback) {
-                            feedback.hidden = true;
-                            feedback.textContent = "";
-                        }
-                        question.querySelectorAll("[data-categorize-choice]").forEach((button) => {
-                            button.classList.remove(
-                                "is-selected",
-                                "is-correct",
-                                "is-wrong",
-                                "categorize-choice-moving",
-                                "categorize-choice-source-hidden",
-                            );
-                            button.disabled = false;
-                        });
-                        window.requestAnimationFrame(() => question.classList.add("categorize-card-enter"));
-                    }
+                        button.disabled = !isActive;
+                    });
                 });
             }
 
             function finishFlow() {
+                if (isSubmitting) {
+                    return;
+                }
+                isSubmitting = true;
+                activeCard = null;
+                updateBoardState();
                 if (preview) {
                     if (completeMessage) {
                         completeMessage.hidden = false;
                     }
                     return;
                 }
-                nativeSubmit.call(form);
+                if (submitState) {
+                    submitState.hidden = false;
+                }
+                root.classList.add("player-shell-checking");
+                window.setTimeout(() => nativeSubmit.call(form), 320);
             }
 
-            questions.forEach((question) => {
-                const buttons = Array.from(question.querySelectorAll("[data-categorize-choice]"));
-                const dock = question.querySelector("[data-categorize-dock]");
-                const dockText = question.querySelector("[data-categorize-dock-text]");
-                const feedback = question.querySelector("[data-question-feedback]");
+            function openCard(card) {
+                if (isSubmitting || activeCard || (card.dataset.state || "closed") !== "closed") {
+                    return;
+                }
+                activeCard = card;
+                card.dataset.state = "open";
+                delete card.dataset.locked;
+                const badge = card.querySelector("[data-categorize-badge]");
+                if (badge) {
+                    badge.textContent = "Открыта";
+                }
+                const feedback = card.querySelector("[data-question-feedback]");
+                if (feedback) {
+                    feedback.hidden = true;
+                    feedback.textContent = "";
+                }
+                updateBoardState();
+            }
+
+            cards.forEach((card) => {
+                card.addEventListener("click", (event) => {
+                    if (event.target.closest("[data-categorize-choice]")) {
+                        return;
+                    }
+                    openCard(card);
+                });
+
+                const buttons = Array.from(card.querySelectorAll("[data-categorize-choice]"));
+                const feedback = card.querySelector("[data-question-feedback]");
 
                 buttons.forEach((button) => {
-                    button.addEventListener("click", () => {
-                        if (question.dataset.locked === "1") {
+                    button.addEventListener("click", (event) => {
+                        event.stopPropagation();
+                        if (
+                            isSubmitting ||
+                            activeCard !== card ||
+                            card.dataset.locked === "1" ||
+                            (card.dataset.state || "closed") !== "open"
+                        ) {
                             return;
                         }
 
-                        question.dataset.locked = "1";
-                        const correctOption = question.dataset.correctOption || "";
-                        const hiddenInput = form.querySelector(`[data-answer-target="${question.dataset.itemId}"]`);
+                        card.dataset.locked = "1";
+                        const hiddenInput = form.querySelector(`[data-answer-target="${card.dataset.itemId}"]`);
                         if (hiddenInput) {
                             hiddenInput.value = button.dataset.choiceValue || "";
                         }
 
-                        const delay = revealButtonChoiceState(
-                            buttons,
-                            button,
-                            correctOption,
-                            revealCorrect,
-                            feedback,
-                        );
-
-                        const correctButton = buttons.find(
-                            (candidate) => candidate.dataset.choiceValue === correctOption,
-                        );
-                        let movementDuration = 0;
-                        if (dock && dockText && revealCorrect && correctButton) {
-                            dock.hidden = false;
-                            dock.classList.add("categorize-dock-staging");
-                            dockText.textContent = correctOption;
-                            movementDuration = animateCloneToTarget(
-                                correctButton,
-                                dockText,
-                                "categorize-choice-clone",
-                            );
-                            window.setTimeout(() => {
-                                dock.classList.remove("categorize-dock-staging");
-                                dock.classList.add("categorize-dock-active");
-                            }, Math.max(60, movementDuration - 80));
-                        }
-
-                        const exitDelay = Math.max(delay, movementDuration + (revealCorrect ? 120 : 0));
+                        const delay = applyChoiceState(card, buttons, button, feedback);
 
                         window.setTimeout(() => {
-                            question.classList.remove("categorize-card-enter");
-                            question.classList.add("categorize-card-exit");
+                            card.dataset.state = "answered";
+                            card.dataset.answered = "1";
+                            const badge = card.querySelector("[data-categorize-badge]");
+                            if (badge) {
+                                badge.textContent = "Отвечено";
+                            }
+                            activeCard = null;
+                            updateBoardState();
 
-                            window.setTimeout(() => {
-                                if (currentIndex < questions.length - 1) {
-                                    showQuestion(currentIndex + 1);
-                                    return;
-                                }
+                            const allAnswered = cards.every(
+                                (candidate) => (candidate.dataset.state || "closed") === "answered",
+                            );
+                            if (allAnswered) {
                                 finishFlow();
-                            }, 360);
-                        }, exitDelay);
+                            }
+                        }, delay);
                     });
                 });
             });
 
-            showQuestion(0);
+            cards.forEach((card) => {
+                if ((card.dataset.state || "closed") === "answered") {
+                    const hiddenInput = form.querySelector(`[data-answer-target="${card.dataset.itemId}"]`);
+                    const selectedValue = hiddenInput ? hiddenInput.value : "";
+                    const buttons = Array.from(card.querySelectorAll("[data-categorize-choice]"));
+                    const selectedButton = buttons.find((button) => button.dataset.choiceValue === selectedValue);
+                    if (selectedButton) {
+                        applyChoiceState(card, buttons, selectedButton, card.querySelector("[data-question-feedback]"));
+                    } else {
+                        buttons.forEach((button) => {
+                            button.disabled = true;
+                        });
+                    }
+                }
+            });
+
+            if (cards.every((card) => (card.dataset.state || "closed") === "answered")) {
+                finishFlow();
+                return;
+            }
+            updateBoardState();
         });
     }
 

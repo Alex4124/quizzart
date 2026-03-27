@@ -12,7 +12,7 @@ PLAYER_UNIT_LABELS = {
     "wheel_of_fortune": "секторов",
     "choose_a_box": "коробок",
     "matching": "пар",
-    "categorize": "элементов",
+    "categorize": "карточек",
     "snake": "яблок",
 }
 
@@ -34,8 +34,10 @@ def _player_total_count(template_key: str, runtime: dict[str, Any]) -> int:
         return int(runtime.get("total_items") or len(runtime.get("sectors", [])))
     if template_key == "choose_a_box":
         return int(runtime.get("total_boxes") or 0)
-    if template_key in {"matching", "categorize"}:
+    if template_key == "matching":
         return len(runtime.get("rows", []))
+    if template_key == "categorize":
+        return len(runtime.get("cards", []))
     if template_key == "snake":
         return int(runtime.get("total_items") or len(runtime.get("apples", [])))
     return len(runtime.get("review_items", []))

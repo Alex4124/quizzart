@@ -385,12 +385,40 @@ class PublicPlayTests(TestCase):
         self.client.post(f"/p/{categorize.slug}/", {"action": "start"})
         self.client.post(
             f"/p/{categorize.slug}/",
-            {"action": "submit_categorize", "category_item-1": "Animals"},
+            {"action": "submit_categorize", "question_item-1": "Animals"},
         )
         self.assertEqual(
             ActivitySession.objects.get(activity__template_key="categorize").status,
             ActivitySession.Status.COMPLETED,
         )
+
+    def test_cards_still_accept_legacy_category_field_names(self):
+        categorize = self._create_published_activity(
+            "categorize",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Cat",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Animals", "is_correct": True},
+                            {"id": "b", "text": "Plants", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+
+        self.client.post(f"/p/{categorize.slug}/", {"action": "start"})
+        response = self.client.post(
+            f"/p/{categorize.slug}/",
+            {"action": "submit_categorize", "category_item-1": "Animals"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        session = ActivitySession.objects.get(activity__template_key="categorize")
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
 
     def test_student_can_complete_snake(self):
         snake = self._create_published_activity(

@@ -468,6 +468,43 @@ class ActivityEditorTests(TestCase):
         self.assertTrue(matching_runtime["reveal_correct_answer"])
         self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "a")
 
+    def test_cards_runtime_is_deterministic_and_uses_card_collection(self):
+        activity = Activity(
+            title="Cards preview",
+            template_key="categorize",
+            config_json={
+                "shuffle": True,
+                "reveal_correct_answer": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Cat",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "Animals", "is_correct": True},
+                            {"id": "b", "text": "Plants", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Oak",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Plants", "is_correct": True},
+                            {"id": "b", "text": "Animals", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        first_runtime = registry.get("categorize").build_runtime_data(activity, preview=True)
+        second_runtime = registry.get("categorize").build_runtime_data(activity, preview=True)
+
+        self.assertEqual([card["id"] for card in first_runtime["cards"]], [card["id"] for card in second_runtime["cards"]])
+        self.assertEqual(len(first_runtime["cards"]), 2)
+        self.assertTrue(first_runtime["reveal_correct_answer"])
+
     def test_matching_and_categorize_preview_render_animation_hooks(self):
         matching = Activity.objects.create(
             owner=self.user,
@@ -520,9 +557,11 @@ class ActivityEditorTests(TestCase):
         self.assertContains(matching_response, "data-matching-question")
         self.assertContains(matching_response, "data-matching-bank")
         self.assertContains(matching_response, "data-matching-dock")
+        self.assertContains(categorize_response, "data-categorize-board")
+        self.assertContains(categorize_response, "data-categorize-card")
+        self.assertContains(categorize_response, "data-categorize-card-inner")
         self.assertContains(categorize_response, "data-categorize-choice")
-        self.assertContains(categorize_response, "data-categorize-dock")
-        self.assertContains(categorize_response, "categorize-question-cell")
+        self.assertContains(categorize_response, "Карточка 1")
 
     def test_snake_runtime_is_deterministic_and_preview_renders_hooks(self):
         activity = Activity.objects.create(

@@ -9,62 +9,80 @@
 {% endblock %}
 
 {% block player_board %}
-    <form method="post" class="stack-form player-categorize-layout" id="categorize-flow-form">
+    <form method="post" class="stack-form cards-flow" data-categorize-form>
         {% csrf_token %}
         {% if not preview %}
             <input type="hidden" name="action" value="submit_categorize">
         {% endif %}
-        {% for row in runtime.rows %}
-            <input type="hidden" name="category_{{ row.id }}" value="{{ row.selected }}" data-answer-target="{{ row.id }}">
+        {% for card in runtime.cards %}
+            <input type="hidden" name="question_{{ card.id }}" value="{{ card.selected }}" data-answer-target="{{ card.id }}">
         {% endfor %}
 
-        <div class="categorize-stage">
-            {% for row in runtime.rows %}
+        <div class="cards-board" data-categorize-board>
+            {% for card in runtime.cards %}
                 <article
-                    class="card categorize-card"
-                    data-categorize-question
-                    data-item-id="{{ row.id }}"
-                    data-correct-option="{{ row.correct_option }}"
+                    class="cards-card {% if card.is_answered %}cards-card-answered{% else %}cards-card-closed{% endif %}"
+                    data-categorize-card
+                    data-item-id="{{ card.id }}"
+                    data-state="{% if card.is_answered %}answered{% else %}closed{% endif %}"
+                    data-answered="{% if card.is_answered %}1{% else %}0{% endif %}"
+                    data-correct-option="{{ card.correct_option }}"
                     data-reveal-stagger
                 >
-                    <div class="categorize-layout">
-                        <div class="categorize-question-cell">
-                            <p class="player-panel__eyebrow">Элемент {{ forloop.counter }} из {{ runtime.rows|length }}</p>
-                            <h2>{{ row.prompt }}</h2>
-                            <div class="categorize-dock" data-categorize-dock hidden>
-                                <span class="status-chip" data-categorize-dock-text></span>
+                    <div class="cards-card__inner" data-categorize-card-inner>
+                        <div class="cards-card__face cards-card__face--front">
+                            <span class="cards-card__number">Карточка {{ forloop.counter }}</span>
+                            <strong>Нажмите, чтобы открыть</strong>
+                            <p>Вопрос скрыт до переворота карточки.</p>
+                        </div>
+
+                        <div class="cards-card__face cards-card__face--back">
+                            <div class="cards-card__head">
+                                <span class="cards-card__badge" data-categorize-badge>
+                                    {% if card.is_answered %}Отвечено{% else %}Открыта{% endif %}
+                                </span>
+                                <span class="cards-card__points">{{ card.points }} балл.</span>
+                            </div>
+                            <h2>{{ card.prompt }}</h2>
+                            <div class="cards-card__answers">
+                                {% for option in card.options %}
+                                    <button
+                                        class="option-row cards-card__choice {% if card.selected == option.text %}is-selected{% endif %}"
+                                        type="button"
+                                        data-categorize-choice
+                                        data-choice-value="{{ option.text }}"
+                                        {% if card.is_answered %}disabled{% endif %}
+                                    >
+                                        <span>{{ option.text }}</span>
+                                    </button>
+                                {% endfor %}
                             </div>
                             <p class="muted question-feedback" data-question-feedback hidden></p>
-                        </div>
-                        <div class="categorize-answer-grid">
-                            {% for category in runtime.categories %}
-                                <button class="option-row categorize-choice" type="button" data-categorize-choice data-choice-value="{{ category }}">
-                                    <span>{{ category }}</span>
-                                </button>
-                            {% endfor %}
                         </div>
                     </div>
                 </article>
             {% endfor %}
         </div>
 
+        <div class="message cards-complete-message" data-preview-complete hidden>
+            Предпросмотр завершён. Обновите страницу, чтобы снова открыть карточки.
+        </div>
         {% if not preview %}
-            <button class="button" type="submit" data-categorize-submit>Завершить категории</button>
+            <div class="message cards-complete-message" data-categorize-submit-state hidden>
+                Сохраняем ответы и открываем экран результата...
+            </div>
         {% endif %}
     </form>
 {% endblock %}
 
 {% block player_sidebar_spotlight %}
-    <p class="player-panel__eyebrow">Категории</p>
-    <h2>Разнесите элементы по группам</h2>
-    <p>Для каждого элемента выберите одну из доступных категорий. После выбора Quizzart перейдёт к следующему шагу.</p>
-    {% if preview %}
-        <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти шаблон.</div>
-    {% endif %}
+    <p class="player-panel__eyebrow">Карточки</p>
+    <h2>Открывайте карточки по одной</h2>
+    <p>На поле лежат перевёрнутые карточки. Откройте карточку, выберите ответ и переходите к следующей.</p>
 {% endblock %}
 
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">Сценарий</p>
-    <h3>Распределение по категориям</h3>
-    <p>Категории и элементы могут перемешиваться, но итог всегда сохраняется как одно завершённое прохождение.</p>
+    <h3>Интерактивные карточки</h3>
+    <p>После ответа карточка остаётся на поле, остаётся открытой и становится более тусклой, чтобы прогресс был виден сразу.</p>
 {% endblock %}
