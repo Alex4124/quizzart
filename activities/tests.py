@@ -39,7 +39,6 @@ class ActivityEditorTests(TestCase):
                 "title": "Boxes",
                 "description": "Practice",
                 "template_key": "choose_a_box",
-                "grid_size": "6",
                 "no_repeat": "on",
                 "items_text": "\n".join(
                     [
@@ -79,7 +78,6 @@ class ActivityEditorTests(TestCase):
     def test_teacher_can_publish_every_template(self):
         payloads = {
             "choose_a_box": {
-                "grid_size": "6",
                 "no_repeat": "on",
                 "items_text": "Capital of France? | *Paris | London | Berlin | 100",
             },
@@ -370,7 +368,6 @@ class ActivityEditorTests(TestCase):
             title="Boxes preview",
             template_key="choose_a_box",
             config_json={
-                "grid_size": 6,
                 "no_repeat": True,
                 "reveal_correct_answer": False,
                 "items": [
@@ -382,6 +379,15 @@ class ActivityEditorTests(TestCase):
                             {"id": "a", "text": "Paris", "is_correct": True},
                             {"id": "b", "text": "Berlin", "is_correct": False},
                         ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Water formula?",
+                        "points": 200,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
                     }
                 ],
             },
@@ -392,6 +398,8 @@ class ActivityEditorTests(TestCase):
         self.assertFalse(runtime["reveal_correct_answer"])
         self.assertEqual(runtime["boxes"][0]["number"], 1)
         self.assertEqual(runtime["boxes"][1]["number"], 2)
+        self.assertEqual(len(runtime["boxes"]), 2)
+        self.assertEqual(runtime["total_boxes"], 2)
 
     def test_wheel_preview_renders_circle_controls_and_questions(self):
         activity = Activity.objects.create(
@@ -609,3 +617,8 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, "data-snake-player")
         self.assertContains(response, "data-snake-board")
         self.assertContains(response, "data-snake-apple")
+        self.assertContains(response, "data-snake-dpad", html=False)
+        self.assertContains(response, 'data-snake-direction="up"', html=False)
+        self.assertContains(response, 'data-snake-direction="right"', html=False)
+        self.assertContains(response, 'data-snake-direction="down"', html=False)
+        self.assertContains(response, 'data-snake-direction="left"', html=False)

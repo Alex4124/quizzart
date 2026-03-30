@@ -1151,6 +1151,19 @@
     }
 
     function initSnakePlayers() {
+        const directionVectors = {
+            up: { x: 0, y: -1 },
+            right: { x: 1, y: 0 },
+            down: { x: 0, y: 1 },
+            left: { x: -1, y: 0 },
+        };
+        const directionKeys = {
+            ArrowUp: "up",
+            ArrowRight: "right",
+            ArrowDown: "down",
+            ArrowLeft: "left",
+        };
+
         document.querySelectorAll("[data-snake-player]").forEach((root) => {
             const preview = root.dataset.preview === "1";
             const revealCorrect = root.dataset.revealCorrect === "1";
@@ -1167,6 +1180,7 @@
             const scoreValue = root.querySelector("[data-snake-score]");
             const appleElements = Array.from(root.querySelectorAll("[data-snake-apple]"));
             const questionCards = Array.from(root.querySelectorAll("[data-snake-question-card]"));
+            const directionButtons = Array.from(root.querySelectorAll("[data-snake-direction]"));
 
             if (
                 !board ||
@@ -1205,8 +1219,8 @@
             let activeItemId = "";
             let lastTimestamp = 0;
             let headPoint = { x: 0, y: 0 };
-            let targetPoint = { x: 0, y: 0 };
             let heading = { x: 1, y: 0 };
+            let queuedHeading = null;
             const bodyPoints = [];
             const segments = [];
             const baseSegmentCount = 5;
@@ -1237,6 +1251,50 @@
                 return fallback;
             }
 
+            function movementSpeed() {
+                if (!boardRect?.width || !boardRect?.height) {
+                    return 0;
+                }
+                return clamp(Math.min(boardRect.width, boardRect.height) * 0.42, 150, 240);
+            }
+
+            function isOpposite(first, second) {
+                return first.x + second.x === 0 && first.y + second.y === 0;
+            }
+
+            function getDirectionName(vector) {
+                return Object.entries(directionVectors).find(([, candidate]) => (
+                    candidate.x === vector.x && candidate.y === vector.y
+                ))?.[0] || "right";
+            }
+
+            function updateDirectionControls() {
+                const activeDirection = getDirectionName(queuedHeading || heading);
+                const isDisabled = paused || completed;
+
+                directionButtons.forEach((button) => {
+                    const isActive = button.dataset.snakeDirection === activeDirection;
+                    button.disabled = isDisabled;
+                    button.classList.toggle("is-active", isActive && !isDisabled);
+                    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+                });
+            }
+
+            function requestDirection(directionName) {
+                const nextVector = directionVectors[directionName];
+                if (!nextVector || paused || completed) {
+                    return;
+                }
+
+                const reference = queuedHeading || heading;
+                if (isOpposite(reference, nextVector)) {
+                    return;
+                }
+
+                queuedHeading = { x: nextVector.x, y: nextVector.y };
+                updateDirectionControls();
+            }
+
             function boardCenter() {
                 return {
                     x: (boardRect?.width || 0) / 2,
@@ -1257,8 +1315,8 @@
                 const center = boardCenter();
                 if (resetPosition) {
                     headPoint = { x: center.x, y: center.y };
-                    targetPoint = { x: center.x, y: center.y };
                     heading = { x: 1, y: 0 };
+                    queuedHeading = null;
                     bodyPoints.length = 0;
                     return;
                 }
@@ -1266,10 +1324,6 @@
                 headPoint = {
                     x: clamp(headPoint.x, headRadius, boardRect.width - headRadius),
                     y: clamp(headPoint.y, headRadius, boardRect.height - headRadius),
-                };
-                targetPoint = {
-                    x: clamp(targetPoint.x, headRadius, boardRect.width - headRadius),
-                    y: clamp(targetPoint.y, headRadius, boardRect.height - headRadius),
                 };
                 bodyPoints.forEach((point) => {
                     point.x = clamp(point.x, segmentRadius, boardRect.width - segmentRadius);
@@ -1357,6 +1411,7 @@
                 if (completeMessage) {
                     completeMessage.hidden = true;
                 }
+                updateDirectionControls();
             }
 
             function finishRun() {
@@ -1373,12 +1428,14 @@
                     if (completeMessage) {
                         completeMessage.hidden = false;
                     }
+                    updateDirectionControls();
                     return;
                 }
 
                 if (submitState) {
                     submitState.hidden = false;
                 }
+                updateDirectionControls();
                 root.classList.add("player-shell-checking");
                 window.setTimeout(() => nativeSubmit.call(submitForm), 360);
             }
@@ -1454,6 +1511,7 @@
                     input.checked = false;
                 });
                 delete card.dataset.locked;
+                updateDirectionControls();
             }
 
             function consumeApple(apple) {
@@ -1465,6 +1523,7 @@
                 paused = true;
                 root.classList.add("snake-player-paused");
                 apple.classList.add("snake-apple-bite");
+                updateDirectionControls();
 
                 window.setTimeout(() => {
                     showQuestion(apple.dataset.itemId || "");
@@ -1481,14 +1540,19 @@
                 });
             }
 
-            function updateTarget(clientX, clientY) {
-                if (!boardRect) {
+            function handleDirectionKeydown(event) {
+                const directionName = directionKeys[event.key];
+                if (!directionName) {
                     return;
                 }
-                targetPoint = {
-                    x: clamp(clientX - boardRect.left, headRadius, boardRect.width - headRadius),
-                    y: clamp(clientY - boardRect.top, headRadius, boardRect.height - headRadius),
-                };
+
+                const target = event.target;
+                if (target instanceof HTMLElement && target.closest("input, textarea, select, button")) {
+                    return;
+                }
+
+                event.preventDefault();
+                requestDirection(directionName);
             }
 
             function tick(timestamp) {
@@ -1504,23 +1568,19 @@
                 lastTimestamp = timestamp;
 
                 if (!paused && !completed) {
-                    const dt = delta / 1000;
-                    const dx = targetPoint.x - headPoint.x;
-                    const dy = targetPoint.y - headPoint.y;
-                    const distanceToTarget = Math.hypot(dx, dy);
-                    const alpha = 1 - Math.exp(-7 * dt);
-                    const previousHead = { x: headPoint.x, y: headPoint.y };
-
-                    if (distanceToTarget > 0.5) {
-                        headPoint = {
-                            x: headPoint.x + dx * alpha,
-                            y: headPoint.y + dy * alpha,
-                        };
+                    if (queuedHeading) {
+                        heading = queuedHeading;
+                        queuedHeading = null;
+                        updateDirectionControls();
                     }
 
+                    const dt = delta / 1000;
+                    const previousHead = { x: headPoint.x, y: headPoint.y };
+                    const speed = movementSpeed();
+
                     headPoint = {
-                        x: clamp(headPoint.x, headRadius, boardRect.width - headRadius),
-                        y: clamp(headPoint.y, headRadius, boardRect.height - headRadius),
+                        x: clamp(headPoint.x + heading.x * speed * dt, headRadius, boardRect.width - headRadius),
+                        y: clamp(headPoint.y + heading.y * speed * dt, headRadius, boardRect.height - headRadius),
                     };
 
                     const movement = {
@@ -1556,17 +1616,13 @@
                 });
             });
 
-            playfield.addEventListener("pointerdown", (event) => {
-                updateTarget(event.clientX, event.clientY);
+            directionButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    requestDirection(button.dataset.snakeDirection || "");
+                });
             });
 
-            playfield.addEventListener("pointermove", (event) => {
-                updateTarget(event.clientX, event.clientY);
-            });
-
-            playfield.addEventListener("pointerenter", (event) => {
-                updateTarget(event.clientX, event.clientY);
-            });
+            window.addEventListener("keydown", handleDirectionKeydown);
 
             window.addEventListener("resize", () => {
                 updateBoardRect(false);
@@ -1576,6 +1632,7 @@
             updateBoardRect(true);
             syncSegments();
             updateHud();
+            updateDirectionControls();
             renderSnake();
             frameId = window.requestAnimationFrame(tick);
         });

@@ -852,11 +852,30 @@ body.player-page {
 }
 
 .player-page .snake-shell {
+    display: grid;
+    gap: 1rem;
     padding: 1.5rem;
     border-radius: 2rem;
 }
 
+.player-page .snake-controls-intro {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.player-page .snake-controls-hint {
+    margin: 0;
+    font-weight: 700;
+    color: var(--player-muted);
+}
+
+.player-page .snake-controls-hint-mobile {
+    display: none;
+}
+
 .player-page .snake-board {
+    display: grid;
+    gap: 1rem;
     border-radius: 2rem;
     border: 1px solid rgba(115, 124, 153, 0.2);
     background: linear-gradient(180deg, rgba(235, 243, 255, 0.92), rgba(250, 251, 255, 0.96));
@@ -874,6 +893,71 @@ body.player-page {
 
 .player-page .snake-question-card {
     width: min(560px, 100%);
+}
+
+.player-page .snake-dpad {
+    display: none;
+    grid-template-columns: repeat(3, minmax(0, 78px));
+    grid-template-areas:
+        ". up ."
+        "left . right"
+        ". down .";
+    justify-content: center;
+    gap: 0.7rem;
+    padding: 0 0 1rem;
+}
+
+.player-page .snake-dpad__button {
+    width: 78px;
+    height: 78px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(115, 124, 153, 0.16);
+    border-radius: 1.6rem;
+    background: rgba(255, 255, 255, 0.94);
+    color: var(--player-violet);
+    box-shadow: 0 12px 24px rgba(31, 38, 64, 0.1);
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+    touch-action: manipulation;
+}
+
+.player-page .snake-dpad__button:hover,
+.player-page .snake-dpad__button:focus-visible,
+.player-page .snake-dpad__button.is-active {
+    transform: translateY(-1px);
+    background: rgba(120, 54, 217, 0.1);
+    box-shadow: 0 14px 28px rgba(120, 54, 217, 0.16);
+}
+
+.player-page .snake-dpad__button:focus-visible {
+    outline: 2px solid rgba(120, 54, 217, 0.28);
+    outline-offset: 2px;
+}
+
+.player-page .snake-dpad__button:disabled {
+    opacity: 0.52;
+    transform: none;
+    box-shadow: none;
+}
+
+.player-page .snake-dpad__button-up {
+    grid-area: up;
+}
+
+.player-page .snake-dpad__button-left {
+    grid-area: left;
+}
+
+.player-page .snake-dpad__button-right {
+    grid-area: right;
+}
+
+.player-page .snake-dpad__button-down {
+    grid-area: down;
 }
 
 .player-page .status-chip {
@@ -978,6 +1062,16 @@ body.player-page {
 
     .player-page .snake-playfield {
         min-height: 360px;
+    }
+}
+
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+    .player-page .snake-controls-hint-mobile {
+        display: block;
+    }
+
+    .player-page .snake-dpad {
+        display: grid;
     }
 }
 

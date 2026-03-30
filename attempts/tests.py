@@ -142,7 +142,6 @@ class PublicPlayTests(TestCase):
         link = self._create_published_activity(
             "choose_a_box",
             {
-                "grid_size": 6,
                 "no_repeat": True,
                 "items": [
                     {
@@ -462,6 +461,46 @@ class PublicPlayTests(TestCase):
         session = ActivitySession.objects.get(activity__template_key="snake")
         self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
         self.assertEqual(session.score, 3)
+
+    def test_snake_player_renders_keyboard_hint_and_mobile_controls(self):
+        snake = self._create_published_activity(
+            "snake",
+            {
+                "reveal_correct_answer": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 1,
+                        "options": [
+                            {"id": "a", "text": "4", "is_correct": True},
+                            {"id": "b", "text": "3", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Largest ocean?",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{snake.slug}/", {"action": "start"})
+        response = self.client.get(f"/p/{snake.slug}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Используйте клавиши")
+        self.assertContains(response, "data-snake-dpad", html=False)
+        self.assertContains(response, 'data-snake-direction="up"', html=False)
+        self.assertContains(response, 'data-snake-direction="right"', html=False)
+        self.assertContains(response, 'data-snake-direction="down"', html=False)
+        self.assertContains(response, 'data-snake-direction="left"', html=False)
+        self.assertNotContains(response, "курсор")
 
     def test_partial_snake_submit_returns_validation_error(self):
         snake = self._create_published_activity(

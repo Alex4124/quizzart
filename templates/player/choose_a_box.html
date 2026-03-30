@@ -16,7 +16,7 @@
 
     <section class="card player-box-grid-card">
         <p class="player-panel__eyebrow">Игровое поле</p>
-        <div class="box-grid box-grid-{{ runtime.grid_size }}">
+        <div class="box-grid">
             {% for box in runtime.boxes %}
                 <article
                     class="box-card box-card-{{ box.state }}"
@@ -29,9 +29,7 @@
                         <span class="muted">{{ box.points }} балл.</span>
                     </div>
 
-                    {% if box.is_placeholder %}
-                        <p class="muted">Пустой слот</p>
-                    {% elif preview %}
+                    {% if preview %}
                         <button class="button button-small" type="button" data-preview-open-box>Открыть коробку</button>
                         <div class="box-question" data-preview-box-panel hidden>
                             <p>{{ box.prompt }}</p>
@@ -130,7 +128,7 @@
             <p>В preview можно проверить механику открытия, а в реальном прохождении ответы сохраняются после выбора варианта.</p>
         {% else %}
             <h2>Выберите коробку на поле</h2>
-            <p>После открытия вопрос появится в этой панели, а прогресс сохранится до завершения всей сетки.</p>
+            <p>После открытия вопрос появится в этой панели, а прогресс сохранится до тех пор, пока вы не ответите на все коробки.</p>
         {% endif %}
     </section>
 {% endblock %}

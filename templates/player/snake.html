@@ -23,6 +23,11 @@
             </div>
         </div>
 
+        <div class="snake-controls-intro">
+            <p class="snake-controls-hint">Используйте клавиши ← ↑ → ↓, чтобы менять направление змейки.</p>
+            <p class="snake-controls-hint snake-controls-hint-mobile">На телефоне можно управлять экранными стрелками под полем.</p>
+        </div>
+
         <div class="snake-board" data-snake-board>
             <div class="snake-playfield" data-snake-playfield>
                 <div class="snake-arena-glow" aria-hidden="true"></div>
@@ -87,6 +92,21 @@
                     </article>
                 </div>
             </div>
+
+            <div class="snake-dpad" data-snake-dpad aria-label="Управление змейкой">
+                <button class="snake-dpad__button snake-dpad__button-up" type="button" data-snake-direction="up" aria-label="Вверх">
+                    <span aria-hidden="true">↑</span>
+                </button>
+                <button class="snake-dpad__button snake-dpad__button-left" type="button" data-snake-direction="left" aria-label="Влево">
+                    <span aria-hidden="true">←</span>
+                </button>
+                <button class="snake-dpad__button snake-dpad__button-right" type="button" data-snake-direction="right" aria-label="Вправо">
+                    <span aria-hidden="true">→</span>
+                </button>
+                <button class="snake-dpad__button snake-dpad__button-down" type="button" data-snake-direction="down" aria-label="Вниз">
+                    <span aria-hidden="true">↓</span>
+                </button>
+            </div>
         </div>
 
         <form class="snake-submit-form" data-snake-submit-form method="post">
@@ -103,8 +123,8 @@
 
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Управление</p>
-    <h2>Ведите курсор или палец по полю</h2>
-    <p>Когда змейка касается яблока, открывается вопрос. После ответа яблоко исчезает, а прогресс обновляется в реальном времени.</p>
+    <h2>Меняйте направление стрелками</h2>
+    <p>На компьютере используйте клавиши клавиатуры, а на мобильном экране кнопки под полем. Когда змейка касается яблока, открывается вопрос, а после ответа прогресс сразу обновляется.</p>
 {% endblock %}
 
 {% block player_footer_accent %}

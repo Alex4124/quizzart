@@ -22,11 +22,6 @@ from interactive_templates.utils import (
 
 
 class ChooseABoxEditorForm(forms.Form):
-    grid_size = forms.ChoiceField(
-        label="Размер сетки",
-        choices=[("6", "6 коробок"), ("9", "9 коробок"), ("12", "12 коробок"), ("16", "16 коробок")],
-        initial="6",
-    )
     no_repeat = forms.BooleanField(
         required=False,
         initial=True,
@@ -71,7 +66,6 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
 
     def default_config(self) -> dict[str, Any]:
         return {
-            "grid_size": 6,
             "no_repeat": True,
             "reveal_correct_answer": True,
             "items": _sample_items(),
@@ -80,7 +74,6 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
         items = normalize_question_bank(config, default_points=100)
         return {
-            "grid_size": str(config.get("grid_size", 6)),
             "no_repeat": config.get("no_repeat", True),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
             "items_json": serialize_question_bank_editor(items, default_points=100),
@@ -88,27 +81,15 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
         }
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
-        grid_size = int(cleaned_data["grid_size"])
-        items = question_bank_items_from_payload(
-            cleaned_data.get("items_json"),
-            cleaned_data.get("items_text", ""),
-            default_points=100,
-        )
-        if len(items) > grid_size:
-            raise ValidationError(f"Сетка {grid_size} не может вместить {len(items)} вопросов.")
         return {
-            "grid_size": grid_size,
             "no_repeat": cleaned_data.get("no_repeat", False),
             "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
-            "items": items,
+            "items": question_bank_items_from_payload(
+                cleaned_data.get("items_json"),
+                cleaned_data.get("items_text", ""),
+                default_points=100,
+            ),
         }
-
-    def validate_config(self, config: dict[str, Any]) -> None:
-        super().validate_config(config)
-        if config["grid_size"] not in {6, 9, 12, 16}:
-            raise ValidationError("Grid size must be one of: 6, 9, 12, 16.")
-        if len(normalize_question_bank(config, default_points=100)) > config["grid_size"]:
-            raise ValidationError("Размер сетки меньше количества вопросов.")
 
     def build_runtime_data(
         self,
@@ -125,50 +106,30 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
             opened_keys = set(session.runtime_state.get("opened", []))
 
         boxes = []
-        grid_size = config.get("grid_size", max(len(items), 6))
-        for index in range(grid_size):
-            if index < len(items):
-                item = items[index]
-                answer = answers_by_key.get(item["id"])
-                if answer:
-                    state = "answered"
-                elif item["id"] in opened_keys:
-                    state = "opened"
-                else:
-                    state = "preview" if preview else "unopened"
-                boxes.append(
-                    {
-                        "id": item["id"],
-                        "number": index + 1,
-                        "prompt": item["prompt"],
-                        "options": choice_texts(item),
-                        "points": item.get("points", 0),
-                        "state": state,
-                        "submitted_answer": answer.submitted_value.get("choice", "") if answer else "",
-                        "expected_answer": correct_option(item)["text"],
-                        "is_correct": answer.is_correct if answer else None,
-                        "is_placeholder": False,
-                    }
-                )
+        for index, item in enumerate(items, start=1):
+            answer = answers_by_key.get(item["id"])
+            if answer:
+                state = "answered"
+            elif item["id"] in opened_keys:
+                state = "opened"
             else:
-                boxes.append(
-                    {
-                        "id": f"placeholder-{index + 1}",
-                        "number": index + 1,
-                        "prompt": "",
-                        "options": [],
-                        "points": 0,
-                        "state": "disabled",
-                        "submitted_answer": "",
-                        "expected_answer": "",
-                        "is_correct": None,
-                        "is_placeholder": True,
-                    }
-                )
+                state = "preview" if preview else "unopened"
+            boxes.append(
+                {
+                    "id": item["id"],
+                    "number": index,
+                    "prompt": item["prompt"],
+                    "options": choice_texts(item),
+                    "points": item.get("points", 0),
+                    "state": state,
+                    "submitted_answer": answer.submitted_value.get("choice", "") if answer else "",
+                    "expected_answer": correct_option(item)["text"],
+                    "is_correct": answer.is_correct if answer else None,
+                }
+            )
 
         return {
             "boxes": boxes,
-            "grid_size": grid_size,
             "no_repeat": config.get("no_repeat", False),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
             "answered_count": len(answers_by_key),

@@ -500,12 +500,6 @@ textarea {
 .box-grid {
     display: grid;
     gap: 1rem;
-}
-
-.box-grid-6,
-.box-grid-9,
-.box-grid-12,
-.box-grid-16 {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
