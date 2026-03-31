@@ -207,11 +207,56 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
             )
 
         if action == "finish":
+            answers = []
+            score = 0
+            opened = list(opened)
+
+            for item_key, item in items.items():
+                existing_answer = existing_answers.get(item_key)
+                selected_choice = str(payload.get(f"box_{item_key}", "")).strip()
+
+                if existing_answer:
+                    answers.append(
+                        {
+                            "item_key": item_key,
+                            "prompt": existing_answer.prompt or item["prompt"],
+                            "submitted_value": existing_answer.submitted_value,
+                            "is_correct": existing_answer.is_correct,
+                            "score_awarded": existing_answer.score_awarded,
+                        }
+                    )
+                    score += existing_answer.score_awarded
+                    if item_key not in opened:
+                        opened.append(item_key)
+                    continue
+
+                if not selected_choice:
+                    continue
+
+                is_correct = selected_choice == correct_option(item)["text"]
+                score_awarded = item["points"] if is_correct else 0
+                score += score_awarded
+                if item_key not in opened:
+                    opened.append(item_key)
+                answers.append(
+                    {
+                        "item_key": item_key,
+                        "prompt": item["prompt"],
+                        "submitted_value": {
+                            "choice": selected_choice,
+                            "correct_option": correct_option(item)["text"],
+                        },
+                        "is_correct": is_correct,
+                        "score_awarded": score_awarded,
+                    }
+                )
+
             return TemplateEvaluation(
                 score=score,
                 max_score=max_score,
                 is_complete=True,
                 runtime_state={"opened": opened},
+                answers=answers,
             )
 
         raise ValidationError("Неизвестное действие для шаблона 'Выбери коробку'.")

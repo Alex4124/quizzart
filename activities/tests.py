@@ -401,6 +401,40 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(len(runtime["boxes"]), 2)
         self.assertEqual(runtime["total_boxes"], 2)
 
+    def test_choose_a_box_preview_renders_gift_cover_and_inline_panels(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Boxes preview shell",
+            description="Preview the box flow",
+            template_key="choose_a_box",
+            config_json={
+                "no_repeat": True,
+                "reveal_correct_answer": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Capital of France?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Paris", "is_correct": True},
+                            {"id": "b", "text": "Berlin", "is_correct": False},
+                        ],
+                    }
+                ],
+            },
+        )
+
+        response = self.client.get(reverse("activities:preview", args=[activity.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "box-gift.png")
+        self.assertContains(response, "data-box-cover")
+        self.assertContains(response, "data-preview-open-box")
+        self.assertContains(response, "data-preview-box-panel")
+        self.assertContains(response, "data-preview-box-result")
+        self.assertContains(response, "data-box-question-panel")
+        self.assertNotContains(response, "правой колонке")
+
     def test_wheel_preview_renders_circle_controls_and_questions(self):
         activity = Activity.objects.create(
             owner=self.user,
@@ -552,7 +586,16 @@ class ActivityEditorTests(TestCase):
                             {"id": "a", "text": "Animals", "is_correct": True},
                             {"id": "b", "text": "Plants", "is_correct": False},
                         ],
-                    }
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Oak",
+                        "points": 2,
+                        "options": [
+                            {"id": "a", "text": "Plants", "is_correct": True},
+                            {"id": "b", "text": "Animals", "is_correct": False},
+                        ],
+                    },
                 ],
             },
         )
@@ -569,6 +612,10 @@ class ActivityEditorTests(TestCase):
         self.assertContains(categorize_response, "data-categorize-card")
         self.assertContains(categorize_response, "data-categorize-card-inner")
         self.assertContains(categorize_response, "data-categorize-choice")
+        self.assertContains(categorize_response, "cards-orange.png")
+        self.assertContains(categorize_response, "cards-violet.png")
+        self.assertContains(categorize_response, 'data-card-theme="orange"', html=False)
+        self.assertContains(categorize_response, 'data-card-theme="violet"', html=False)
         self.assertContains(categorize_response, "Карточка 1")
 
     def test_snake_runtime_is_deterministic_and_preview_renders_hooks(self):

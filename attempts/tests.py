@@ -158,14 +158,197 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
-        self.client.post(f"/p/{link.slug}/", {"action": "open_box", "item_key": "item-1"})
         answer_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
+            {"action": "finish", "box_item-1": "H2O"},
         )
         self.assertEqual(answer_response.status_code, 302)
         session = ActivitySession.objects.get(activity__template_key="choose_a_box")
         self.assertEqual(session.score, 100)
+
+    def test_choose_a_box_finish_persists_all_hidden_answers(self):
+        link = self._create_published_activity(
+            "choose_a_box",
+            {
+                "no_repeat": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Water formula",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Sun is a",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Star", "is_correct": True},
+                            {"id": "b", "text": "Planet", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        response = self.client.post(
+            f"/p/{link.slug}/",
+            {
+                "action": "finish",
+                "box_item-1": "H2O",
+                "box_item-2": "Star",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        session = ActivitySession.objects.get(activity__template_key="choose_a_box")
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 200)
+        self.assertEqual(session.answers.count(), 2)
+
+    def test_choose_a_box_ajax_steps_keep_board_in_place_until_final_answer(self):
+        link = self._create_published_activity(
+            "choose_a_box",
+            {
+                "no_repeat": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Water formula",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Sun is a",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Star", "is_correct": True},
+                            {"id": "b", "text": "Planet", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        open_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "open_box", "item_key": "item-1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(open_response.status_code, 200)
+        self.assertEqual(open_response.json()["is_complete"], False)
+
+        session = ActivitySession.objects.get(activity__template_key="choose_a_box")
+        self.assertEqual(session.runtime_state["opened"], ["item-1"])
+        self.assertEqual(session.status, ActivitySession.Status.STARTED)
+
+        answer_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(answer_response.status_code, 200)
+        self.assertEqual(answer_response.json()["is_complete"], False)
+
+        session.refresh_from_db()
+        self.assertEqual(session.score, 100)
+        self.assertEqual(session.status, ActivitySession.Status.STARTED)
+        self.assertEqual(session.answers.count(), 1)
+
+    def test_choose_a_box_ajax_final_answer_returns_results_redirect(self):
+        link = self._create_published_activity(
+            "choose_a_box",
+            {
+                "no_repeat": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Water formula",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
+                    }
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "open_box", "item_key": "item-1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+        answer_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        payload = answer_response.json()
+        self.assertEqual(answer_response.status_code, 200)
+        self.assertEqual(payload["is_complete"], True)
+        self.assertTrue(payload["redirect_url"].endswith(f"/p/{link.slug}/results/"))
+
+        session = ActivitySession.objects.get(activity__template_key="choose_a_box")
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 100)
+
+    def test_choose_a_box_live_player_renders_gift_cover_and_inline_question_card(self):
+        link = self._create_published_activity(
+            "choose_a_box",
+            {
+                "no_repeat": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Water formula",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "H2O", "is_correct": True},
+                            {"id": "b", "text": "CO2", "is_correct": False},
+                        ],
+                    }
+                ],
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        launch_response = self.client.get(f"/p/{link.slug}/")
+
+        self.assertEqual(launch_response.status_code, 200)
+        self.assertContains(launch_response, "box-gift.png")
+        self.assertContains(launch_response, "data-box-cover")
+        self.assertContains(launch_response, "data-box-answer-target")
+        self.assertNotContains(launch_response, "правой колонке")
+
+        opened_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "open_box", "item_key": "item-1"},
+            follow=True,
+        )
+
+        self.assertEqual(opened_response.status_code, 200)
+        self.assertContains(opened_response, "data-box-question-panel")
+        self.assertContains(opened_response, "Water formula")
+        self.assertContains(opened_response, 'name="answer_item-1"')
+        self.assertNotContains(opened_response, "правой колонке")
 
     def test_student_can_launch_all_registered_templates(self):
         configs = {

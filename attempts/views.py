@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.core.exceptions import ValidationError
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.services import ensure_user_profile, profile_full_name
@@ -61,6 +61,10 @@ def _get_student_identity(request) -> tuple[object | None, str]:
     if not profile.is_student:
         return None, ""
     return profile, profile_full_name(request.user, profile)
+
+
+def _is_ajax_request(request) -> bool:
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
 
 def _player_context(
@@ -141,6 +145,8 @@ def play(request, slug: str):
         try:
             evaluation = definition.evaluate_submission(activity, current_session, request.POST)
         except ValidationError as exc:
+            if _is_ajax_request(request):
+                return JsonResponse({"ok": False, "error": exc.messages[0]}, status=400)
             runtime = definition.build_runtime_data(activity, session=current_session)
             return render(
                 request,
@@ -171,7 +177,28 @@ def play(request, slug: str):
         if evaluation.is_complete:
             request.session[_result_session_key(slug)] = str(current_session.token)
             request.session.pop(_active_session_key(slug), None)
+            if _is_ajax_request(request):
+                return JsonResponse(
+                    {
+                        "ok": True,
+                        "is_complete": True,
+                        "score": current_session.score,
+                        "max_score": current_session.max_score,
+                        "percent_score": float(current_session.percent_score),
+                        "redirect_url": redirect("attempts:results", slug=slug).url,
+                    }
+                )
             return redirect("attempts:results", slug=slug)
+        if _is_ajax_request(request):
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "is_complete": False,
+                    "score": current_session.score,
+                    "max_score": current_session.max_score,
+                    "percent_score": float(current_session.percent_score),
+                }
+            )
         return redirect("attempts:play", slug=slug)
 
     if not current_session:

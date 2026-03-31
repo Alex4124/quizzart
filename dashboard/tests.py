@@ -19,6 +19,8 @@ class LandingViewTests(TestCase):
         response = self.client.get(reverse("dashboard:landing"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'rel="icon"', html=False)
+        self.assertContains(response, "browser-favicon.png")
         self.assertContains(response, "Сделайте обучение")
         self.assertContains(response, "Начать бесплатно")
         self.assertContains(response, "Выберите свой стиль проведения занятия.")
@@ -81,6 +83,15 @@ class BaseLayoutSmokeTests(TestCase):
         response = self.client.post(reverse("accounts:logout"))
 
         self.assertRedirects(response, reverse("dashboard:landing"))
+
+    def test_dashboard_home_includes_global_favicon(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'rel="icon"', html=False)
+        self.assertContains(response, "browser-favicon.png")
 
 
 class DashboardHomeViewTests(TestCase):

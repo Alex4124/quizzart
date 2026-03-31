@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -20,28 +21,38 @@
 
         <div class="cards-board" data-categorize-board>
             {% for card in runtime.cards %}
+                {% cycle 'orange' 'violet' as card_theme silent %}
                 <article
-                    class="cards-card {% if card.is_answered %}cards-card-answered{% else %}cards-card-closed{% endif %}"
+                    class="cards-card cards-card--{{ card_theme }} {% if card.is_answered %}cards-card-answered{% else %}cards-card-closed{% endif %}"
                     data-categorize-card
                     data-item-id="{{ card.id }}"
                     data-state="{% if card.is_answered %}answered{% else %}closed{% endif %}"
                     data-answered="{% if card.is_answered %}1{% else %}0{% endif %}"
                     data-correct-option="{{ card.correct_option }}"
+                    data-card-theme="{{ card_theme }}"
                     data-reveal-stagger
                 >
                     <div class="cards-card__inner" data-categorize-card-inner>
-                        <div class="cards-card__face cards-card__face--front">
-                            <span class="cards-card__number">Карточка {{ forloop.counter }}</span>
-                            <strong>Нажмите, чтобы открыть</strong>
-                            <p>Вопрос скрыт до переворота карточки.</p>
+                        <div class="cards-card__face cards-card__face--front cards-card__face--front-{{ card_theme }}">
+                            <img
+                                class="cards-card__art"
+                                src="{% static 'img/cards-'|add:card_theme|add:'.png' %}"
+                                alt=""
+                                aria-hidden="true"
+                            >
+                            <div class="cards-card__front-overlay">
+                                <span class="cards-card__number cards-card__number--{{ card_theme }}">Карточка {{ forloop.counter }}</span>
+                                <strong class="cards-card__front-sr">Нажмите, чтобы открыть</strong>
+                                <p class="cards-card__front-sr">Вопрос скрыт до переворота карточки.</p>
+                            </div>
                         </div>
 
-                        <div class="cards-card__face cards-card__face--back">
+                        <div class="cards-card__face cards-card__face--back cards-card__face--back-{{ card_theme }}">
                             <div class="cards-card__head">
-                                <span class="cards-card__badge" data-categorize-badge>
+                                <span class="cards-card__badge cards-card__badge--{{ card_theme }}" data-categorize-badge>
                                     {% if card.is_answered %}Отвечено{% else %}Открыта{% endif %}
                                 </span>
-                                <span class="cards-card__points">{{ card.points }} балл.</span>
+                                <span class="cards-card__points cards-card__points--{{ card_theme }}">{{ card.points }} балл.</span>
                             </div>
                             <h2>{{ card.prompt }}</h2>
                             <div class="cards-card__answers">

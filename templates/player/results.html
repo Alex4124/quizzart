@@ -2,6 +2,8 @@
 
 {% block title %}Результат · {{ activity.title }}{% endblock %}
 
+{% block player_layout_class %}{% if activity.template_key == "choose_a_box" %}player-layout--choose-a-box-results{% endif %}{% endblock %}
+
 {% block player_board %}
     <section class="player-results-summary">
         <article class="card">
