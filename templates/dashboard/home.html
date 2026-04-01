@@ -135,21 +135,6 @@
         <section class="teacher-summary" id="dashboard-metrics">
             {% for card in summary_cards %}
                 <article class="teacher-metric teacher-metric--{{ card.tone }}">
-                    <div class="teacher-metric__icon" aria-hidden="true">
-                        {% if card.icon == "stack" %}
-                            <svg viewBox="0 0 24 24">
-                                <path d="M6 4h12v3H6V4Zm-1 5h14v3H5V9Zm1 5h12v3H6v-3Z"></path>
-                            </svg>
-                        {% elif card.icon == "pulse" %}
-                            <svg viewBox="0 0 24 24">
-                                <path d="M4 13h4l2-4 3 8 2-4h5v-2h-4l-2 4-3-8-2 4H4v2Z"></path>
-                            </svg>
-                        {% else %}
-                            <svg viewBox="0 0 24 24">
-                                <path d="m12 3 2.44 5.43L20 9.24l-4 3.89.98 5.63L12 15.92l-4.98 2.84L8 13.13l-4-3.9 5.56-.8L12 3Z"></path>
-                            </svg>
-                        {% endif %}
-                    </div>
                     <p class="teacher-metric__label">{{ card.label }}</p>
                     <strong>{{ card.value }}</strong>
                     <p class="teacher-metric__note">{{ card.note }}</p>

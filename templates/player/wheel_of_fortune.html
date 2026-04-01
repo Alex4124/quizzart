@@ -22,7 +22,7 @@
                             data-item-id="{{ sector.id }}"
                             data-answered="{{ sector.is_answered|yesno:'1,0' }}"
                             data-sector-index="{{ forloop.counter0 }}"
-                            style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {% cycle '#7d44c8' '#8d1df1' '#ff9368' '#c11755' '#aa7af1' '#ff9f76' %};"
+                            style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {% cycle '#c11755' '#aa7af1' '#ff9368' '#7d44c8' '#62bdf5' %};"
                         >
                             <div class="wheel-sector-content">
                                 <span class="wheel-sector-label">{{ sector.prompt }}</span>

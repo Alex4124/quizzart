@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db.models import Avg, Count, Prefetch, Q
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,7 +11,7 @@ from django.utils import timezone
 from accounts.decorators import teacher_required
 from accounts.services import ensure_user_profile, profile_initials, profile_short_name, user_home_url
 from activities.models import Activity, ShareLink
-from attempts.models import ActivitySession
+from attempts.models import ActivityAnswer, ActivitySession
 from interactive_templates.registry import registry
 from interactive_templates.utils import normalize_question_bank
 
@@ -262,6 +264,151 @@ def _build_recent_events(activity_cards: list[dict]) -> list[dict]:
     return events[:6]
 
 
+def _participant_label(participant_name: str, participant_user) -> str:
+    if participant_name:
+        return participant_name
+    if participant_user:
+        full_name = " ".join(
+            value for value in (participant_user.first_name, participant_user.last_name) if value
+        ).strip()
+        return full_name or participant_user.username
+    return "Анонимно"
+
+
+def _format_duration(duration: timedelta | None) -> str:
+    if not duration:
+        return "—"
+
+    total_seconds = max(int(duration.total_seconds()), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours} ч {minutes} мин"
+    if minutes and seconds:
+        return f"{minutes} мин {seconds} сек"
+    if minutes:
+        return f"{minutes} мин"
+    return f"{seconds} сек"
+
+
+def _session_duration(session: ActivitySession) -> timedelta | None:
+    if not session.completed_at or not session.started_at:
+        return None
+    return session.completed_at - session.started_at
+
+
+def _build_question_performance(activity: Activity) -> tuple[list[dict], list[dict], list[dict]]:
+    ordered_items = normalize_question_bank(activity.config_json, default_points=1)
+    ordered_lookup = {
+        item.get("id"): {
+            "index": index,
+            "prompt": item.get("prompt") or f"Задание {index}",
+        }
+        for index, item in enumerate(ordered_items, start=1)
+    }
+    answer_stats = list(
+        ActivityAnswer.objects.filter(session__activity=activity)
+        .values("item_key", "prompt")
+        .annotate(
+            total_answers=Count("id"),
+            correct_answers=Count("id", filter=Q(is_correct=True)),
+            incorrect_answers=Count("id", filter=Q(is_correct=False)),
+        )
+    )
+
+    items: list[dict] = []
+    for answer_stat in answer_stats:
+        ordered_meta = ordered_lookup.get(answer_stat["item_key"], {})
+        prompt = (answer_stat["prompt"] or "").strip() or ordered_meta.get("prompt") or f"Задание {answer_stat['item_key']}"
+        total_answers = answer_stat["total_answers"] or 0
+        correct_answers = answer_stat["correct_answers"] or 0
+        incorrect_answers = answer_stat["incorrect_answers"] or 0
+        accuracy = round((correct_answers / total_answers) * 100) if total_answers else 0
+        items.append(
+            {
+                "item_key": answer_stat["item_key"],
+                "index": ordered_meta.get("index", len(items) + 1),
+                "prompt": prompt,
+                "total_answers": total_answers,
+                "correct_answers": correct_answers,
+                "incorrect_answers": incorrect_answers,
+                "accuracy": accuracy,
+                "mistake_note": f"{incorrect_answers} ошибок · {accuracy}% точность",
+                "success_note": f"{correct_answers} верных ответов · {accuracy}% точность",
+            }
+        )
+
+    weakest_items = sorted(
+        (item for item in items if item["incorrect_answers"]),
+        key=lambda item: (-item["incorrect_answers"], -item["total_answers"], item["prompt"]),
+    )[:3]
+    strongest_items = sorted(
+        (item for item in items if item["correct_answers"]),
+        key=lambda item: (-item["correct_answers"], -item["total_answers"], item["prompt"]),
+    )[:3]
+
+    item_lookup = {item["item_key"]: item for item in items}
+    chart_source: list[dict] = []
+    for index, ordered_item in enumerate(ordered_items, start=1):
+        item_key = ordered_item.get("id")
+        item_stat = item_lookup.get(item_key)
+        correct_answers = item_stat["correct_answers"] if item_stat else 0
+        total_answers = item_stat["total_answers"] if item_stat else 0
+        prompt = ordered_item.get("prompt") or (item_stat["prompt"] if item_stat else f"Задание {index}")
+        chart_source.append(
+            {
+                "index": index,
+                "prompt": prompt,
+                "correct_answers": correct_answers,
+                "total_answers": total_answers,
+                "success_label": _count_label(correct_answers, "успех", "успеха", "успехов"),
+            }
+        )
+
+    chart_max = max((item["correct_answers"] for item in chart_source), default=0)
+    for item in chart_source:
+        item["height_percent"] = round((item["correct_answers"] / chart_max) * 100) if chart_max else 0
+        item["column_label"] = f"Задание {item['index']}"
+
+    return weakest_items, strongest_items, chart_source
+
+
+def _build_top_students(completed_sessions: list[ActivitySession]) -> list[dict]:
+    top_students: list[dict] = []
+    seen_labels: set[str] = set()
+
+    for rank, session in enumerate(
+        sorted(
+            completed_sessions,
+            key=lambda current: (
+                -(float(current.percent_score or 0)),
+                -current.score,
+                current.completed_at or current.started_at,
+            ),
+        ),
+        start=1,
+    ):
+        participant_label = _participant_label(session.participant_name, session.participant_user)
+        participant_key = participant_label.casefold()
+        if participant_key in seen_labels:
+            continue
+        seen_labels.add(participant_key)
+        top_students.append(
+            {
+                "rank": len(top_students) + 1,
+                "name": participant_label,
+                "score_label": f"{float(session.percent_score or 0):.0f}%",
+                "result_label": f"{session.score} из {session.max_score}",
+                "duration_label": _format_duration(_session_duration(session)),
+            }
+        )
+        if len(top_students) == 3:
+            break
+
+    return top_students
+
+
 def landing(request):
     if request.user.is_authenticated:
         return redirect(user_home_url(request.user))
@@ -444,16 +591,63 @@ def home(request):
 @teacher_required
 def activity_analytics(request, pk: int):
     activity = get_object_or_404(Activity, pk=pk, owner=request.user)
-    sessions = activity.sessions.all()
-    summary = sessions.aggregate(avg_percent=Avg("percent_score"))
+    profile = getattr(request, "user_profile", ensure_user_profile(request.user))
+    sessions = list(
+        activity.sessions.select_related("participant_user").prefetch_related("answers").all()
+    )
+    completed_sessions = [
+        session for session in sessions if session.status == ActivitySession.Status.COMPLETED
+    ]
+    completed_durations = [
+        duration
+        for duration in (_session_duration(session) for session in completed_sessions)
+        if duration is not None
+    ]
+    average_duration = (
+        timedelta(seconds=sum(duration.total_seconds() for duration in completed_durations) / len(completed_durations))
+        if completed_durations
+        else None
+    )
+    weakest_items, strongest_items, success_chart_items = _build_question_performance(activity)
+    sessions_summary = activity.sessions.aggregate(
+        avg_percent=Avg("percent_score", filter=Q(status=ActivitySession.Status.COMPLETED))
+    )
+    session_rows = [
+        {
+            "participant": _participant_label(session.participant_name, session.participant_user),
+            "status": session.get_status_display(),
+            "score_label": f"{session.score} / {session.max_score}",
+            "percent_label": f"{float(session.percent_score or 0):.0f}%",
+            "started_at": session.started_at,
+            "completed_at": session.completed_at,
+            "duration_label": _format_duration(_session_duration(session)),
+        }
+        for session in sessions
+    ]
+    teacher_display_name = profile_short_name(request.user, profile)
+
     return render(
         request,
         "dashboard/analytics.html",
         {
             "activity": activity,
-            "sessions": sessions,
-            "launches": sessions.count(),
-            "completions": sessions.filter(status=ActivitySession.Status.COMPLETED).count(),
-            "average_score": summary["avg_percent"] or 0,
+            "activity_template_title": _dashboard_template_title(activity.template_key),
+            "teacher_display_name": teacher_display_name,
+            "teacher_initial": profile_initials(request.user, profile),
+            "teacher_avatar_url": profile.avatar.url if profile.avatar else "",
+            "sessions": session_rows,
+            "launches": len(sessions),
+            "completions": len(completed_sessions),
+            "average_score": float(sessions_summary["avg_percent"] or 0),
+            "average_duration": _format_duration(average_duration),
+            "average_duration_note": (
+                _count_label(len(completed_durations), "завершение", "завершения", "завершений") + " в расчёте"
+                if completed_durations
+                else "Пока нет завершённых прохождений"
+            ),
+            "success_chart_items": success_chart_items,
+            "top_students": _build_top_students(completed_sessions),
+            "weakest_items": weakest_items,
+            "strongest_items": strongest_items,
         },
     )

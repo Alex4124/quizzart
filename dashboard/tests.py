@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
 from activities.models import Activity, ShareLink
-from attempts.models import ActivitySession
+from attempts.models import ActivityAnswer, ActivitySession
 
 
 User = get_user_model()
@@ -284,3 +286,202 @@ class DashboardHomeViewTests(TestCase):
         self.assertContains(response, second.title)
         self.assertContains(response, third.title)
         self.assertContains(response, fourth.title)
+
+
+class DashboardAnalyticsViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="teacher-analytics-view",
+            password="pass12345",
+            email="analytics@example.com",
+            first_name="Mira",
+        )
+        self.client.force_login(self.user)
+
+    def _question_bank(self) -> dict:
+        return {
+            "items": [
+                {
+                    "id": "item-1",
+                    "prompt": "Question 1",
+                    "points": 2,
+                    "options": [
+                        {"id": "item-1-a", "text": "Correct 1", "is_correct": True},
+                        {"id": "item-1-b", "text": "Wrong 1", "is_correct": False},
+                    ],
+                },
+                {
+                    "id": "item-2",
+                    "prompt": "Question 2",
+                    "points": 2,
+                    "options": [
+                        {"id": "item-2-a", "text": "Correct 2", "is_correct": True},
+                        {"id": "item-2-b", "text": "Wrong 2", "is_correct": False},
+                    ],
+                },
+                {
+                    "id": "item-3",
+                    "prompt": "Question 3",
+                    "points": 2,
+                    "options": [
+                        {"id": "item-3-a", "text": "Correct 3", "is_correct": True},
+                        {"id": "item-3-b", "text": "Wrong 3", "is_correct": False},
+                    ],
+                },
+            ]
+        }
+
+    def _create_activity(self) -> Activity:
+        return Activity.objects.create(
+            owner=self.user,
+            title="Analytics activity",
+            description="Checking analytics details",
+            template_key="quiz",
+            config_json=self._question_bank(),
+        )
+
+    def _create_completed_session(
+        self,
+        *,
+        activity: Activity,
+        participant_name: str,
+        score: int,
+        max_score: int,
+        started_at,
+        duration_minutes: int,
+    ) -> ActivitySession:
+        session = ActivitySession.objects.create(
+            activity=activity,
+            participant_name=participant_name,
+        )
+        completed_at = started_at + timedelta(minutes=duration_minutes)
+        ActivitySession.objects.filter(pk=session.pk).update(
+            status=ActivitySession.Status.COMPLETED,
+            score=score,
+            max_score=max_score,
+            percent_score=(score / max_score) * 100 if max_score else 0,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+        session.refresh_from_db()
+        return session
+
+    def test_teacher_analytics_renders_unified_layout_and_extended_metrics(self):
+        activity = self._create_activity()
+        started_anchor = timezone.now() - timedelta(days=1)
+
+        boris = self._create_completed_session(
+            activity=activity,
+            participant_name="Boris",
+            score=100,
+            max_score=100,
+            started_at=started_anchor,
+            duration_minutes=4,
+        )
+        alice = self._create_completed_session(
+            activity=activity,
+            participant_name="Alice",
+            score=80,
+            max_score=100,
+            started_at=started_anchor + timedelta(hours=1),
+            duration_minutes=5,
+        )
+        clara = self._create_completed_session(
+            activity=activity,
+            participant_name="Clara",
+            score=60,
+            max_score=100,
+            started_at=started_anchor + timedelta(hours=2),
+            duration_minutes=6,
+        )
+        ActivitySession.objects.create(
+            activity=activity,
+            participant_name="Guest",
+            status=ActivitySession.Status.STARTED,
+        )
+
+        answers = [
+            (boris, "item-1", "Question 1", True),
+            (boris, "item-2", "Question 2", True),
+            (boris, "item-3", "Question 3", False),
+            (alice, "item-1", "Question 1", False),
+            (alice, "item-2", "Question 2", True),
+            (alice, "item-3", "Question 3", True),
+            (clara, "item-1", "Question 1", False),
+            (clara, "item-2", "Question 2", True),
+            (clara, "item-3", "Question 3", True),
+        ]
+        for session, item_key, prompt, is_correct in answers:
+            ActivityAnswer.objects.create(
+                session=session,
+                item_key=item_key,
+                prompt=prompt,
+                submitted_value={"choice": "demo"},
+                is_correct=is_correct,
+                score_awarded=1 if is_correct else 0,
+            )
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "teacher-analytics")
+        self.assertContains(response, "Аналитика шаблона")
+        self.assertContains(response, "Лучшие результаты")
+        self.assertContains(response, "Чаще всего ошибаются")
+        self.assertContains(response, "Больше всего верных ответов")
+        self.assertContains(response, "Среднее время")
+        self.assertContains(response, "5 мин")
+        self.assertContains(response, "80,0%")
+        self.assertContains(response, "Question 1")
+        self.assertContains(response, "2 ошибок")
+        self.assertContains(response, "Question 2")
+        self.assertContains(response, "3 верных ответов")
+        self.assertContains(response, "Boris")
+        self.assertContains(response, "Alice")
+        self.assertContains(response, "Clara")
+
+    def test_teacher_analytics_renders_success_chart(self):
+        activity = self._create_activity()
+        started_anchor = timezone.now() - timedelta(days=1)
+        session = self._create_completed_session(
+            activity=activity,
+            participant_name="Graph Student",
+            score=60,
+            max_score=100,
+            started_at=started_anchor,
+            duration_minutes=4,
+        )
+        ActivityAnswer.objects.create(
+            session=session,
+            item_key="item-1",
+            prompt="Question 1",
+            submitted_value={"choice": "a"},
+            is_correct=True,
+            score_awarded=2,
+        )
+        ActivityAnswer.objects.create(
+            session=session,
+            item_key="item-2",
+            prompt="Question 2",
+            submitted_value={"choice": "b"},
+            is_correct=False,
+            score_awarded=0,
+        )
+        ActivityAnswer.objects.create(
+            session=session,
+            item_key="item-3",
+            prompt="Question 3",
+            submitted_value={"choice": "c"},
+            is_correct=True,
+            score_awarded=2,
+        )
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "teacher-analytics-chart")
+        self.assertContains(response, "teacher-analytics-chart__item", count=3)
+        self.assertContains(response, "Зависимость задания от числа верных ответов")
+        self.assertContains(response, "Задание 1")
+        self.assertContains(response, "Задание 2")
+        self.assertContains(response, "Задание 3")
+        self.assertContains(response, "1 верных", count=2)
