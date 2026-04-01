@@ -20,8 +20,8 @@
             </a>
 
             <nav class="teacher-header__nav" aria-label="Навигация аналитики">
-                <a href="{% url 'dashboard:home' %}">Панель</a>
                 <a href="#analytics-overview">Сводка</a>
+                <a href="#analytics-success">Успешность</a>
                 <a href="#analytics-sessions">Прохождения</a>
             </nav>
 
@@ -47,209 +47,287 @@
 {% block main_class %}teacher-dashboard-main{% endblock %}
 
 {% block content %}
-    <section class="teacher-analytics" id="analytics-overview">
-        <section class="teacher-analytics-card teacher-analytics-card--hero">
-            <div class="teacher-analytics__hero-head">
-                <div class="teacher-analytics__hero-copy">
-                    <p class="teacher-section__eyebrow">Аналитика шаблона · {{ activity_template_title }}</p>
-                    <h1>{{ activity.title }}</h1>
-                    <p>
-                        Сводка по прохождениям, результатам и самым сильным или сложным заданиям.
-                        Дизайн и структура совпадают с остальными teacher-вкладками, чтобы аналитика оставалась частью одного рабочего пространства.
-                    </p>
+    <section class="teacher-analytics teacher-dashboard-grid teacher-dashboard-grid--analytics-page" id="analytics-overview">
+        <aside class="teacher-sidebar">
+            <div class="teacher-sidebar__panel">
+                <div class="teacher-sidebar__workspace">
+                    <div class="teacher-sidebar__workspace-mark">Q</div>
+                    <div>
+                        <strong>Quizzart Pro</strong>
+                        <p>Analytics workspace</p>
+                    </div>
                 </div>
-                <div class="teacher-analytics__hero-meta">
-                    <span class="teacher-analytics__hero-pill">{{ activity.get_status_display }}</span>
-                    <span class="teacher-analytics__hero-pill teacher-analytics__hero-pill--muted">Учитель · {{ teacher_display_name }}</span>
+
+                <nav class="teacher-sidebar__nav" aria-label="Разделы аналитики">
+                    <a href="{% url 'dashboard:home' %}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path>
+                        </svg>
+                        <span>Панель</span>
+                    </a>
+                    <a href="{% url 'activities:edit' activity.pk %}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path>
+                        </svg>
+                        <span>Редактор</span>
+                    </a>
+                    <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 5c5.5 0 9.5 5.23 9.67 5.45l.33.45-.33.45C21.5 11.57 17.5 16.8 12 16.8S2.5 11.57 2.33 11.35L2 10.9l.33-.45C2.5 10.23 6.5 5 12 5Zm0 2c-3.65 0-6.57 2.95-7.59 3.9C5.43 11.85 8.35 14.8 12 14.8s6.57-2.95 7.59-3.9C18.57 9.95 15.65 7 12 7Zm0 1.5a2.4 2.4 0 1 1 0 4.8 2.4 2.4 0 0 1 0-4.8Z"></path>
+                        </svg>
+                        <span>Предпросмотр</span>
+                    </a>
+                    <a class="is-active" href="#analytics-overview">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 19V9h3v10H5Zm5 0V5h3v14h-3Zm5 0v-7h3v7h-3Z"></path>
+                        </svg>
+                        <span>Аналитика</span>
+                    </a>
+                </nav>
+
+                <div class="teacher-sidebar__search-state teacher-sidebar__search-state--analytics">
+                    <p>Активность</p>
+                    <strong>{{ activity.title }}</strong>
+                    <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">{{ activity_template_title }} · {{ activity.get_status_display }}</a>
                 </div>
+
+                <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
+                    {% csrf_token %}
+                    <button type="submit">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path>
+                        </svg>
+                        <span>Выйти</span>
+                    </button>
+                </form>
             </div>
-        </section>
+        </aside>
 
-        <section class="teacher-summary teacher-summary--analytics">
-            <article class="teacher-metric teacher-metric--violet">
-                <p class="teacher-metric__label">Запуски</p>
-                <strong>{{ launches }}</strong>
-                <p class="teacher-metric__note">Все сохранённые открытия этой активности</p>
-            </article>
-            <article class="teacher-metric teacher-metric--indigo">
-                <p class="teacher-metric__label">Завершения</p>
-                <strong>{{ completions }}</strong>
-                <p class="teacher-metric__note">Сколько учеников дошли до результатов</p>
-            </article>
-            <article class="teacher-metric teacher-metric--apricot">
-                <p class="teacher-metric__label">Средний результат</p>
-                <strong>{{ average_score|floatformat:1 }}%</strong>
-                <p class="teacher-metric__note">Средний процент по завершённым прохождениям</p>
-            </article>
-            <article class="teacher-metric teacher-metric--violet-soft">
-                <p class="teacher-metric__label">Среднее время</p>
-                <strong>{{ average_duration }}</strong>
-                <p class="teacher-metric__note">{{ average_duration_note }}</p>
-            </article>
-        </section>
-
-        <section class="teacher-analytics__grid">
-            <div class="teacher-analytics__main">
-                <section class="teacher-analytics-card">
-                    <div class="teacher-analytics-card__head">
-                        <div>
-                            <p class="teacher-section__eyebrow">График успешности</p>
-                            <h2>Зависимость задания от числа верных ответов</h2>
-                        </div>
-                        <span class="teacher-analytics-card__meta">По номеру задания</span>
+        <div class="teacher-dashboard-center teacher-dashboard-center--analytics">
+            <section class="teacher-analytics-card teacher-analytics-card--hero-prototype">
+                <div class="teacher-analytics-hero-prototype__top">
+                    <span class="teacher-analytics-hero-prototype__eyebrow">Performance insights</span>
+                    <div class="teacher-analytics-hero-prototype__actions">
+                        <span class="teacher-analytics-hero-prototype__control teacher-analytics-hero-prototype__control--muted">{{ launches }} запусков</span>
+                        <span class="teacher-analytics-hero-prototype__control">Шаблон · {{ activity_template_title }}</span>
                     </div>
+                </div>
 
-                    {% if success_chart_items %}
-                        <div class="teacher-analytics-chart" role="img" aria-label="График успешных выполнений по заданиям">
-                            <div class="teacher-analytics-chart__plot">
-                                {% for item in success_chart_items %}
-                                    <article class="teacher-analytics-chart__item">
-                                        <span class="teacher-analytics-chart__value">{{ item.success_label }}</span>
-                                        <div
-                                            class="teacher-analytics-chart__bar teacher-analytics-chart__bar--{% cycle 'violet' 'apricot' 'indigo' 'rose' 'sky' %}"
-                                            style="height: {% if item.height_percent %}{{ item.height_percent }}%{% else %}14%{% endif %};"
-                                            title="{{ item.prompt }}"
-                                            aria-hidden="true"
-                                        ></div>
-                                        <span class="teacher-analytics-chart__index">{{ item.index }}</span>
-                                        <span class="teacher-analytics-chart__caption">{{ item.column_label }}</span>
-                                    </article>
-                                {% endfor %}
+                <div class="teacher-analytics-hero-prototype__content">
+                    <div class="teacher-analytics-hero-prototype__copy">
+                        <h1>Аналитика тестов</h1>
+                        <p>
+                            Глубокий анализ прохождений, точности ответов и сильных или сложных вопросов
+                            для <span>{{ activity.title }}</span>.
+                        </p>
+                    </div>
+                    <div class="teacher-analytics-hero-prototype__actions teacher-analytics-hero-prototype__actions--buttons">
+                        <a class="button button-secondary teacher-header__secondary" href="{% url 'activities:edit' activity.pk %}">Изменить тест</a>
+                        <a class="button teacher-header__create" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Открыть превью</a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="teacher-summary teacher-summary--analytics-redesign">
+                <article class="teacher-metric teacher-metric--analytics teacher-metric--violet">
+                    <p class="teacher-metric__delta">Завершённые прохождения</p>
+                    <p class="teacher-metric__label">Всего завершений</p>
+                    <strong>{{ completions }}</strong>
+                    <p class="teacher-metric__note">Сколько учеников дошли до экрана результатов.</p>
+                </article>
+                <article class="teacher-metric teacher-metric--analytics teacher-metric--violet-soft">
+                    <p class="teacher-metric__delta">Точность по завершённым</p>
+                    <p class="teacher-metric__label">Средний балл</p>
+                    <strong>{{ average_score|floatformat:1 }}%</strong>
+                    <p class="teacher-metric__note">Средний процент правильных ответов по завершённым сессиям.</p>
+                </article>
+                <article class="teacher-metric teacher-metric--analytics teacher-metric--apricot-soft">
+                    <p class="teacher-metric__delta">Ритм прохождения</p>
+                    <p class="teacher-metric__label">Среднее время</p>
+                    <strong>{{ average_duration }}</strong>
+                    <p class="teacher-metric__note">{{ average_duration_note }}</p>
+                </article>
+            </section>
+
+            <section class="teacher-analytics-layout">
+                <div class="teacher-analytics-layout__main">
+                    <section class="teacher-analytics-card teacher-analytics-card--chart" id="analytics-success">
+                        <div class="teacher-analytics-card__head teacher-analytics-card__head--stacked">
+                            <div>
+                                <h2>Зависимость номера задания от количества успешных выполнений</h2>
+                                <p class="teacher-analytics-card__subcopy">
+                                    Чем выше линия, тем чаще ученики успешно справлялись с заданием.
+                                </p>
                             </div>
-                            <p class="teacher-analytics-chart__note">
-                                Колонки показывают, сколько раз ученики отвечали на задание верно. Чем выше колонка, тем чаще задание выполнялось успешно.
-                            </p>
+                            {% if success_chart %}
+                                <span class="teacher-analytics-card__meta">{{ success_chart.max_success_label }} максимум</span>
+                            {% endif %}
                         </div>
-                    {% else %}
-                        <div class="teacher-analytics-card__empty">
-                            График появится после первых сохранённых ответов по заданиям.
-                        </div>
-                    {% endif %}
-                </section>
 
-                <section class="teacher-analytics-card" id="analytics-sessions">
-                    <div class="teacher-analytics-card__head">
-                        <div>
-                            <p class="teacher-section__eyebrow">Прохождения</p>
-                            <h2>История запусков</h2>
-                        </div>
-                        <span class="teacher-analytics-card__meta">{{ launches }} всего</span>
-                    </div>
+                        {% if success_chart %}
+                            <div class="teacher-analytics-chart teacher-analytics-chart--line" role="img" aria-label="График зависимости номера задания от количества успешных выполнений">
+                                <div class="teacher-analytics-chart__canvas">
+                                    <svg class="teacher-analytics-chart__svg" viewBox="0 0 {{ success_chart.width }} {{ success_chart.height }}" preserveAspectRatio="none" aria-hidden="true">
+                                        <defs>
+                                            <linearGradient id="teacherAnalyticsArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" stop-color="#6f3bd1" stop-opacity="0.28"></stop>
+                                                <stop offset="100%" stop-color="#6f3bd1" stop-opacity="0.02"></stop>
+                                            </linearGradient>
+                                        </defs>
+                                        <path class="teacher-analytics-chart__area" d="{{ success_chart.area_path }}"></path>
+                                        <path class="teacher-analytics-chart__line teacher-analytics-chart__line--glow" d="{{ success_chart.line_path }}"></path>
+                                        <path class="teacher-analytics-chart__line" d="{{ success_chart.line_path }}"></path>
+                                        {% for point in success_chart.points %}
+                                            <circle class="teacher-analytics-chart__point-halo" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="11"></circle>
+                                            <circle class="teacher-analytics-chart__point" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="5.5"></circle>
+                                            <text class="teacher-analytics-chart__point-label" x="{{ point.label_x_svg }}" y="{{ point.label_y_svg }}">{{ point.correct_answers }}</text>
+                                        {% endfor %}
+                                    </svg>
+                                </div>
 
-                    {% if sessions %}
-                        <div class="teacher-analytics-table" role="table" aria-label="Таблица прохождений">
-                            <div class="teacher-analytics-table__head" role="rowgroup">
-                                <div role="row">
-                                    <span role="columnheader">Ученик</span>
-                                    <span role="columnheader">Статус</span>
-                                    <span role="columnheader">Результат</span>
-                                    <span role="columnheader">Время</span>
-                                    <span role="columnheader">Начато</span>
+                                <div class="teacher-analytics-chart__axis">
+                                    {% for point in success_chart.points %}
+                                        <span>Задание {{ point.index }}</span>
+                                    {% endfor %}
+                                </div>
+                                <p class="teacher-analytics-chart__note">{{ success_chart.success_note }}</p>
+                            </div>
+                        {% else %}
+                            <div class="teacher-analytics-card__empty">
+                                График появится после первых сохранённых ответов по заданиям.
+                            </div>
+                        {% endif %}
+                    </section>
+
+                    <section class="teacher-analytics-card teacher-analytics-card--sessions" id="analytics-sessions">
+                        <div class="teacher-analytics-card__head">
+                            <div>
+                                <h2>Последняя активность учеников</h2>
+                                <p class="teacher-analytics-card__subcopy">
+                                    История запусков, статусов и результатов по этой активности.
+                                </p>
+                            </div>
+                            <span class="teacher-analytics-card__meta">{{ launches }} всего</span>
+                        </div>
+
+                        {% if sessions %}
+                            <div class="teacher-analytics-table" role="table" aria-label="Таблица прохождений">
+                                <div class="teacher-analytics-table__head" role="rowgroup">
+                                    <div role="row">
+                                        <span role="columnheader">Имя ученика</span>
+                                        <span role="columnheader">Статус</span>
+                                        <span role="columnheader">Балл</span>
+                                        <span role="columnheader">Время</span>
+                                        <span role="columnheader">Старт</span>
+                                    </div>
+                                </div>
+                                <div class="teacher-analytics-table__body" role="rowgroup">
+                                    {% for session in sessions %}
+                                        <div class="teacher-analytics-table__row" role="row">
+                                            <span role="cell" data-label="Имя ученика">{{ session.participant }}</span>
+                                            <span role="cell" data-label="Статус">{{ session.status }}</span>
+                                            <span role="cell" data-label="Балл">{{ session.score_label }} · {{ session.percent_label }}</span>
+                                            <span role="cell" data-label="Время">{{ session.duration_label }}</span>
+                                            <span role="cell" data-label="Старт">{{ session.started_at|date:"d.m.Y H:i" }}</span>
+                                        </div>
+                                    {% endfor %}
                                 </div>
                             </div>
-                            <div class="teacher-analytics-table__body" role="rowgroup">
-                                {% for session in sessions %}
-                                    <div class="teacher-analytics-table__row" role="row">
-                                        <span role="cell" data-label="Ученик">{{ session.participant }}</span>
-                                        <span role="cell" data-label="Статус">{{ session.status }}</span>
-                                        <span role="cell" data-label="Результат">{{ session.score_label }} · {{ session.percent_label }}</span>
-                                        <span role="cell" data-label="Время">{{ session.duration_label }}</span>
-                                        <span role="cell" data-label="Начато">{{ session.started_at|date:"d.m.Y H:i" }}</span>
-                                    </div>
-                                {% endfor %}
+                        {% else %}
+                            <div class="teacher-analytics-card__empty">
+                                Пока нет сохранённых прохождений. После первых запусков здесь появится история учеников.
+                            </div>
+                        {% endif %}
+                    </section>
+                </div>
+
+                <aside class="teacher-analytics-layout__aside">
+                    <section class="teacher-analytics-card teacher-analytics-card--insights">
+                        <div class="teacher-analytics-card__head">
+                            <div>
+                                <h2>Инсайты по заданиям</h2>
+                                <p class="teacher-analytics-card__subcopy">
+                                    Где чаще ошибаются и какие задания ученики проходят увереннее всего.
+                                </p>
                             </div>
                         </div>
-                    {% else %}
-                        <div class="teacher-analytics-card__empty">
-                            Пока нет сохранённых прохождений. После первых запусков здесь появятся ученики, время и результаты.
-                        </div>
-                    {% endif %}
-                </section>
-            </div>
 
-            <aside class="teacher-analytics__aside">
-                <section class="teacher-analytics-card">
-                    <div class="teacher-analytics-card__head">
-                        <div>
-                            <p class="teacher-section__eyebrow">Топ ученики</p>
-                            <h2>Лучшие результаты</h2>
-                        </div>
-                    </div>
-
-                    {% if top_students %}
-                        <ol class="teacher-analytics-list teacher-analytics-list--ranked">
-                            {% for student in top_students %}
-                                <li class="teacher-analytics-list__item">
-                                    <span class="teacher-analytics-list__rank">{{ student.rank }}</span>
-                                    <div class="teacher-analytics-list__content">
-                                        <strong>{{ student.name }}</strong>
-                                        <p>{{ student.result_label }} · {{ student.duration_label }}</p>
+                        <div class="teacher-analytics-insights">
+                            <div class="teacher-analytics-insights__column">
+                                <p class="teacher-section__eyebrow">Чаще ошибаются</p>
+                                {% if weakest_items %}
+                                    <ul class="teacher-analytics-list teacher-analytics-list--compact">
+                                        {% for item in weakest_items %}
+                                            <li class="teacher-analytics-list__item">
+                                                <div class="teacher-analytics-list__content">
+                                                    <strong>{{ item.prompt }}</strong>
+                                                    <p>{{ item.mistake_note }}</p>
+                                                </div>
+                                                <span class="teacher-analytics-list__value">{{ item.incorrect_answers }}</span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="teacher-analytics-card__empty">
+                                        Пока нет ошибок в сохранённых ответах.
                                     </div>
-                                    <span class="teacher-analytics-list__value">{{ student.score_label }}</span>
-                                </li>
-                            {% endfor %}
-                        </ol>
-                    {% else %}
-                        <div class="teacher-analytics-card__empty">
-                            Топ появится после первых завершённых прохождений.
-                        </div>
-                    {% endif %}
-                </section>
+                                {% endif %}
+                            </div>
 
-                <section class="teacher-analytics-card">
-                    <div class="teacher-analytics-card__head">
-                        <div>
-                            <p class="teacher-section__eyebrow">Сложные задания</p>
-                            <h2>Чаще всего ошибаются</h2>
-                        </div>
-                    </div>
-
-                    {% if weakest_items %}
-                        <ul class="teacher-analytics-list">
-                            {% for item in weakest_items %}
-                                <li class="teacher-analytics-list__item">
-                                    <div class="teacher-analytics-list__content">
-                                        <strong>{{ item.prompt }}</strong>
-                                        <p>{{ item.mistake_note }}</p>
+                            <div class="teacher-analytics-insights__column">
+                                <p class="teacher-section__eyebrow">Больше всего верных ответов</p>
+                                {% if strongest_items %}
+                                    <ul class="teacher-analytics-list teacher-analytics-list--compact">
+                                        {% for item in strongest_items %}
+                                            <li class="teacher-analytics-list__item">
+                                                <div class="teacher-analytics-list__content">
+                                                    <strong>{{ item.prompt }}</strong>
+                                                    <p>{{ item.success_note }}</p>
+                                                </div>
+                                                <span class="teacher-analytics-list__value">{{ item.correct_answers }}</span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="teacher-analytics-card__empty">
+                                        Пока нет верных ответов в сохранённых прохождениях.
                                     </div>
-                                    <span class="teacher-analytics-list__value">{{ item.incorrect_answers }}</span>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="teacher-analytics-card__empty">
-                            Пока нет ошибок в сохранённых ответах.
+                                {% endif %}
+                            </div>
                         </div>
-                    {% endif %}
-                </section>
+                    </section>
 
-                <section class="teacher-analytics-card">
-                    <div class="teacher-analytics-card__head">
-                        <div>
-                            <p class="teacher-section__eyebrow">Сильные задания</p>
-                            <h2>Больше всего верных ответов</h2>
+                    <section class="teacher-analytics-card teacher-analytics-card--students">
+                        <div class="teacher-analytics-card__head">
+                            <div>
+                                <h2>Лучшие ученики</h2>
+                                <p class="teacher-analytics-card__subcopy">
+                                    Три лучших результата по проценту и скорости прохождения.
+                                </p>
+                            </div>
                         </div>
-                    </div>
 
-                    {% if strongest_items %}
-                        <ul class="teacher-analytics-list">
-                            {% for item in strongest_items %}
-                                <li class="teacher-analytics-list__item">
-                                    <div class="teacher-analytics-list__content">
-                                        <strong>{{ item.prompt }}</strong>
-                                        <p>{{ item.success_note }}</p>
-                                    </div>
-                                    <span class="teacher-analytics-list__value">{{ item.correct_answers }}</span>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="teacher-analytics-card__empty">
-                            Пока нет верных ответов в сохранённых прохождениях.
-                        </div>
-                    {% endif %}
-                </section>
-            </aside>
-        </section>
+                        {% if top_students %}
+                            <ol class="teacher-analytics-list teacher-analytics-list--ranked">
+                                {% for student in top_students %}
+                                    <li class="teacher-analytics-list__item">
+                                        <span class="teacher-analytics-list__rank">{{ student.rank }}</span>
+                                        <div class="teacher-analytics-list__content">
+                                            <strong>{{ student.name }}</strong>
+                                            <p>{{ student.result_label }} · {{ student.duration_label }}</p>
+                                        </div>
+                                        <span class="teacher-analytics-list__value">{{ student.score_label }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        {% else %}
+                            <div class="teacher-analytics-card__empty">
+                                Топ появится после первых завершённых прохождений.
+                            </div>
+                        {% endif %}
+                    </section>
+                </aside>
+            </section>
+        </div>
     </section>
 {% endblock %}

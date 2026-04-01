@@ -374,6 +374,91 @@ def _build_question_performance(activity: Activity) -> tuple[list[dict], list[di
     return weakest_items, strongest_items, chart_source
 
 
+def _build_success_chart(success_chart_items: list[dict]) -> dict | None:
+    if not success_chart_items:
+        return None
+
+    width = 760
+    height = 320
+    left_padding = 30
+    right_padding = 28
+    top_padding = 32
+    bottom_padding = 54
+    baseline_y = height - bottom_padding
+    plot_width = max(width - left_padding - right_padding, 1)
+    plot_height = max(baseline_y - top_padding, 1)
+    max_success = max((item["correct_answers"] for item in success_chart_items), default=0) or 1
+    count = len(success_chart_items)
+
+    points: list[dict] = []
+    for index, item in enumerate(success_chart_items):
+        if count == 1:
+            x = width / 2
+        else:
+            x = left_padding + (plot_width * index / (count - 1))
+        ratio = item["correct_answers"] / max_success if max_success else 0
+        y = baseline_y - (ratio * plot_height)
+        points.append(
+            {
+                **item,
+                "x": round(x, 2),
+                "y": round(y, 2),
+                "label_x": round(x, 2),
+                "label_y": round(max(y - 18, 18), 2),
+                "x_svg": f"{x:.2f}",
+                "y_svg": f"{y:.2f}",
+                "label_x_svg": f"{x:.2f}",
+                "label_y_svg": f"{max(y - 18, 18):.2f}",
+            }
+        )
+
+    def smooth_path(source_points: list[dict]) -> str:
+        if len(source_points) == 1:
+            point = source_points[0]
+            return f"M {point['x']} {point['y']} L {point['x']} {point['y']}"
+
+        segments = [f"M {source_points[0]['x']} {source_points[0]['y']}"]
+        for index in range(len(source_points) - 1):
+            previous_point = source_points[index - 1] if index > 0 else source_points[index]
+            current_point = source_points[index]
+            next_point = source_points[index + 1]
+            following_point = (
+                source_points[index + 2] if index + 2 < len(source_points) else next_point
+            )
+            control_one_x = current_point["x"] + (next_point["x"] - previous_point["x"]) / 6
+            control_one_y = current_point["y"] + (next_point["y"] - previous_point["y"]) / 6
+            control_two_x = next_point["x"] - (following_point["x"] - current_point["x"]) / 6
+            control_two_y = next_point["y"] - (following_point["y"] - current_point["y"]) / 6
+            segments.append(
+                "C "
+                f"{control_one_x:.2f} {control_one_y:.2f}, "
+                f"{control_two_x:.2f} {control_two_y:.2f}, "
+                f"{next_point['x']:.2f} {next_point['y']:.2f}"
+            )
+        return " ".join(segments)
+
+    line_path = smooth_path(points)
+    area_path = (
+        f"{line_path} "
+        f"L {points[-1]['x']} {baseline_y:.2f} "
+        f"L {points[0]['x']} {baseline_y:.2f} Z"
+    )
+
+    return {
+        "width": width,
+        "height": height,
+        "baseline_y": round(baseline_y, 2),
+        "points": points,
+        "line_path": line_path,
+        "area_path": area_path,
+        "max_success_label": _count_label(max_success, "успех", "успеха", "успехов"),
+        "success_note": (
+            "Линия показывает, на каких заданиях ученики чаще справлялись успешно: "
+            "чем выше точка, тем больше успешных выполнений."
+        ),
+    }
+
+
 def _build_top_students(completed_sessions: list[ActivitySession]) -> list[dict]:
     top_students: list[dict] = []
     seen_labels: set[str] = set()
@@ -625,6 +710,7 @@ def activity_analytics(request, pk: int):
         for session in sessions
     ]
     teacher_display_name = profile_short_name(request.user, profile)
+    success_chart = _build_success_chart(success_chart_items)
 
     return render(
         request,
@@ -646,6 +732,7 @@ def activity_analytics(request, pk: int):
                 else "Пока нет завершённых прохождений"
             ),
             "success_chart_items": success_chart_items,
+            "success_chart": success_chart,
             "top_students": _build_top_students(completed_sessions),
             "weakest_items": weakest_items,
             "strongest_items": strongest_items,
