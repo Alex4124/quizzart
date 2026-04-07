@@ -26,6 +26,8 @@ class LandingViewTests(TestCase):
         self.assertContains(response, "Сделайте обучение")
         self.assertContains(response, "Начать бесплатно")
         self.assertContains(response, "Выберите свой стиль проведения занятия.")
+        self.assertContains(response, "Выбери коробку")
+        self.assertContains(response, "Карточки")
 
     def test_authenticated_user_is_redirected_to_dashboard(self):
         user = User.objects.create_user(
@@ -482,7 +484,7 @@ class DashboardAnalyticsViewTests(TestCase):
         self.assertContains(response, "teacher-analytics-chart__svg")
         self.assertContains(response, 'class="teacher-analytics-chart__point"', count=3)
         self.assertContains(response, "teacher-analytics-chart__point-label", count=3)
-        self.assertContains(response, "Зависимость задания от числа верных ответов")
+        self.assertContains(response, "Зависимость номера задания от количества успешных выполнений")
         self.assertContains(response, "Задание 1")
         self.assertContains(response, "Задание 2")
         self.assertContains(response, "Задание 3")

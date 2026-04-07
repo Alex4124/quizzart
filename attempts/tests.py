@@ -574,6 +574,123 @@ class PublicPlayTests(TestCase):
             ActivitySession.Status.COMPLETED,
         )
 
+    def test_wheel_ajax_answer_returns_json_and_keeps_session_started_until_last_question(self):
+        wheel = self._create_published_activity(
+            "wheel_of_fortune",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Largest ocean?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Fastest land animal?",
+                        "points": 200,
+                        "options": [
+                            {"id": "a", "text": "Cheetah", "is_correct": True},
+                            {"id": "b", "text": "Horse", "is_correct": False},
+                        ],
+                    },
+                ]
+            },
+        )
+
+        self.client.post(f"/p/{wheel.slug}/", {"action": "start"})
+        session = ActivitySession.objects.get(activity__template_key="wheel_of_fortune")
+        session.runtime_state = {"active_item": "item-1"}
+        session.save(update_fields=["runtime_state"])
+
+        response = self.client.post(
+            f"/p/{wheel.slug}/",
+            {"action": "answer_wheel", "answer": "Pacific"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        payload = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["is_complete"])
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, ActivitySession.Status.STARTED)
+        self.assertEqual(session.score, 100)
+        self.assertEqual(session.answers.count(), 1)
+
+    def test_wheel_ajax_final_answer_returns_redirect_payload(self):
+        wheel = self._create_published_activity(
+            "wheel_of_fortune",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Largest ocean?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+
+        self.client.post(f"/p/{wheel.slug}/", {"action": "start"})
+        session = ActivitySession.objects.get(activity__template_key="wheel_of_fortune")
+        session.runtime_state = {"active_item": "item-1"}
+        session.save(update_fields=["runtime_state"])
+
+        response = self.client.post(
+            f"/p/{wheel.slug}/",
+            {"action": "answer_wheel", "answer": "Pacific"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        payload = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["is_complete"])
+        self.assertTrue(payload["redirect_url"].endswith(f"/p/{wheel.slug}/results/"))
+
+        session.refresh_from_db()
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+
+    def test_wheel_player_renders_hud_hooks_for_live_updates(self):
+        wheel = self._create_published_activity(
+            "wheel_of_fortune",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Largest ocean?",
+                        "points": 100,
+                        "options": [
+                            {"id": "a", "text": "Pacific", "is_correct": True},
+                            {"id": "b", "text": "Atlantic", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+
+        self.client.post(f"/p/{wheel.slug}/", {"action": "start"})
+        response = self.client.get(f"/p/{wheel.slug}/")
+
+        self.assertContains(response, 'data-player-summary-value="score"', html=False)
+        self.assertContains(response, 'data-player-summary-value="progress"', html=False)
+        self.assertContains(response, 'data-player-fact-value="answered"', html=False)
+        self.assertContains(response, 'data-player-fact-value="remaining"', html=False)
+        self.assertContains(response, "data-player-progress-heading", html=False)
+        self.assertContains(response, "data-player-progress-ring-label", html=False)
+        self.assertContains(response, "data-player-progress-bar-fill", html=False)
+
     def test_cards_still_accept_legacy_category_field_names(self):
         categorize = self._create_published_activity(
             "categorize",

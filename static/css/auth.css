@@ -221,6 +221,22 @@
     gap: 1.4rem;
 }
 
+.auth-form-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 0.25rem;
+    line-height: 0;
+    text-decoration: none;
+}
+
+.auth-form-logo__image {
+    width: 260px;
+    height: 90px;
+    max-width: min(100%, 260px);
+}
+
 .auth-form-header {
     display: grid;
     gap: 0.7rem;

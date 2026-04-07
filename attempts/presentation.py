@@ -147,14 +147,14 @@ def build_player_shell_context(
         "score": current_score,
         "max_score": max_score,
         "summary_cards": [
-            {"label": "Очки", "value": str(current_score), "tone": "accent"},
-            {"label": "Прогресс", "value": f"{progress_percent}%", "tone": "peach"},
-            {"label": item_label.capitalize(), "value": str(total_count), "tone": "violet"},
+            {"key": "score", "label": "Очки", "value": str(current_score), "tone": "accent"},
+            {"key": "progress", "label": "Прогресс", "value": f"{progress_percent}%", "tone": "peach"},
+            {"key": "total", "label": item_label.capitalize(), "value": str(total_count), "tone": "violet"},
         ],
         "fact_rows": [
-            {"label": "Отвечено", "value": f"{answered_count} из {total_count}" if total_count else "0"},
-            {"label": "Осталось", "value": str(remaining_count)},
-            {"label": "Максимум", "value": str(max_score) if max_score else "—"},
+            {"key": "answered", "label": "Отвечено", "value": f"{answered_count} из {total_count}" if total_count else "0"},
+            {"key": "remaining", "label": "Осталось", "value": str(remaining_count)},
+            {"key": "max", "label": "Максимум", "value": str(max_score) if max_score else "—"},
         ],
         "footer_title": "Ваш прогресс" if mode != "results" else "Итог прохождения",
         "footer_text": (

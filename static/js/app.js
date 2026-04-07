@@ -782,12 +782,25 @@
             const preview = root.dataset.preview === "1";
             const revealCorrect = root.dataset.revealCorrect === "1";
             const noRepeat = root.dataset.noRepeat === "1";
+            const playerShell = root.closest(".student-player") || root;
             const disc = root.querySelector("[data-wheel-disc]");
             const startButton = root.querySelector("[data-wheel-start]");
             const stopButton = root.querySelector("[data-wheel-stop]");
             const completeMessage = root.querySelector("[data-wheel-preview-complete]");
             const sectors = Array.from(root.querySelectorAll("[data-wheel-sector]"));
             const questions = Array.from(root.querySelectorAll("[data-wheel-question]"));
+            const questionStack = root.querySelector(".wheel-question-stack");
+            const spotlightTitle = root.querySelector("[data-wheel-spotlight-title]");
+            const spotlightText = root.querySelector("[data-wheel-spotlight-text]");
+            const summaryScore = playerShell.querySelector('[data-player-summary-value="score"]');
+            const summaryProgress = playerShell.querySelector('[data-player-summary-value="progress"]');
+            const factsAnswered = playerShell.querySelector('[data-player-fact-value="answered"]');
+            const factsRemaining = playerShell.querySelector('[data-player-fact-value="remaining"]');
+            const progressHeading = playerShell.querySelector("[data-player-progress-heading]");
+            const progressRing = playerShell.querySelector("[data-player-progress-ring]");
+            const progressRingLabel = playerShell.querySelector("[data-player-progress-ring-label]");
+            const progressBarFill = playerShell.querySelector("[data-player-progress-bar-fill]");
+            const progressSegments = Array.from(playerShell.querySelectorAll("[data-player-progress-segment]"));
 
             if (!disc || !startButton || !stopButton || !sectors.length) {
                 return;
@@ -797,11 +810,136 @@
             let spinning = false;
             let activeItemId = root.dataset.activeItem || "";
             let spinTimer = null;
+            let currentScore = Number.parseInt(summaryScore?.textContent || "0", 10) || 0;
+            let questionStackMinHeight = questionStack?.getBoundingClientRect().height || 0;
             const answeredItems = new Set(
                 sectors
                     .filter((sector) => sector.dataset.answered === "1")
                     .map((sector) => sector.dataset.itemId || ""),
             );
+            const scrollStateKey = `quizzart-wheel-scroll:${window.location.pathname}`;
+
+            function rememberScrollPosition() {
+                try {
+                    window.sessionStorage.setItem(scrollStateKey, String(window.scrollY));
+                } catch (error) {
+                    // Ignore sessionStorage failures and keep the flow working.
+                }
+            }
+
+            function clearRememberedScrollPosition() {
+                try {
+                    window.sessionStorage.removeItem(scrollStateKey);
+                } catch (error) {
+                    // Ignore sessionStorage failures and keep the flow working.
+                }
+            }
+
+            function restoreRememberedScrollPosition() {
+                try {
+                    const rawValue = window.sessionStorage.getItem(scrollStateKey);
+                    if (!rawValue) {
+                        return;
+                    }
+
+                    const savedScrollY = Number.parseInt(rawValue, 10);
+                    window.sessionStorage.removeItem(scrollStateKey);
+                    if (Number.isNaN(savedScrollY)) {
+                        return;
+                    }
+
+                    window.requestAnimationFrame(() => {
+                        window.scrollTo({ top: savedScrollY, behavior: "auto" });
+                        window.requestAnimationFrame(() => {
+                            window.scrollTo({ top: savedScrollY, behavior: "auto" });
+                        });
+                    });
+                } catch (error) {
+                    // Ignore sessionStorage failures and keep the flow working.
+                }
+            }
+
+            function updateQuestionStackHeight() {
+                if (!questionStack) {
+                    return;
+                }
+
+                window.requestAnimationFrame(() => {
+                    const currentHeight = questionStack.getBoundingClientRect().height;
+                    questionStackMinHeight = Math.max(questionStackMinHeight, currentHeight);
+                    if (questionStackMinHeight > 0) {
+                        questionStack.style.minHeight = `${Math.ceil(questionStackMinHeight)}px`;
+                    }
+                });
+            }
+
+            function preserveViewport(anchor, previousScrollY, previousTop) {
+                if (!anchor) {
+                    return;
+                }
+
+                const restore = () => {
+                    const nextTop = anchor.getBoundingClientRect().top;
+                    const nextScrollY = previousScrollY + (nextTop - previousTop);
+                    window.scrollTo({ top: nextScrollY, behavior: "auto" });
+                };
+
+                window.requestAnimationFrame(() => {
+                    restore();
+                    window.requestAnimationFrame(restore);
+                });
+            }
+
+            function syncHud() {
+                const totalItems = sectors.length;
+                const answeredCount = answeredItems.size;
+                const remainingCount = Math.max(totalItems - answeredCount, 0);
+                const progressPercent = totalItems ? Math.round((answeredCount / totalItems) * 100) : 0;
+                const filledSegments = Math.max(0, Math.min(progressSegments.length, Math.round(progressPercent / 20)));
+
+                if (summaryScore) {
+                    summaryScore.textContent = String(currentScore);
+                }
+                if (summaryProgress) {
+                    summaryProgress.textContent = `${progressPercent}%`;
+                }
+                if (factsAnswered) {
+                    factsAnswered.textContent = totalItems ? `${answeredCount} из ${totalItems}` : "0";
+                }
+                if (factsRemaining) {
+                    factsRemaining.textContent = String(remainingCount);
+                }
+                if (progressHeading) {
+                    progressHeading.textContent = `${progressPercent}% готово`;
+                }
+                if (progressRing) {
+                    progressRing.style.setProperty("--progress", String(progressPercent));
+                }
+                if (progressRingLabel) {
+                    progressRingLabel.textContent = `${progressPercent}%`;
+                }
+                if (progressBarFill) {
+                    progressBarFill.style.width = `${progressPercent}%`;
+                }
+                progressSegments.forEach((segment, index) => {
+                    segment.classList.toggle("is-filled", index < filledSegments);
+                });
+            }
+
+            function syncSpotlight() {
+                if (!spotlightTitle || !spotlightText) {
+                    return;
+                }
+
+                if (activeItemId) {
+                    spotlightTitle.textContent = "Готовы к новому испытанию?";
+                    spotlightText.textContent = "Выберите верный вариант ответа после остановки колеса.";
+                    return;
+                }
+
+                spotlightTitle.textContent = "Крутите колесо, чтобы получить вопрос";
+                spotlightText.textContent = "Каждый сектор открывает отдельный вопрос и сохраняет результат после ответа.";
+            }
 
             const questionMap = new Map();
             questions.forEach((question) => {
@@ -811,7 +949,13 @@
                     return;
                 }
 
-                enhanceAnswerForm(form, revealCorrect, () => {
+                if (!preview) {
+                    form.addEventListener("submit", (event) => {
+                        event.preventDefault();
+                    });
+                }
+
+                enhanceAnswerForm(form, revealCorrect, async () => {
                     const itemId = question.dataset.itemId || "";
                     if (preview) {
                         answeredItems.add(itemId);
@@ -823,6 +967,8 @@
                         }
                         question.hidden = true;
                         activeItemId = "";
+                        syncHud();
+                        syncSpotlight();
                         updateControlState();
                         if (!getAvailableSectors().length && completeMessage) {
                             completeMessage.hidden = false;
@@ -830,7 +976,46 @@
                         return;
                     }
 
-                    nativeSubmit.call(form);
+                    const preservedScrollY = window.scrollY;
+                    const preservedAnchor = root.closest(".student-player__layout") || root;
+                    const preservedAnchorTop = preservedAnchor.getBoundingClientRect().top;
+                    const activeElement = document.activeElement;
+                    if (activeElement instanceof HTMLElement) {
+                        activeElement.blur();
+                    }
+
+                    try {
+                        rememberScrollPosition();
+                        playerShell.classList.add("player-shell-checking");
+                        const payload = await submitFormAsJson(form);
+                        currentScore = Number.parseInt(String(payload.score ?? currentScore), 10) || 0;
+                        answeredItems.add(itemId);
+
+                        const sector = sectors.find((candidate) => candidate.dataset.itemId === itemId);
+                        if (sector) {
+                            sector.dataset.answered = "1";
+                            sector.classList.add("wheel-sector-answered");
+                            sector.classList.remove("wheel-sector-active");
+                        }
+
+                        question.hidden = true;
+                        activeItemId = "";
+                        syncHud();
+                        syncSpotlight();
+                        updateQuestionStackHeight();
+                        updateControlState();
+                        preserveViewport(preservedAnchor, preservedScrollY, preservedAnchorTop);
+
+                        if (payload.is_complete && payload.redirect_url) {
+                            window.location.assign(payload.redirect_url);
+                            return;
+                        }
+                        clearRememberedScrollPosition();
+                    } catch (error) {
+                        nativeSubmit.call(form);
+                    } finally {
+                        playerShell.classList.remove("player-shell-checking");
+                    }
                 });
             });
 
@@ -883,6 +1068,8 @@
                 sectors.forEach((sector) => {
                     sector.classList.toggle("wheel-sector-active", sector.dataset.itemId === itemId);
                 });
+                syncSpotlight();
+                updateQuestionStackHeight();
                 updateControlState();
             }
 
@@ -955,8 +1142,13 @@
                 questions.forEach((question) => {
                     question.hidden = true;
                 });
+                syncHud();
+                syncSpotlight();
+                updateQuestionStackHeight();
                 updateControlState();
             }
+
+            restoreRememberedScrollPosition();
         });
     }
 

@@ -37,7 +37,6 @@
     <section class="landing-hero-section" id="top">
         <div class="landing-container landing-hero">
             <div class="landing-hero__copy">
-                <p class="landing-kicker">MVP для учителя · публикация по ссылке</p>
                 <h1>
                     Сделайте обучение
                     <span>интерактивным</span>
@@ -120,7 +119,11 @@
                         </div>
                     </div>
                     <div class="landing-preview__badge">
-                        <span class="landing-preview__badge-icon">↗</span>
+                        <span class="landing-preview__badge-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false">
+                                <path d="M8 16 16 8M10 8h6v6" />
+                            </svg>
+                        </span>
                         <div>
                             <strong>6 шаблонов готовы к уроку</strong>
                             <span>От викторины до змейки в одном редакторе.</span>
@@ -177,29 +180,62 @@
                     <article class="landing-template-card {{ template_card.accent_class }}">
                         <div class="landing-template-card__panel" aria-hidden="true">
                             {% if template_card.eyebrow == "quiz" %}
-                                <span class="landing-template-card__glyph landing-template-card__glyph-card">
-                                    <span></span>
-                                    <strong>?</strong>
-                                </span>
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <rect class="fill-secondary" x="18" y="32" width="38" height="48" rx="12"></rect>
+                                    <rect class="fill-main" x="40" y="20" width="46" height="60" rx="16"></rect>
+                                    <circle class="fill-accent" cx="74" cy="36" r="11"></circle>
+                                    <path class="stroke-contrast" d="M54 50h18M54 61h12"></path>
+                                    <path class="stroke-main" d="M28 88h58"></path>
+                                    <text class="icon-letter icon-letter--contrast" x="74" y="41">?</text>
+                                </svg>
                             {% elif template_card.eyebrow == "wheel_of_fortune" %}
-                                <span class="landing-template-card__glyph landing-template-card__glyph-wheel">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </span>
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <circle class="fill-secondary" cx="62" cy="62" r="35"></circle>
+                                    <path class="fill-main" d="M62 62V27a35 35 0 0 1 25 10Z"></path>
+                                    <path class="fill-accent" d="M62 62 87 37a35 35 0 0 1 8 33Z"></path>
+                                    <path class="fill-main-soft" d="M62 62 95 70a35 35 0 0 1-21 24Z"></path>
+                                    <path class="fill-accent-soft" d="M62 62 74 94a35 35 0 0 1-38-8Z"></path>
+                                    <circle class="fill-contrast" cx="62" cy="62" r="10"></circle>
+                                    <circle class="fill-main" cx="62" cy="62" r="4"></circle>
+                                    <path class="fill-main" d="M17 62 34 54v16Z"></path>
+                                </svg>
+                            {% elif template_card.eyebrow == "choose_a_box" %}
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <rect class="fill-secondary" x="28" y="46" width="64" height="44" rx="14"></rect>
+                                    <rect class="fill-main" x="24" y="34" width="72" height="20" rx="10"></rect>
+                                    <path class="fill-accent" d="M60 26c8 0 12 7 12 13H48c0-6 4-13 12-13Z"></path>
+                                    <path class="fill-main-soft" d="M42 26c8 0 12 6 12 13H35c0-6 2-13 7-13Zm36 0c5 0 7 7 7 13H66c0-7 4-13 12-13Z"></path>
+                                    <path class="stroke-contrast" d="M60 34v56M24 54h72"></path>
+                                    <circle class="fill-accent" cx="60" cy="34" r="8"></circle>
+                                </svg>
                             {% elif template_card.eyebrow == "matching" %}
-                                <span class="landing-template-card__glyph landing-template-card__glyph-grid">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </span>
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <rect class="fill-main" x="18" y="28" width="34" height="24" rx="12"></rect>
+                                    <rect class="fill-secondary" x="68" y="28" width="34" height="24" rx="12"></rect>
+                                    <rect class="fill-secondary" x="18" y="68" width="34" height="24" rx="12"></rect>
+                                    <rect class="fill-main-soft" x="68" y="68" width="34" height="24" rx="12"></rect>
+                                    <path class="stroke-accent" d="M52 40h16"></path>
+                                    <path class="stroke-main" d="M52 80h16"></path>
+                                    <circle class="fill-accent" cx="60" cy="40" r="5"></circle>
+                                    <circle class="fill-main" cx="60" cy="80" r="5"></circle>
+                                </svg>
+                            {% elif template_card.eyebrow == "categorize" %}
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <rect class="fill-secondary" x="22" y="24" width="30" height="40" rx="12"></rect>
+                                    <rect class="fill-main" x="44" y="34" width="30" height="40" rx="12"></rect>
+                                    <rect class="fill-main-soft" x="66" y="24" width="30" height="40" rx="12"></rect>
+                                    <path class="stroke-accent" d="M34 78c6 8 14 12 26 12"></path>
+                                    <path class="stroke-main" d="M86 78c-6 8-14 12-26 12"></path>
+                                    <rect class="fill-accent-soft" x="26" y="86" width="26" height="10" rx="5"></rect>
+                                    <rect class="fill-accent" x="68" y="86" width="26" height="10" rx="5"></rect>
+                                </svg>
                             {% else %}
-                                <span class="landing-template-card__glyph landing-template-card__glyph-snake">
-                                    <span></span>
-                                    <span></span>
-                                </span>
+                                <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
+                                    <path class="stroke-main snake-path" d="M28 74c0-18 14-32 32-32s32-14 32-22"></path>
+                                    <circle class="fill-main" cx="28" cy="74" r="10"></circle>
+                                    <circle class="fill-accent" cx="92" cy="20" r="9"></circle>
+                                    <path class="fill-accent-soft" d="M100 20c0 6-6 12-12 12 0-6 6-12 12-12Z"></path>
+                                </svg>
                             {% endif %}
                         </div>
                         <p class="landing-template-card__eyebrow">{{ template_card.eyebrow }}</p>

@@ -476,6 +476,33 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, 'class="wheel-light"', count=24)
         self.assertContains(response, "Largest ocean?")
 
+    def test_wheel_runtime_uses_ping_pong_palette_sequence(self):
+        activity = Activity(
+            title="Wheel palette",
+            template_key="wheel_of_fortune",
+            config_json={
+                "items": [
+                    {
+                        "id": f"item-{index}",
+                        "prompt": f"Question {index}",
+                        "points": index * 100,
+                        "options": [
+                            {"id": "a", "text": "Correct", "is_correct": True},
+                            {"id": "b", "text": "Wrong", "is_correct": False},
+                        ],
+                    }
+                    for index in range(1, 7)
+                ]
+            },
+        )
+
+        runtime = registry.get("wheel_of_fortune").build_runtime_data(activity, preview=True)
+
+        self.assertEqual(
+            [sector["fill"] for sector in runtime["sectors"]],
+            ["#c11755", "#aa7af1", "#ff9368", "#7d44c8", "#62bdf5", "#7d44c8"],
+        )
+
     def test_matching_runtime_uses_global_correct_answer_bank(self):
         matching_activity = Activity(
             title="Matching preview",

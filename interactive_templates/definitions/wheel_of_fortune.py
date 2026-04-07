@@ -45,6 +45,23 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
+def _wheel_sector_fills(count: int) -> list[str]:
+    palette = ["#c11755", "#aa7af1", "#ff9368", "#7d44c8", "#62bdf5"]
+    if count <= 0:
+        return []
+    if len(palette) == 1:
+        return palette * count
+
+    period = (len(palette) * 2) - 2
+    fills: list[str] = []
+    for index in range(count):
+        palette_index = index % period
+        if palette_index >= len(palette):
+            palette_index = period - palette_index
+        fills.append(palette[palette_index])
+    return fills
+
+
 class WheelOfFortuneDefinition(BaseTemplateDefinition):
     metadata = TemplateMetadata(
         key="wheel_of_fortune",
@@ -99,6 +116,7 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
 
         active_item = next((item for item in items if item["id"] == active_item_id), None)
         sectors = []
+        fills = _wheel_sector_fills(len(items))
         for index, item in enumerate(items, start=1):
             sectors.append(
                 {
@@ -110,6 +128,7 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
                     "points": item.get("points", 100),
                     "is_active": item["id"] == active_item_id,
                     "is_answered": item["id"] in answers_by_key,
+                    "fill": fills[index - 1],
                 }
             )
 

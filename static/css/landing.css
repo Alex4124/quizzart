@@ -217,6 +217,10 @@
     line-height: 1.72;
 }
 
+.landing-hero__text {
+    margin-top: 10px;
+}
+
 .landing-hero__actions {
     margin-top: 2rem;
 }
@@ -447,12 +451,23 @@
 .landing-preview__badge-icon {
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.84);
-    font-weight: 800;
+    background: rgba(255, 255, 255, 0.92);
     color: #d25a27;
+    box-shadow: inset 0 0 0 1px rgba(210, 90, 39, 0.08);
+}
+
+.landing-preview__badge-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    stroke-width: 2.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
 }
 
 .landing-preview__badge strong,
@@ -526,7 +541,7 @@
 }
 
 .landing-template-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .landing-card,
@@ -580,6 +595,15 @@
 }
 
 .landing-template-card {
+    --template-panel-bg: linear-gradient(180deg, #f2ebff, #ebe6fb);
+    --template-panel-line: rgba(107, 49, 223, 0.12);
+    --template-panel-glow: rgba(107, 49, 223, 0.16);
+    --template-icon-main: #6b31df;
+    --template-icon-secondary: #8f5cff;
+    --template-icon-main-soft: #c3a4ff;
+    --template-icon-accent: #ffb24c;
+    --template-icon-accent-soft: #ffd996;
+    --template-icon-contrast: #fff;
     padding: 1.1rem;
     border: 1px solid rgba(58, 35, 109, 0.06);
     background: rgba(255, 255, 255, 0.72);
@@ -587,135 +611,182 @@
 }
 
 .landing-template-card__panel {
+    position: relative;
     display: grid;
     place-items: center;
     min-height: 180px;
     margin-bottom: 1rem;
     border-radius: 22px;
+    overflow: hidden;
+    background: var(--template-panel-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
-.landing-template-card-violet .landing-template-card__panel {
-    background: linear-gradient(180deg, #f2ebff, #ebe6fb);
-}
-
-.landing-template-card-rose .landing-template-card__panel {
-    background: linear-gradient(180deg, #f5efff, #f1e9f8);
-}
-
-.landing-template-card-apricot .landing-template-card__panel {
-    background: linear-gradient(180deg, #fff1e8, #f8ebe4);
-}
-
-.landing-template-card-lilac .landing-template-card__panel {
-    background: linear-gradient(180deg, #f1e9ff, #eadbf8);
-}
-
-.landing-template-card__glyph {
-    position: relative;
-    display: inline-grid;
-    place-items: center;
-    width: 84px;
-    height: 84px;
-    color: var(--landing-purple);
-}
-
-.landing-template-card__glyph-card::before,
-.landing-template-card__glyph-card::after {
+.landing-template-card__panel::before {
     content: "";
     position: absolute;
-    border: 3px solid currentColor;
-    border-radius: 14px;
+    inset: 18px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.75), transparent 42%),
+        radial-gradient(circle at bottom right, var(--template-panel-glow), transparent 38%);
+    opacity: 0.95;
 }
 
-.landing-template-card__glyph-card::before {
-    inset: 12px 18px 20px 16px;
+.landing-template-card__panel::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 24px;
+    border: 1px solid var(--template-panel-line);
+    pointer-events: none;
 }
 
-.landing-template-card__glyph-card::after {
-    inset: 20px 10px 12px 24px;
-    opacity: 0.42;
+.landing-template-card-violet {
+    --template-panel-bg: linear-gradient(180deg, #f3ebff, #ebe5fb);
+    --template-panel-line: rgba(107, 49, 223, 0.14);
+    --template-panel-glow: rgba(107, 49, 223, 0.15);
+    --template-icon-main: #6b31df;
+    --template-icon-secondary: #8b5af0;
+    --template-icon-main-soft: #c4abff;
+    --template-icon-accent: #ffbe56;
+    --template-icon-accent-soft: #ffe6a9;
 }
 
-.landing-template-card__glyph-card strong {
+.landing-template-card-rose {
+    --template-panel-bg: linear-gradient(180deg, #f6edff, #f0e7f8);
+    --template-panel-line: rgba(143, 90, 240, 0.14);
+    --template-panel-glow: rgba(177, 112, 255, 0.14);
+    --template-icon-main: #8235ea;
+    --template-icon-secondary: #a168ff;
+    --template-icon-main-soft: #d4bcff;
+    --template-icon-accent: #ff8d68;
+    --template-icon-accent-soft: #ffc2aa;
+}
+
+.landing-template-card-apricot {
+    --template-panel-bg: linear-gradient(180deg, #fff1e8, #f8ebe4);
+    --template-panel-line: rgba(242, 138, 68, 0.15);
+    --template-panel-glow: rgba(255, 178, 133, 0.18);
+    --template-icon-main: #f28a44;
+    --template-icon-secondary: #ffb062;
+    --template-icon-main-soft: #ffd5ad;
+    --template-icon-accent: #8c4fff;
+    --template-icon-accent-soft: #d9c4ff;
+}
+
+.landing-template-card-sky {
+    --template-panel-bg: linear-gradient(180deg, #edf6ff, #e4effc);
+    --template-panel-line: rgba(72, 134, 227, 0.15);
+    --template-panel-glow: rgba(90, 164, 255, 0.15);
+    --template-icon-main: #4b74da;
+    --template-icon-secondary: #6eafff;
+    --template-icon-main-soft: #bdd8ff;
+    --template-icon-accent: #ff9b5b;
+    --template-icon-accent-soft: #ffd0ab;
+}
+
+.landing-template-card-lilac {
+    --template-panel-bg: linear-gradient(180deg, #f1e9ff, #eadbf8);
+    --template-panel-line: rgba(137, 84, 220, 0.14);
+    --template-panel-glow: rgba(178, 132, 245, 0.14);
+    --template-icon-main: #8754dc;
+    --template-icon-secondary: #b47cff;
+    --template-icon-main-soft: #dcc2ff;
+    --template-icon-accent: #ffb75c;
+    --template-icon-accent-soft: #ffe0ab;
+}
+
+.landing-template-card-mint {
+    --template-panel-bg: linear-gradient(180deg, #edf8f3, #e3f0ea);
+    --template-panel-line: rgba(37, 143, 115, 0.14);
+    --template-panel-glow: rgba(53, 196, 154, 0.14);
+    --template-icon-main: #218b71;
+    --template-icon-secondary: #40c3a2;
+    --template-icon-main-soft: #b9efe0;
+    --template-icon-accent: #ffb55f;
+    --template-icon-accent-soft: #ffe0b0;
+}
+
+.landing-template-card__panel-icon {
     position: relative;
     z-index: 1;
-    font-size: 1.65rem;
+    width: min(120px, 74%);
+    height: auto;
+    filter: drop-shadow(0 16px 20px rgba(78, 58, 140, 0.12));
 }
 
-.landing-template-card__glyph-wheel span {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: currentColor;
+.landing-template-card__panel-icon .fill-main {
+    fill: var(--template-icon-main);
 }
 
-.landing-template-card__glyph-wheel span:nth-child(1) {
-    top: 10px;
-    left: 35px;
+.landing-template-card__panel-icon .fill-secondary {
+    fill: var(--template-icon-secondary);
 }
 
-.landing-template-card__glyph-wheel span:nth-child(2) {
-    right: 10px;
-    top: 35px;
+.landing-template-card__panel-icon .fill-main-soft {
+    fill: var(--template-icon-main-soft);
 }
 
-.landing-template-card__glyph-wheel span:nth-child(3) {
-    left: 35px;
-    bottom: 10px;
+.landing-template-card__panel-icon .fill-accent {
+    fill: var(--template-icon-accent);
 }
 
-.landing-template-card__glyph-wheel span:nth-child(4) {
-    left: 10px;
-    top: 35px;
+.landing-template-card__panel-icon .fill-accent-soft {
+    fill: var(--template-icon-accent-soft);
 }
 
-.landing-template-card__glyph-wheel::before,
-.landing-template-card__glyph-wheel::after {
-    content: "";
-    position: absolute;
-    inset: 16px;
-    border-radius: 50%;
-    border: 3px solid currentColor;
+.landing-template-card__panel-icon .fill-contrast {
+    fill: var(--template-icon-contrast);
 }
 
-.landing-template-card__glyph-wheel::after {
-    inset: 37px;
-    background: currentColor;
-    border: 0;
+.landing-template-card__panel-icon .stroke-main,
+.landing-template-card__panel-icon .stroke-secondary,
+.landing-template-card__panel-icon .stroke-accent,
+.landing-template-card__panel-icon .stroke-contrast {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
-.landing-template-card__glyph-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 18px);
-    grid-template-rows: repeat(2, 18px);
-    gap: 10px;
+.landing-template-card__panel-icon .stroke-main {
+    stroke: var(--template-icon-main);
+    stroke-width: 5;
 }
 
-.landing-template-card__glyph-grid span {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    background: #cf5f20;
+.landing-template-card__panel-icon .stroke-secondary {
+    stroke: var(--template-icon-secondary);
+    stroke-width: 5;
 }
 
-.landing-template-card__glyph-snake span {
-    position: absolute;
-    height: 16px;
-    border-radius: 999px;
-    background: currentColor;
+.landing-template-card__panel-icon .stroke-accent {
+    stroke: var(--template-icon-accent);
+    stroke-width: 5;
 }
 
-.landing-template-card__glyph-snake span:nth-child(1) {
-    width: 58px;
-    transform: rotate(-24deg);
+.landing-template-card__panel-icon .stroke-contrast {
+    stroke: var(--template-icon-contrast);
+    stroke-width: 4.5;
 }
 
-.landing-template-card__glyph-snake span:nth-child(2) {
-    width: 26px;
-    right: 14px;
-    top: 22px;
-    transform: rotate(32deg);
+.landing-template-card__panel-icon .icon-letter {
+    font-family: "Manrope", "Segoe UI", sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: middle;
+}
+
+.landing-template-card__panel-icon .icon-letter--contrast {
+    fill: var(--template-icon-contrast);
+}
+
+.landing-template-card__panel-icon .snake-path {
+    stroke-width: 8;
+}
+
+.landing-template-card__eyebrow {
+    margin-bottom: 0.7rem;
 }
 
 .landing-showcase-stack {

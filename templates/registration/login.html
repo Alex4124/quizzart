@@ -9,6 +9,10 @@
 
     <div class="auth-form-panel">
         <div class="auth-form-card">
+            <a class="auth-form-logo" href="{% url 'dashboard:landing' %}" aria-label="Quizzart">
+                {% include "includes/site_logo.html" with logo_class="auth-form-logo__image" %}
+            </a>
+
             <header class="auth-form-header">
                 <h1>С возвращением</h1>
                 <p class="auth-form-intro">Введите данные для доступа в личный кабинет и вашим интерактивам.</p>

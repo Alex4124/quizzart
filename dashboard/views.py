@@ -46,27 +46,39 @@ LANDING_FEATURES = [
 LANDING_TEMPLATE_CARDS = [
     {
         "eyebrow": "quiz",
-        "title": "Классическая викторина",
-        "description": "Один правильный ответ, чистая структура и быстрый запуск для проверочных работ.",
+        "title": "Викторина",
+        "description": "Пошаговая проверка знаний с одним правильным ответом и понятным итоговым экраном.",
         "accent_class": "landing-template-card-violet",
     },
     {
         "eyebrow": "wheel_of_fortune",
         "title": "Колесо фортуны",
-        "description": "Случайный выбор вопроса, игровое напряжение и удобный темп для фронтальной работы.",
+        "description": "Вращаете колесо, получаете случайный вопрос и держите внимание класса в игровом темпе.",
         "accent_class": "landing-template-card-rose",
+    },
+    {
+        "eyebrow": "choose_a_box",
+        "title": "Выбери коробку",
+        "description": "Открывайте ячейки по одной: внутри вопросы, баллы и эффект сюрприза для каждого хода.",
+        "accent_class": "landing-template-card-apricot",
     },
     {
         "eyebrow": "matching",
         "title": "Сопоставление",
-        "description": "Подходит для терминов, определений, дат и коротких связок в тренировочном режиме.",
-        "accent_class": "landing-template-card-apricot",
+        "description": "Соединяйте понятия и ответы по одному, чтобы тренировать точность и держать темп урока.",
+        "accent_class": "landing-template-card-sky",
+    },
+    {
+        "eyebrow": "categorize",
+        "title": "Карточки",
+        "description": "Переворачивайте карточки по одной и повторяйте термины, факты и короткие определения.",
+        "accent_class": "landing-template-card-lilac",
     },
     {
         "eyebrow": "snake",
-        "title": "Змейка-обучалка",
-        "description": "Игровой формат, где движение по полю открывает вопросы и удерживает внимание класса.",
-        "accent_class": "landing-template-card-lilac",
+        "title": "Змейка",
+        "description": "Двигайтесь по полю, собирайте вопросы и удерживайте вовлечённость через механику игры.",
+        "accent_class": "landing-template-card-mint",
     },
 ]
 
