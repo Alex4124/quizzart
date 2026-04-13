@@ -581,14 +581,52 @@ body.player-page {
 }
 
 .player-page .wheel-board {
-    padding: 0.9rem 1.35rem 0.35rem;
+    margin-top: 10px;
+    width: 100%;
+    padding: 0.4rem 1.35rem 0.35rem;
     overflow: visible;
 }
 
+.player-page .wheel-board__frame {
+    position: relative;
+    display: grid;
+    place-items: center;
+    justify-self: stretch;
+    width: min(100%, 860px);
+    max-width: 100%;
+    padding: 2.4rem 2.3rem 2.1rem;
+    border-radius: 2.35rem;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(27, 12, 36, 0.12), rgba(255, 255, 255, 0.04)),
+        url("../img/wheel-casino-bg.png") center center / cover no-repeat;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 24px 48px rgba(64, 29, 63, 0.16);
+}
+
+.player-page .wheel-board__frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(255, 202, 147, 0.22), transparent 28%),
+        radial-gradient(circle at 82% 22%, rgba(164, 112, 255, 0.2), transparent 32%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(18, 10, 24, 0.1));
+    pointer-events: none;
+}
+
 .player-page .wheel-figure {
-    width: min(720px, 100%);
+    position: relative;
+    width: min(720px, calc(100vw - 5rem), calc(100% - 1rem));
+    min-width: min(320px, calc(100vw - 3rem));
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
     margin: 0 auto;
     overflow: visible;
+    z-index: 1;
 }
 
 .player-page .wheel-pointer {
@@ -608,9 +646,16 @@ body.player-page {
 .player-page .wheel-disc {
     position: relative;
     --wheel-divider-color: rgba(255, 255, 255, 0.98);
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    border-radius: 50%;
     z-index: 3;
     box-shadow: 0 24px 48px rgba(31, 38, 64, 0.16);
-    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+    background:
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+        rgba(255, 251, 247, 0.92);
 }
 
 .player-page .wheel-sector::before {
@@ -676,11 +721,57 @@ body.player-page {
 
 .player-page .wheel-controls {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin-top: 0.35rem;
+}
+
+.player-page .wheel-controls .button,
+.player-page .wheel-controls .button-secondary,
+.player-page .wheel-controls .link-button {
+    padding: 0.7rem 1rem;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: var(--player-ink);
+}
+
+.player-page .wheel-controls .button {
+    color: var(--player-violet);
+}
+
+.player-page .wheel-controls .button:hover,
+.player-page .wheel-controls .button:focus-visible,
+.player-page .wheel-controls .button-secondary:hover,
+.player-page .wheel-controls .button-secondary:focus-visible,
+.player-page .wheel-controls .link-button:hover,
+.player-page .wheel-controls .link-button:focus-visible {
+    background: transparent;
+    box-shadow: none;
+}
+
+.player-page .wheel-controls .button[disabled],
+.player-page .wheel-controls .button-secondary[disabled] {
+    opacity: 0.46;
 }
 
 .player-page .wheel-question-stack {
     display: grid;
     gap: 1rem;
+    transition: min-height 240ms ease;
+}
+
+.player-page .question-card-reveal {
+    transform-origin: top center;
+    backface-visibility: hidden;
+    will-change: opacity, transform, filter;
+}
+
+.player-page .wheel-question-card-enter {
+    animation: wheelQuestionCardEnter 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.player-page .wheel-question-card-exit {
+    pointer-events: none;
+    animation: wheelQuestionCardExit 260ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 @keyframes wheelLightPulseOdd {
@@ -706,6 +797,32 @@ body.player-page {
     100% {
         opacity: 1;
         transform: translate(-50%, -50%) scale(1.08);
+    }
+}
+
+@keyframes wheelQuestionCardEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.985);
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes wheelQuestionCardExit {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.985);
+        filter: blur(6px);
     }
 }
 
@@ -1466,6 +1583,11 @@ body.player-page {
 
     .player-page .wheel-figure {
         width: min(100%, 520px);
+    }
+
+    .player-page .wheel-board__frame {
+        padding: 1.85rem 1rem 1.5rem;
+        border-radius: 2rem;
     }
 
     .player-page .cards-board {

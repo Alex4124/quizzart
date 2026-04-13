@@ -13,29 +13,31 @@
 {% block player_board %}
     <section class="player-wheel-layout">
         <div class="wheel-board">
-            <div class="wheel-figure">
-                <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
-                    {% for sector in runtime.sectors %}
-                        <div
-                            class="wheel-sector {% if sector.is_active %}wheel-sector-active{% endif %} {% if sector.is_answered %}wheel-sector-answered{% endif %}"
-                            data-wheel-sector
-                            data-item-id="{{ sector.id }}"
-                            data-answered="{{ sector.is_answered|yesno:'1,0' }}"
-                            data-sector-index="{{ forloop.counter0 }}"
-                            style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {{ sector.fill }};"
-                        >
-                            <div class="wheel-sector-content">
-                                <span class="wheel-sector-label">{{ sector.prompt }}</span>
+            <div class="wheel-board__frame" data-wheel-background-frame>
+                <div class="wheel-figure">
+                    <div class="wheel-disc" data-wheel-disc style="--sector-count: {{ runtime.sectors|length }};">
+                        {% for sector in runtime.sectors %}
+                            <div
+                                class="wheel-sector {% if sector.is_active %}wheel-sector-active{% endif %} {% if sector.is_answered %}wheel-sector-answered{% endif %}"
+                                data-wheel-sector
+                                data-item-id="{{ sector.id }}"
+                                data-answered="{{ sector.is_answered|yesno:'1,0' }}"
+                                data-sector-index="{{ forloop.counter0 }}"
+                                style="--sector-index: {{ forloop.counter0 }}; --sector-fill: {{ sector.fill }};"
+                            >
+                                <div class="wheel-sector-content">
+                                    <span class="wheel-sector-label">{{ sector.prompt }}</span>
+                                </div>
                             </div>
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
+                    </div>
+                    <div class="wheel-lights" aria-hidden="true" style="--light-count: 24;">
+                        {% for _ in "abcdefghijklmnopqrstuvwx"|make_list %}
+                            <span class="wheel-light" style="--light-index: {{ forloop.counter0 }};"></span>
+                        {% endfor %}
+                    </div>
+                    <div class="wheel-pointer" aria-hidden="true"></div>
                 </div>
-                <div class="wheel-lights" aria-hidden="true" style="--light-count: 24;">
-                    {% for _ in "abcdefghijklmnopqrstuvwx"|make_list %}
-                        <span class="wheel-light" style="--light-index: {{ forloop.counter0 }};"></span>
-                    {% endfor %}
-                </div>
-                <div class="wheel-pointer" aria-hidden="true"></div>
             </div>
         </div>
 

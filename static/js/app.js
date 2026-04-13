@@ -812,6 +812,7 @@
             let spinTimer = null;
             let currentScore = Number.parseInt(summaryScore?.textContent || "0", 10) || 0;
             let questionStackMinHeight = questionStack?.getBoundingClientRect().height || 0;
+            const wheelQuestionExitDelay = 260;
             const answeredItems = new Set(
                 sectors
                     .filter((sector) => sector.dataset.answered === "1")
@@ -870,6 +871,43 @@
                     if (questionStackMinHeight > 0) {
                         questionStack.style.minHeight = `${Math.ceil(questionStackMinHeight)}px`;
                     }
+                });
+            }
+
+            function resetWheelQuestionAnimation(question) {
+                if (!question) {
+                    return;
+                }
+
+                question.classList.remove("wheel-question-card-enter", "wheel-question-card-exit");
+            }
+
+            function animateWheelQuestionIn(question) {
+                if (!question) {
+                    return;
+                }
+
+                resetWheelQuestionAnimation(question);
+                question.hidden = false;
+                window.requestAnimationFrame(() => {
+                    question.classList.add("wheel-question-card-enter");
+                });
+            }
+
+            function animateWheelQuestionOut(question) {
+                if (!question || question.hidden) {
+                    return Promise.resolve();
+                }
+
+                resetWheelQuestionAnimation(question);
+                question.classList.add("wheel-question-card-exit");
+
+                return new Promise((resolve) => {
+                    window.setTimeout(() => {
+                        question.hidden = true;
+                        question.classList.remove("wheel-question-card-exit");
+                        resolve();
+                    }, wheelQuestionExitDelay);
                 });
             }
 
@@ -965,10 +1003,11 @@
                             sector.classList.add("wheel-sector-answered");
                             sector.classList.remove("wheel-sector-active");
                         }
-                        question.hidden = true;
+                        await animateWheelQuestionOut(question);
                         activeItemId = "";
                         syncHud();
                         syncSpotlight();
+                        updateQuestionStackHeight();
                         updateControlState();
                         if (!getAvailableSectors().length && completeMessage) {
                             completeMessage.hidden = false;
@@ -998,7 +1037,7 @@
                             sector.classList.remove("wheel-sector-active");
                         }
 
-                        question.hidden = true;
+                        await animateWheelQuestionOut(question);
                         activeItemId = "";
                         syncHud();
                         syncSpotlight();
@@ -1063,7 +1102,14 @@
             function showQuestion(itemId) {
                 activeItemId = itemId;
                 questions.forEach((question) => {
-                    question.hidden = question.dataset.itemId !== itemId;
+                    const isCurrent = question.dataset.itemId === itemId;
+                    if (isCurrent) {
+                        animateWheelQuestionIn(question);
+                        return;
+                    }
+
+                    resetWheelQuestionAnimation(question);
+                    question.hidden = true;
                 });
                 sectors.forEach((sector) => {
                     sector.classList.toggle("wheel-sector-active", sector.dataset.itemId === itemId);

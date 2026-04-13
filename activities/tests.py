@@ -472,6 +472,7 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-wheel-start")
         self.assertContains(response, "data-wheel-stop")
+        self.assertContains(response, "data-wheel-background-frame")
         self.assertContains(response, "wheel-lights")
         self.assertContains(response, 'class="wheel-light"', count=24)
         self.assertContains(response, "Largest ocean?")
