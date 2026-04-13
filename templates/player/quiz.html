@@ -22,30 +22,32 @@
         <div class="quiz-stage">
             {% for question in runtime.questions %}
                 <article
-                    class="card question-card quiz-card{% if forloop.first %} question-card-current{% endif %}"
+                    class="card question-card quiz-card quiz-card-themed{% if forloop.first %} question-card-current{% endif %}"
                     data-reveal-stagger
                     data-quiz-question
                     data-question-index="{{ forloop.counter0 }}"
                     data-correct-option="{{ question.correct_option }}"
                     {% if not forloop.first %}hidden{% endif %}
                 >
-                    <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
-                    <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
-                    <p class="muted">{{ question.points }} балл.</p>
-                    <div class="option-list">
-                        {% for option in question.options %}
-                            <label class="option-row">
-                                <input
-                                    type="radio"
-                                    name="question_{{ question.id }}"
-                                    value="{{ option }}"
-                                    {% if option == question.selected_option %}checked{% endif %}
-                                >
-                                <span>{{ option }}</span>
-                            </label>
-                        {% endfor %}
+                    <div class="quiz-card__content">
+                        <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
+                        <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
+                        <p class="muted">{{ question.points }} балл.</p>
+                        <div class="option-list">
+                            {% for option in question.options %}
+                                <label class="option-row">
+                                    <input
+                                        type="radio"
+                                        name="question_{{ question.id }}"
+                                        value="{{ option }}"
+                                        {% if option == question.selected_option %}checked{% endif %}
+                                    >
+                                    <span>{{ option }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <p class="muted question-feedback" data-question-feedback hidden></p>
                     </div>
-                    <p class="muted question-feedback" data-question-feedback hidden></p>
                 </article>
             {% endfor %}
         </div>

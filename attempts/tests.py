@@ -136,6 +136,7 @@ class PublicPlayTests(TestCase):
         self.assertContains(response, "quiz-flow")
         self.assertContains(response, "quiz-stage")
         self.assertContains(response, "data-quiz-question", count=2)
+        self.assertContains(response, "quiz-card-themed")
         self.assertContains(response, "question-card-current", count=1)
 
     def test_student_can_answer_choose_a_box(self):
