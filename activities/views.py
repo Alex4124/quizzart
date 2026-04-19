@@ -338,7 +338,7 @@ def preview_activity(request, pk: int):
                 definition,
                 runtime,
                 preview=True,
-                mode="preview",
+                mode="play",
             ),
         },
     )

@@ -44,20 +44,15 @@ def _player_total_count(template_key: str, runtime: dict[str, Any]) -> int:
 
 
 def _player_answered_count(template_key: str, runtime: dict[str, Any], session: object | None) -> int:
-    if template_key == "wheel_of_fortune":
-        return int(runtime.get("answered_count") or 0)
-    if template_key == "choose_a_box":
-        return int(runtime.get("answered_count") or 0)
-    if template_key == "snake":
+    if template_key in {"wheel_of_fortune", "choose_a_box", "snake"}:
         return int(runtime.get("answered_count") or 0)
     if session is None:
         return 0
-    return getattr(session, "answers", []).count() if hasattr(getattr(session, "answers", None), "count") else 0
+    answers = getattr(session, "answers", None)
+    return answers.count() if hasattr(answers, "count") else 0
 
 
-def _player_mode_labels(mode: str, preview: bool) -> tuple[str, str, str]:
-    if preview:
-        return ("Режим учителя", "Предпросмотр шаблона", "Preview не сохраняет ответы и нужен только для проверки сценария.")
+def _player_mode_labels(mode: str) -> tuple[str, str, str]:
     if mode == "launch":
         return ("Старт интерактива", "Готово к запуску", "Введите имя и начните прохождение в один клик.")
     if mode == "results":
@@ -69,17 +64,7 @@ def _participant_context(
     request: HttpRequest,
     session: object | None,
     participant_name: str,
-    preview: bool,
 ) -> dict[str, str]:
-    if preview and request.user.is_authenticated:
-        profile = ensure_user_profile(request.user)
-        return {
-            "label": "Преподаватель",
-            "name": profile_short_name(request.user, profile),
-            "initials": profile_initials(request.user, profile),
-            "avatar_url": _safe_avatar_url(profile),
-        }
-
     participant_user = getattr(session, "participant_user", None)
     if participant_user and getattr(participant_user, "is_authenticated", False):
         profile = ensure_user_profile(participant_user)
@@ -125,11 +110,24 @@ def build_player_shell_context(
     current_score = int(getattr(session, "score", 0) or 0)
     max_score = int(getattr(session, "max_score", 0) or runtime.get("max_score") or 0)
     percent_score = int(round(float(getattr(session, "percent_score", 0) or 0))) if session else 0
-    progress_percent = percent_score if mode == "results" and session else int(round((answered_count / total_count) * 100)) if total_count else 0
-    hero_eyebrow, spotlight_title, spotlight_text = _player_mode_labels(mode, preview)
-    participant = _participant_context(request, session, participant_name, preview)
+    progress_percent = (
+        percent_score
+        if mode == "results" and session
+        else int(round((answered_count / total_count) * 100))
+        if total_count
+        else 0
+    )
+    hero_eyebrow, spotlight_title, spotlight_text = _player_mode_labels(mode)
+    participant = _participant_context(request, session, participant_name)
     item_label = PLAYER_UNIT_LABELS.get(template_key, "элементов")
     filled_segments = max(0, min(5, round(progress_percent / 20)))
+
+    if mode == "launch":
+        footer_text = "Сначала запустите интерактив, а затем ответы и баллы появятся здесь."
+    elif mode == "results":
+        footer_text = "Баллы, процент и ответы сохранены для этого прохождения."
+    else:
+        footer_text = "Следите за ходом интерактива и возвращайтесь к экрану после каждого ответа."
 
     return {
         "hero_eyebrow": hero_eyebrow,
@@ -157,15 +155,7 @@ def build_player_shell_context(
             {"key": "max", "label": "Максимум", "value": str(max_score) if max_score else "—"},
         ],
         "footer_title": "Ваш прогресс" if mode != "results" else "Итог прохождения",
-        "footer_text": (
-            "Следите за ходом интерактива и возвращайтесь к экрану после каждого ответа."
-            if mode == "play"
-            else "Сначала запустите интерактив, а затем ответы и баллы появятся здесь."
-            if mode == "launch"
-            else "Preview показывает только внешний вид сценария."
-            if preview
-            else "Баллы, процент и ответы сохранены для этого прохождения."
-        ),
+        "footer_text": footer_text,
         "mode": mode,
         "is_preview": preview,
     }

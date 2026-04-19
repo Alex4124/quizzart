@@ -348,6 +348,10 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, "player-page--preview")
         self.assertContains(response, "quiz-flow")
         self.assertContains(response, "quiz-stage")
+        self.assertContains(response, "Интерактив Quizzart")
+        self.assertContains(response, "Гость")
+        self.assertNotContains(response, "Режим учителя")
+        self.assertNotContains(response, "Предпросмотр шаблона")
 
     def test_teacher_can_delete_activity_from_edit_mode(self):
         activity = Activity.objects.create(

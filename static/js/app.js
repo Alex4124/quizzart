@@ -477,13 +477,18 @@
                 submitButton.hidden = true;
             }
 
+            function getAnimatedQuizPanel(question) {
+                return question.querySelector(".quiz-card__content") || question;
+            }
+
             function showQuestion(index) {
                 questions.forEach((question, questionIndex) => {
                     const isCurrent = questionIndex === index;
+                    const animatedPanel = getAnimatedQuizPanel(question);
                     question.hidden = !isCurrent;
                     question.classList.toggle("question-card-current", isCurrent);
                     question.classList.toggle("question-card-past", questionIndex < index);
-                    question.classList.remove("quiz-card-enter", "quiz-card-exit");
+                    animatedPanel.classList.remove("quiz-card-enter", "quiz-card-exit");
                     if (isCurrent) {
                         delete question.dataset.locked;
                         const feedback = question.querySelector("[data-question-feedback]");
@@ -491,7 +496,7 @@
                             feedback.hidden = true;
                             feedback.textContent = "";
                         }
-                        window.requestAnimationFrame(() => question.classList.add("quiz-card-enter"));
+                        window.requestAnimationFrame(() => animatedPanel.classList.add("quiz-card-enter"));
                     }
                 });
             }
@@ -505,13 +510,14 @@
                             return;
                         }
 
+                        const animatedPanel = getAnimatedQuizPanel(question);
                         question.dataset.locked = "1";
                         markSelectedOption(input);
                         const delay = revealChoiceState(question, input, revealCorrect);
 
                         window.setTimeout(() => {
-                            question.classList.remove("quiz-card-enter");
-                            question.classList.add("quiz-card-exit");
+                            animatedPanel.classList.remove("quiz-card-enter");
+                            animatedPanel.classList.add("quiz-card-exit");
                         }, Math.max(120, delay - 180));
 
                         window.setTimeout(() => {
