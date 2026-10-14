@@ -597,7 +597,7 @@ class ActivityEditorTests(TestCase):
         response = self.client.get(reverse("activities:preview", args=[activity.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "box-gift.png")
+        self.assertContains(response, "box-gift.webp")
         self.assertContains(response, "data-box-cover")
         # The preview uses the student's markup: one open form and one answer form per box.
         self.assertContains(response, "data-box-open-form", count=1)
@@ -905,8 +905,8 @@ class ActivityEditorTests(TestCase):
         self.assertContains(categorize_response, "data-categorize-card-inner")
         self.assertContains(categorize_response, "data-categorize-open")
         self.assertContains(categorize_response, "data-answer-form")
-        self.assertContains(categorize_response, "cards-orange.png")
-        self.assertContains(categorize_response, "cards-violet.png")
+        self.assertContains(categorize_response, "cards-orange.webp")
+        self.assertContains(categorize_response, "cards-violet.webp")
         self.assertContains(categorize_response, 'data-card-theme="orange"', html=False)
         self.assertContains(categorize_response, 'data-card-theme="violet"', html=False)
         self.assertContains(categorize_response, "Карточка 1")

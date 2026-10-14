@@ -6,9 +6,6 @@
 {% block body_class %}landing-page{% endblock %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}?v={{ asset_version }}">
 {% endblock %}
 
@@ -299,7 +296,7 @@
 
     <div class="landing-mascot" aria-hidden="true">
         <div class="landing-mascot__bubble">Есть вопросы?</div>
-        <img src="{% static 'img/landing-mascot.png' %}" alt="">
+        <img src="{% static 'img/landing-mascot.webp' %}" alt="">
     </div>
 {% endblock %}
 

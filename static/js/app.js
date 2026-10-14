@@ -1,4 +1,43 @@
 (() => {
+    // Sticky panels, anchors and toasts sit below the header: publish its real height as --qz-header-h.
+    function initHeaderOffset() {
+        const header =
+            document.querySelector("[data-sticky-header]") ||
+            Array.from(document.querySelectorAll("header")).find((element) =>
+                ["sticky", "fixed"].includes(getComputedStyle(element).position),
+            );
+        if (!header) {
+            return;
+        }
+
+        function update() {
+            const position = getComputedStyle(header).position;
+            const height = position === "sticky" || position === "fixed" ? header.offsetHeight : 0;
+            document.documentElement.style.setProperty("--qz-header-h", `${height}px`);
+        }
+
+        update();
+        window.addEventListener("resize", update);
+        if ("ResizeObserver" in window) {
+            new ResizeObserver(update).observe(header);
+        }
+    }
+
+    function initFlashMessages() {
+        document.querySelectorAll("[data-flash]").forEach((flash) => {
+            function dismiss() {
+                flash.classList.add("is-leaving");
+                window.setTimeout(() => flash.remove(), 220);
+            }
+
+            flash.querySelector("[data-flash-close]")?.addEventListener("click", dismiss);
+            // Successes go away on their own; errors stay until the user closes them.
+            if (flash.classList.contains("flash--success") || flash.classList.contains("flash--info")) {
+                window.setTimeout(dismiss, 6000);
+            }
+        });
+    }
+
     function updateSelectState(select) {
         const card = select.closest(".question-card");
         if (!card) {
@@ -131,6 +170,8 @@
 
     // One broken widget must not stop the rest of the page from initialising.
     [
+        initHeaderOffset,
+        initFlashMessages,
         initSelects,
         initSubmitOnceForms,
         initCopyLinkButtons,

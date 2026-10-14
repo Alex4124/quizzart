@@ -543,7 +543,7 @@ body.player-page {
     border-radius: 2.2rem;
     background:
         linear-gradient(180deg, rgba(35, 17, 56, 0.2), rgba(16, 9, 31, 0.32)),
-        url("../img/quiz-stage-bg.png") center center / cover no-repeat;
+        url("../img/quiz-stage-bg.webp") center center / cover no-repeat;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
         0 28px 60px rgba(76, 37, 115, 0.22);
@@ -745,7 +745,7 @@ body.player-page {
     overflow: hidden;
     background:
         linear-gradient(180deg, rgba(27, 12, 36, 0.12), rgba(255, 255, 255, 0.04)),
-        url("../img/wheel-casino-bg.png") center center / cover no-repeat;
+        url("../img/wheel-casino-bg.webp") center center / cover no-repeat;
     border: 1px solid rgba(255, 255, 255, 0.34);
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),

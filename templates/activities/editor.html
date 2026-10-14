@@ -4,9 +4,6 @@
 {% block title %}{% if activity %}Редактирование{% else %}Создание{% endif %} интерактива{% endblock %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/editor.css' %}?v={{ asset_version }}">
 {% endblock %}
 
@@ -201,7 +198,7 @@
                         </div>
 
                         {% if activity_form.non_field_errors %}
-                            <div class="message-stack">
+                            <div class="message-stack message-stack--errors" role="alert">
                                 {% for error in activity_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
                             </div>
                         {% endif %}
@@ -270,7 +267,7 @@
                         <p class="editor-panel-card__meta">Каждый вопрос и ответ редактируются прямо в карточках ниже. Отметьте один правильный ответ на вопрос.</p>
 
                         {% if config_form.non_field_errors or config_form.items_json.errors or config_form.items_text.errors %}
-                            <div class="message-stack">
+                            <div class="message-stack message-stack--errors" role="alert">
                                 {% for error in config_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
                                 {% for error in config_form.items_json.errors %}<div class="message">{{ error }}</div>{% endfor %}
                                 {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}

@@ -4,9 +4,6 @@
 {% block title %}Личный кабинет{% endblock %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v={{ asset_version }}">
     <link rel="stylesheet" href="{% static 'css/profile.css' %}?v={{ asset_version }}">
 {% endblock %}
@@ -194,7 +191,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_profile">
                     {% if profile_form.non_field_errors %}
-                        <div class="message-stack">
+                        <div class="message-stack message-stack--errors" role="alert">
                             {% for error in profile_form.non_field_errors %}
                                 <div class="message">{{ error }}</div>
                             {% endfor %}
@@ -249,7 +246,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="change_password">
                     {% if password_form.non_field_errors %}
-                        <div class="message-stack">
+                        <div class="message-stack message-stack--errors" role="alert">
                             {% for error in password_form.non_field_errors %}
                                 <div class="message">{{ error }}</div>
                             {% endfor %}

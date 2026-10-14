@@ -24,7 +24,7 @@ class LandingViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'rel="icon"', html=False)
-        self.assertContains(response, "browser-favicon.png")
+        self.assertContains(response, "favicon-32.png")
         self.assertContains(response, "Сделайте обучение")
         self.assertContains(response, "Начать бесплатно")
         self.assertContains(response, "Выберите свой стиль проведения занятия.")
@@ -97,7 +97,7 @@ class BaseLayoutSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'rel="icon"', html=False)
-        self.assertContains(response, "browser-favicon.png")
+        self.assertContains(response, "favicon-32.png")
 
 
 class DashboardHomeViewTests(TestCase):

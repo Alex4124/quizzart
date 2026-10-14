@@ -1,16 +1,77 @@
+/* ---- Design tokens: the one palette every page uses. Page stylesheets alias these, never redefine them. */
 :root {
-    --bg: #f5efe3;
-    --surface: #fffdf9;
-    --surface-alt: #efe6d5;
-    --ink: #22201c;
-    --muted: #6b6459;
-    --accent: #0d6b63;
-    --accent-strong: #084c47;
-    --border: #d6ccb7;
-    --danger: #8c3c2f;
-    --shadow: 0 18px 40px rgba(34, 32, 28, 0.08);
+    /* Brand */
+    --qz-violet: #6f3bd1;
+    --qz-violet-strong: #5223b3;
+    --qz-violet-bright: #8f2df0;
+    --qz-violet-soft: rgba(111, 59, 209, 0.1);
+    --qz-violet-line: rgba(111, 59, 209, 0.22);
+    --qz-indigo: #3b47c7;
+    --qz-apricot: #f28a44;
+    --qz-apricot-soft: rgba(242, 138, 68, 0.14);
+    --qz-gradient: linear-gradient(135deg, var(--qz-violet) 0%, var(--qz-violet-bright) 100%);
+
+    /* Neutrals: three text levels instead of a dozen greys */
+    --qz-bg: #f4f5fb;
+    --qz-surface: rgba(255, 255, 255, 0.92);
+    --qz-surface-strong: #ffffff;
+    --qz-surface-muted: #f1f2f7;
+    --qz-ink: #171922;
+    --qz-text: #3f465b;
+    --qz-muted: #626c86;
+    --qz-subtle: #8a92a8;
+    --qz-border: rgba(111, 126, 160, 0.18);
+    --qz-border-strong: rgba(111, 126, 160, 0.34);
+
+    /* Status */
+    --qz-success: #23855a;
+    --qz-success-soft: rgba(35, 133, 90, 0.12);
+    --qz-danger: #c13d3d;
+    --qz-danger-soft: rgba(193, 61, 61, 0.1);
+    --qz-warning: #a86a12;
+    --qz-warning-soft: rgba(196, 128, 26, 0.14);
+
+    /* Shape */
+    --qz-radius-sm: 12px;
+    --qz-radius-md: 18px;
+    --qz-radius-lg: 24px;
+    --qz-radius-xl: 30px;
+    --qz-radius-pill: 999px;
+    --qz-shadow-card: 0 20px 45px rgba(48, 53, 85, 0.08);
+    --qz-shadow-raised: 0 24px 60px rgba(41, 48, 82, 0.12);
+    --qz-shadow-button: 0 14px 28px rgba(111, 59, 209, 0.24);
+    --qz-focus-ring: 0 0 0 3px rgba(111, 59, 209, 0.32);
+
+    /* Type */
+    --qz-font-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+    --qz-font-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --qz-eyebrow-size: 0.76rem;
+    --qz-eyebrow-tracking: 0.12em;
+
+    /* Layout: the sticky header writes its real height here (static/js/app.js). */
+    --qz-header-h: 0px;
+    --qz-gutter: clamp(1rem, 3vw, 1.5rem);
     --site-logo-width: 260px;
     --site-logo-height: 90px;
+
+    /* Legacy names still used by older rules: same palette. */
+    --bg: var(--qz-bg);
+    --surface: var(--qz-surface-strong);
+    --surface-alt: var(--qz-surface-muted);
+    --ink: var(--qz-ink);
+    --muted: var(--qz-muted);
+    --accent: var(--qz-violet);
+    --accent-strong: var(--qz-violet-strong);
+    --border: var(--qz-border-strong);
+    --danger: var(--qz-danger);
+    --shadow: var(--qz-shadow-card);
+}
+
+@media (max-width: 640px) {
+    :root {
+        --site-logo-width: 180px;
+        --site-logo-height: 62px;
+    }
 }
 
 * {
@@ -22,18 +83,40 @@
     display: none !important;
 }
 
+html {
+    /* Anchors and focused fields must not end up under the sticky header. */
+    scroll-padding-top: calc(var(--qz-header-h) + 16px);
+}
+
 body {
     margin: 0;
-    font-family: Aptos, "Segoe UI", sans-serif;
-    background:
-        radial-gradient(circle at top left, rgba(13, 107, 99, 0.12), transparent 32%),
-        linear-gradient(180deg, #f9f3e8 0%, var(--bg) 100%);
-    color: var(--ink);
+    font-family: var(--qz-font-body);
+    background: var(--qz-bg);
+    color: var(--qz-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-    color: var(--accent-strong);
+    color: var(--qz-violet-strong);
     text-decoration: none;
+}
+
+/* One visible focus ring for every page; components may restyle it but never remove it. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--qz-violet);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 button,
@@ -48,9 +131,41 @@ select,
 textarea {
     width: 100%;
     padding: 0.8rem 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: #fff;
+    border: 1px solid var(--qz-border-strong);
+    border-radius: var(--qz-radius-sm);
+    background: var(--qz-surface-strong);
+    color: var(--qz-ink);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--qz-subtle);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--qz-violet);
+    box-shadow: var(--qz-focus-ring);
+    outline: none;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: auto;
+    accent-color: var(--qz-violet);
+}
+
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+    box-shadow: none;
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+    outline: 2px solid var(--qz-violet);
+    outline-offset: 2px;
 }
 
 textarea {
@@ -195,36 +310,94 @@ textarea {
     color: var(--muted);
 }
 
+/* ---- Buttons: .button (primary), .button-secondary, .button-ghost, .button-danger; .button-small / .button-large. */
 .button,
 .link-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border: 0;
-    border-radius: 999px;
-    padding: 0.85rem 1.2rem;
-    background: var(--accent);
+    min-height: 3rem;
+    padding: 0.75rem 1.35rem;
+    border: 1px solid transparent;
+    border-radius: var(--qz-radius-pill);
+    background: var(--qz-gradient);
     color: #fff;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
     cursor: pointer;
+    box-shadow: var(--qz-shadow-button);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 32px rgba(111, 59, 209, 0.3);
+}
+
+.button:active {
+    transform: translateY(0);
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+    box-shadow: none;
 }
 
 .button-small {
-    padding: 0.55rem 0.9rem;
+    min-height: 2.4rem;
+    padding: 0.5rem 1rem;
     font-size: 0.92rem;
+}
+
+.button-large {
+    min-height: 3.5rem;
+    padding: 0.95rem 1.75rem;
+    font-size: 1.05rem;
 }
 
 .button-secondary,
 .link-button {
+    background: var(--qz-surface-strong);
+    color: var(--qz-violet-strong);
+    border-color: var(--qz-border-strong);
+    box-shadow: none;
+}
+
+.button-secondary:hover,
+.link-button:hover {
+    border-color: var(--qz-violet-line);
+    background: var(--qz-violet-soft);
+    box-shadow: none;
+}
+
+.button-ghost {
     background: transparent;
-    color: var(--accent-strong);
-    border: 1px solid var(--border);
+    color: var(--qz-violet-strong);
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.button-ghost:hover {
+    background: var(--qz-violet-soft);
+    box-shadow: none;
 }
 
 .button-danger {
-    background: rgba(140, 60, 47, 0.12);
-    color: var(--danger);
-    border: 1px solid rgba(140, 60, 47, 0.28);
+    background: var(--qz-danger-soft);
+    color: var(--qz-danger);
+    border-color: rgba(193, 61, 61, 0.28);
+    box-shadow: none;
+}
+
+.button-danger:hover {
+    background: rgba(193, 61, 61, 0.16);
+    box-shadow: none;
 }
 
 .hero-actions,
@@ -287,9 +460,99 @@ textarea {
 
 .message {
     padding: 0.9rem 1rem;
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border-radius: var(--qz-radius-md);
+    border: 1px solid var(--qz-border);
+    background: var(--qz-surface-strong);
+}
+
+.message--error,
+.message-stack--errors .message {
+    border-color: rgba(193, 61, 61, 0.24);
+    background: var(--qz-danger-soft);
+    color: var(--qz-danger);
+}
+
+/* ---- Flash messages (django.contrib.messages): toasts under the header, closable, successes fade out. */
+.flash-stack {
+    position: fixed;
+    top: calc(var(--qz-header-h) + 12px);
+    right: var(--qz-gutter);
+    z-index: 60;
+    display: grid;
+    gap: 0.6rem;
+    width: min(26rem, calc(100vw - 2 * var(--qz-gutter)));
+    pointer-events: none;
+}
+
+.flash {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 0.9rem 0.85rem 1rem;
+    border: 1px solid var(--qz-border);
+    border-left: 4px solid var(--qz-violet);
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-surface-strong);
+    box-shadow: var(--qz-shadow-raised);
+    color: var(--qz-ink);
+    font-weight: 600;
+    line-height: 1.45;
+    pointer-events: auto;
+    animation: flashIn 0.24s ease both;
+}
+
+.flash--success {
+    border-left-color: var(--qz-success);
+}
+
+.flash--error {
+    border-left-color: var(--qz-danger);
+}
+
+.flash--warning {
+    border-left-color: var(--qz-warning);
+}
+
+.flash__text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.flash__close {
+    flex: none;
+    width: 1.9rem;
+    height: 1.9rem;
+    margin: -0.3rem -0.2rem 0 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--qz-muted);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.flash__close:hover {
+    background: var(--qz-surface-muted);
+    color: var(--qz-ink);
+}
+
+.flash.is-leaving {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@keyframes flashIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .auth-form-alert {
