@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -59,9 +60,9 @@ def _editor_stepper(activity: Activity | None) -> list[dict]:
     steps = []
     for index, (key, label) in enumerate(
         (
-            ("draft", "Draft"),
-            ("configured", "Configured"),
-            ("published", "Published"),
+            ("draft", "Черновик"),
+            ("configured", "Настроен"),
+            ("published", "Опубликован"),
         ),
         start=1,
     ):
@@ -104,7 +105,7 @@ def _determine_active_tab(request, activity_form, config_form, action: str) -> s
         if field.errors:
             visible_config_errors = True
 
-    if any(field.errors for field in activity_form.visible_fields()):
+    if activity_form.non_field_errors() or any(field.errors for field in activity_form.visible_fields()):
         return "general"
     if question_bank_has_errors or config_form.non_field_errors():
         return "content"
@@ -123,6 +124,15 @@ def _build_tab_links(selected_key: str, activity: Activity | None) -> dict[str, 
             params["template_key"] = selected_key
         links[tab_key] = f"?{urlencode(params)}#editor-workspace"
     return links
+
+
+def _edit_url_with_tab(activity: Activity, tab_key: str) -> str:
+    """Keep the teacher on the tab they saved from instead of jumping back to the first one."""
+    url = reverse("activities:edit", kwargs={"pk": activity.pk})
+    valid_tabs = {key for key, _, _ in EDITOR_TAB_CHOICES}
+    if tab_key in valid_tabs and tab_key != "general":
+        url = f"{url}?{urlencode({'tab': tab_key})}"
+    return url
 
 
 def _selected_template_key(request, activity: Activity | None = None) -> str:
@@ -192,9 +202,10 @@ def _activity_editor(request, activity: Activity | None = None):
                         if definition.metadata.playable:
                             candidate.publish()
                         else:
+                            # template_key is a hidden field, so its own errors would never be rendered.
                             activity_form.add_error(
-                                "template_key",
-                                "Этот шаблон зарегистрирован, но публичный runtime еще не реализован.",
+                                None,
+                                "Этот шаблон пока нельзя опубликовать: плеер для учеников ещё не готов.",
                             )
                     elif action == "save_changes":
                         if was_published:
@@ -223,7 +234,7 @@ def _activity_editor(request, activity: Activity | None = None):
                                 messages.success(request, "Интерактив снят с публикации и сохранен как черновик.")
                             else:
                                 messages.success(request, "Черновик сохранен.")
-                        return redirect("activities:edit", pk=candidate.pk)
+                        return redirect(_edit_url_with_tab(candidate, request.POST.get("active_tab", "")))
     else:
         config = _config_source(definition, activity)
         activity_form = ActivityForm(instance=activity, initial={"template_key": selected_key})
@@ -301,6 +312,7 @@ def edit_activity(request, pk: int):
 
 
 @teacher_required
+@require_POST
 def duplicate_activity_view(request, pk: int):
     activity = get_object_or_404(Activity, pk=pk, owner=request.user)
     duplicated = duplicate_activity(activity)
@@ -322,6 +334,8 @@ def delete_activity(request, pk: int):
 @xframe_options_sameorigin
 def preview_activity(request, pk: int):
     activity = get_object_or_404(Activity, pk=pk, owner=request.user)
+    if activity.template_key not in registry.keys():
+        raise Http404("Шаблон интерактива больше не поддерживается.")
     definition = registry.get(activity.template_key)
     runtime = definition.build_runtime_data(activity, preview=True)
     return render(

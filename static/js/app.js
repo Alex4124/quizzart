@@ -169,6 +169,12 @@
         return duration;
     }
 
+    // `parseInt(...) || fallback` would turn a deliberate 0 points into the default.
+    function parsePoints(rawValue, fallback) {
+        const parsed = Number.parseInt(String(rawValue ?? ""), 10);
+        return Number.isNaN(parsed) ? fallback : parsed;
+    }
+
     function parseQuestionBankItems(rawValue, defaultPoints) {
         if (!rawValue) {
             return [];
@@ -181,7 +187,7 @@
             }
             return parsed.map((item) => ({
                 prompt: typeof item?.prompt === "string" ? item.prompt : "",
-                points: Number.parseInt(String(item?.points ?? defaultPoints), 10) || defaultPoints,
+                points: parsePoints(item?.points, defaultPoints),
                 options: Array.isArray(item?.options)
                     ? item.options.map((option) => ({
                         text: typeof option?.text === "string" ? option.text : "",
@@ -238,10 +244,7 @@
             function serializeItems() {
                 const items = Array.from(questionList.querySelectorAll("[data-question-card]")).map((questionCard) => ({
                     prompt: questionCard.querySelector("[data-question-prompt]")?.value || "",
-                    points: Number.parseInt(
-                        questionCard.querySelector("[data-question-points]")?.value || String(defaultPoints),
-                        10,
-                    ) || defaultPoints,
+                    points: parsePoints(questionCard.querySelector("[data-question-points]")?.value, defaultPoints),
                     options: Array.from(questionCard.querySelectorAll("[data-answer-card]")).map((answerCard) => ({
                         text: answerCard.querySelector("[data-answer-text]")?.value || "",
                         is_correct: Boolean(answerCard.querySelector("[data-answer-correct]")?.checked),
@@ -335,7 +338,7 @@
             function appendQuestion(questionData, focusPrompt) {
                 const normalizedQuestion = {
                     prompt: questionData?.prompt || "",
-                    points: Number.parseInt(String(questionData?.points ?? defaultPoints), 10) || defaultPoints,
+                    points: parsePoints(questionData?.points, defaultPoints),
                     options: Array.isArray(questionData?.options) && questionData.options.length
                         ? questionData.options.map((option) => ({
                             text: typeof option?.text === "string" ? option.text : "",
@@ -1331,7 +1334,7 @@
                         candidate.disabled = true;
                     });
 
-                    const hiddenInput = form.querySelector(`[data-answer-target="${question.dataset.itemId}"]`);
+                    const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(question.dataset.itemId)}"]`);
                     const selectedValue = button.dataset.choiceValue || "";
                     if (hiddenInput) {
                         hiddenInput.value = selectedValue;
@@ -1514,7 +1517,7 @@
                         }
 
                         card.dataset.locked = "1";
-                        const hiddenInput = form.querySelector(`[data-answer-target="${card.dataset.itemId}"]`);
+                        const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(card.dataset.itemId)}"]`);
                         if (hiddenInput) {
                             hiddenInput.value = button.dataset.choiceValue || "";
                         }
@@ -1544,7 +1547,7 @@
 
             cards.forEach((card) => {
                 if ((card.dataset.state || "closed") === "answered") {
-                    const hiddenInput = form.querySelector(`[data-answer-target="${card.dataset.itemId}"]`);
+                    const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(card.dataset.itemId)}"]`);
                     const selectedValue = hiddenInput ? hiddenInput.value : "";
                     const buttons = Array.from(card.querySelectorAll("[data-categorize-choice]"));
                     const selectedButton = buttons.find((button) => button.dataset.choiceValue === selectedValue);
@@ -2015,6 +2018,11 @@
                     renderSnake();
                 }
 
+                // The run is over: one last frame settles the body, then the loop stops burning CPU.
+                if (completed) {
+                    frameId = null;
+                    return;
+                }
                 frameId = window.requestAnimationFrame(tick);
             }
 
@@ -2126,16 +2134,69 @@
         });
     }
 
-    initQuestionBankEditors();
-    initRevealStagger();
-    initOptionSelection();
-    initSelects();
-    initDelayedSubmitForms();
-    initCopyLinkButtons();
-    initQuizPlayers();
-    initBoxPlayers();
-    initWheelPlayers();
-    initMatchingPlayers();
-    initCategorizePlayers();
-    initSnakePlayers();
+    function initSubmitOnceForms() {
+        const forms = document.querySelectorAll("form[data-submit-once]");
+
+        function submitButtons(form) {
+            const inside = Array.from(form.querySelectorAll("button[type='submit'], button:not([type])"));
+            const outside = form.id ? Array.from(document.querySelectorAll(`button[form="${CSS.escape(form.id)}"]`)) : [];
+            return inside.concat(outside);
+        }
+
+        forms.forEach((form) => {
+            form.addEventListener("submit", (event) => {
+                // An inline confirm() the teacher cancelled must not lock the form.
+                if (event.defaultPrevented) {
+                    return;
+                }
+                if (form.dataset.submitLocked === "1") {
+                    event.preventDefault();
+                    return;
+                }
+                form.dataset.submitLocked = "1";
+                // Disabling synchronously would drop the clicked button's name/value from the request.
+                window.setTimeout(() => {
+                    submitButtons(form).forEach((button) => {
+                        button.disabled = true;
+                    });
+                }, 0);
+            });
+        });
+
+        // A page restored from the back/forward cache must be usable again.
+        window.addEventListener("pageshow", (event) => {
+            if (!event.persisted) {
+                return;
+            }
+            forms.forEach((form) => {
+                delete form.dataset.submitLocked;
+                submitButtons(form).forEach((button) => {
+                    button.disabled = false;
+                });
+            });
+        });
+    }
+
+    // One broken widget must not stop the rest of the page from initialising.
+    [
+        initQuestionBankEditors,
+        initRevealStagger,
+        initOptionSelection,
+        initSelects,
+        initDelayedSubmitForms,
+        initSubmitOnceForms,
+        initCopyLinkButtons,
+        initQuizPlayers,
+        initBoxPlayers,
+        initWheelPlayers,
+        initMatchingPlayers,
+        initCategorizePlayers,
+        initSnakePlayers,
+    ].forEach((init) => {
+        try {
+            init();
+        } catch (error) {
+            console.error(`[quizzart] ${init.name} failed`, error);
+        }
+    });
 })();

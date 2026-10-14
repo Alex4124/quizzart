@@ -1100,22 +1100,22 @@
     justify-content: flex-start;
 }
 
-.teacher-analytics-hero-prototype__control {
+/* Info chips, not buttons: outlined, flat and as small as the eyebrow next to them. */
+.teacher-analytics-hero-prototype__chip {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-height: 3.45rem;
-    padding: 0.7rem 1.25rem;
+    min-height: 2rem;
+    padding: 0.28rem 0.8rem;
+    border: 1px solid rgba(111, 59, 209, 0.2);
     border-radius: 999px;
-    background: rgba(111, 59, 209, 0.12);
     color: var(--teacher-violet);
-    font-weight: 800;
-    box-shadow: 0 14px 28px rgba(46, 52, 82, 0.07);
+    font-size: 0.86rem;
+    font-weight: 700;
 }
 
-.teacher-analytics-hero-prototype__control--muted {
-    background: rgba(111, 126, 160, 0.12);
-    color: var(--teacher-ink);
+.teacher-analytics-hero-prototype__chip--muted {
+    border-color: rgba(111, 126, 160, 0.24);
+    color: #57627f;
 }
 
 .teacher-analytics-hero-prototype__copy h1 {
@@ -1185,6 +1185,10 @@
     font-size: clamp(2.2rem, 3.1vw, 3.4rem);
 }
 
+.teacher-metric--analytics strong.is-empty {
+    color: #a3abc0;
+}
+
 .teacher-metric--analytics .teacher-metric__label,
 .teacher-metric--analytics .teacher-metric__note,
 .teacher-metric--analytics .teacher-metric__delta {
@@ -1237,8 +1241,6 @@
 }
 
 .teacher-analytics-chart__canvas {
-    position: relative;
-    min-height: 25rem;
     padding: 1.15rem 1rem 0.75rem;
     border: 1px solid rgba(111, 126, 160, 0.1);
     border-radius: 34px;
@@ -1249,24 +1251,17 @@
     overflow: hidden;
 }
 
-.teacher-analytics-chart__canvas::before {
-    content: "";
-    position: absolute;
-    inset: 1rem 1.2rem 3rem;
-    border-radius: 28px;
-    background:
-        linear-gradient(180deg, rgba(111, 126, 160, 0.08) 1px, transparent 1px);
-    background-size: 100% 25%;
-    opacity: 0.7;
-    pointer-events: none;
-}
-
+/* The svg keeps its aspect ratio, so points stay round; the edge labels may spill into the canvas padding. */
 .teacher-analytics-chart__svg {
-    position: relative;
-    z-index: 1;
     display: block;
     width: 100%;
-    height: 20rem;
+    height: auto;
+    overflow: visible;
+}
+
+.teacher-analytics-chart__grid {
+    stroke: rgba(111, 126, 160, 0.12);
+    stroke-width: 1;
 }
 
 .teacher-analytics-chart__area {
@@ -1296,22 +1291,65 @@
     stroke-width: 4;
 }
 
-.teacher-analytics-chart__point-label {
-    fill: #5a647d;
+.teacher-analytics-chart__point-label,
+.teacher-analytics-chart__axis-label {
     font-family: Manrope, "Segoe UI", sans-serif;
-    font-size: 16px;
     font-weight: 800;
     text-anchor: middle;
 }
 
-.teacher-analytics-chart__axis {
+.teacher-analytics-chart__point-label {
+    fill: #5a647d;
+    font-size: 16px;
+}
+
+.teacher-analytics-chart__axis-label {
+    fill: #707a96;
+    font-size: 14px;
+}
+
+.teacher-analytics-empty {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    justify-items: start;
+    gap: 1rem;
+    padding: 1.6rem;
+    border: 2px dashed rgba(111, 59, 209, 0.2);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(111, 59, 209, 0.04), rgba(255, 255, 255, 0.9));
+}
+
+.teacher-analytics-empty__lead,
+.teacher-analytics-empty__hint {
+    max-width: 42rem;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.teacher-analytics-empty__lead {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.teacher-analytics-empty__hint {
+    color: var(--teacher-muted);
+}
+
+.teacher-analytics-empty__url {
+    max-width: 100%;
+    padding: 0.7rem 1rem;
+    border: 1px solid rgba(111, 126, 160, 0.16);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #48536f;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    user-select: all;
+}
+
+.teacher-analytics-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.8rem;
-    color: #707a96;
-    font-size: 0.82rem;
-    font-weight: 800;
-    text-align: center;
 }
 
 .teacher-analytics-insights {
@@ -1340,106 +1378,6 @@
 .teacher-analytics-chart {
     display: grid;
     gap: 1rem;
-}
-
-.teacher-analytics-chart__plot {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-    gap: 1rem;
-    align-items: end;
-    min-height: 320px;
-    padding: 1.35rem 1.2rem 1rem;
-    border: 1px solid rgba(111, 126, 160, 0.12);
-    border-radius: 28px;
-    background:
-        linear-gradient(180deg, rgba(111, 59, 209, 0.05), rgba(255, 255, 255, 0.88)),
-        radial-gradient(circle at top right, rgba(242, 138, 68, 0.1), transparent 26%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
-    overflow: hidden;
-}
-
-.teacher-analytics-chart__plot::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(to top, rgba(111, 126, 160, 0.12) 1px, transparent 1px);
-    background-size: 100% 25%;
-    pointer-events: none;
-    opacity: 0.8;
-}
-
-.teacher-analytics-chart__item {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    justify-items: center;
-    align-content: end;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
-.teacher-analytics-chart__value {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2rem;
-    padding: 0.25rem 0.65rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.88);
-    color: var(--teacher-ink);
-    font-size: 0.82rem;
-    font-weight: 800;
-    box-shadow: 0 10px 20px rgba(46, 52, 82, 0.08);
-}
-
-.teacher-analytics-chart__bar {
-    width: min(72px, 100%);
-    min-height: 1.4rem;
-    border-radius: 28px 28px 16px 16px;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.45),
-        0 18px 34px rgba(52, 60, 108, 0.18);
-}
-
-.teacher-analytics-chart__bar--violet {
-    background: linear-gradient(180deg, #a164ff 0%, #6f3bd1 100%);
-}
-
-.teacher-analytics-chart__bar--apricot {
-    background: linear-gradient(180deg, #ffba72 0%, #f28a44 100%);
-}
-
-.teacher-analytics-chart__bar--indigo {
-    background: linear-gradient(180deg, #6b78f1 0%, #3b47c7 100%);
-}
-
-.teacher-analytics-chart__bar--rose {
-    background: linear-gradient(180deg, #ff8393 0%, #d84566 100%);
-}
-
-.teacher-analytics-chart__bar--sky {
-    background: linear-gradient(180deg, #7ed8ff 0%, #3fa4de 100%);
-}
-
-.teacher-analytics-chart__index {
-    display: grid;
-    place-items: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 50%;
-    background: rgba(111, 59, 209, 0.09);
-    color: var(--teacher-violet);
-    font-weight: 800;
-}
-
-.teacher-analytics-chart__caption {
-    max-width: 100%;
-    color: #6d7794;
-    font-size: 0.82rem;
-    font-weight: 700;
-    text-align: center;
 }
 
 .teacher-analytics-chart__note {
@@ -1651,19 +1589,24 @@
     }
 
     .teacher-analytics-chart__canvas {
-        min-height: 21rem;
         padding-inline: 0.8rem;
     }
 
-    .teacher-analytics-chart__svg {
-        height: 17rem;
+    /* On a phone the svg shrinks to ~40% of its viewBox, so labels and points get larger units. */
+    .teacher-analytics-chart__point-label {
+        font-size: 26px;
     }
 
-    .teacher-analytics-chart__plot {
-        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-        min-height: 260px;
-        gap: 0.8rem;
-        padding-inline: 0.85rem;
+    .teacher-analytics-chart__axis-label {
+        font-size: 24px;
+    }
+
+    .teacher-analytics-chart__point {
+        r: 8px;
+    }
+
+    .teacher-analytics-chart__point-halo {
+        r: 15px;
     }
 
     .teacher-analytics-table__head {

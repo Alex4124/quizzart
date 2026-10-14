@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Страница не найдена · Quizzart{% endblock %}
+
+{% block body_class %}error-page{% endblock %}
+
+{% block site_header %}{% endblock %}
+
+{% block main_class %}error-page__main{% endblock %}
+
+{% block content %}
+    <section class="error-card">
+        <a class="error-card__logo" href="{% url 'dashboard:landing' %}">
+            {% include "includes/site_logo.html" with logo_class="error-card__logo-image" %}
+        </a>
+        <p class="error-card__code">404</p>
+        <h1>Страница не найдена</h1>
+        <p>Возможно, ссылка устарела или интерактив сняли с публикации. Уточните ссылку у учителя.</p>
+        <a class="button" href="{% url 'dashboard:landing' %}">На главную</a>
+    </section>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

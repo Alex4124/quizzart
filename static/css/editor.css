@@ -762,10 +762,30 @@
     margin-top: 1rem;
 }
 
-.editor-side-actions a {
+.editor-side-actions a,
+.editor-side-actions__button {
     color: var(--editor-violet);
     font-weight: 800;
     text-decoration: none;
+}
+
+.editor-side-actions__form {
+    margin: 0;
+}
+
+/* «Дублировать» is a POST form; it should read as one more link in the list. */
+.editor-side-actions__button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.editor-side-actions__button:hover,
+.editor-side-actions a:hover {
+    text-decoration: underline;
 }
 
 .editor-side-delete {

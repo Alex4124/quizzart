@@ -8,7 +8,7 @@
         <h2>{{ activity.title }}</h2>
         <p>{{ activity.description|default:"Откройте интерактив и начните прохождение в комфортном темпе." }}</p>
 
-        <form method="post" class="stack-form">
+        <form method="post" class="stack-form" data-submit-once>
             {% csrf_token %}
             {{ form.non_field_errors }}
             {% for field in form %}

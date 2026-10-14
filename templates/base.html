@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Quizzart{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'img/browser-favicon.png' %}?v=3">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ asset_version }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -55,7 +55,7 @@
     </main>
     {% block site_footer %}{% endblock %}
     {% block scripts %}
-        <script src="{% static 'js/app.js' %}?v=20260331-choose-boxes"></script>
+        <script src="{% static 'js/app.js' %}?v={{ asset_version }}"></script>
     {% endblock %}
 </body>
 </html>

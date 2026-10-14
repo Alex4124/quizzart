@@ -161,6 +161,13 @@ def _build_activity_card(activity: Activity, request) -> dict:
     share_link = active_share_links[0] if active_share_links else None
     template_title = _dashboard_template_title(activity.template_key)
     question_count = len(normalize_question_bank(activity.config_json))
+    # Share links stay active after unpublishing, but the player answers 404 for drafts,
+    # so a draft card offers no link to copy.
+    share_url = (
+        request.build_absolute_uri(share_link.get_absolute_url())
+        if share_link and activity.is_published
+        else ""
+    )
 
     return {
         "id": activity.pk,
@@ -175,13 +182,13 @@ def _build_activity_card(activity: Activity, request) -> dict:
         "updated_label": "Обновлено",
         "published_at": activity.published_at,
         "question_count": question_count,
-        "question_count_label": f"{question_count} вопросов",
+        "question_count_label": _count_label(question_count, "вопрос", "вопроса", "вопросов"),
         "cover_variant": _dashboard_cover_variant(activity.template_key),
         "is_published": activity.is_published,
         "edit_url": activity.get_absolute_url(),
         "preview_url": activity.get_preview_url(),
         "analytics_url": reverse("dashboard:analytics", kwargs={"pk": activity.pk}),
-        "share_url": request.build_absolute_uri(share_link.get_absolute_url()) if share_link else "",
+        "share_url": share_url,
     }
 
 
@@ -246,7 +253,8 @@ def _build_recent_events(activity_cards: list[dict]) -> list[dict]:
             )
 
     for activity_card in activity_cards[:12]:
-        if activity_card["published_at"]:
+        # published_at is kept after unpublishing, so only a live activity gets this event.
+        if activity_card["is_published"] and activity_card["published_at"]:
             events.append(
                 {
                     "kind": "published",
@@ -346,8 +354,13 @@ def _build_question_performance(activity: Activity) -> tuple[list[dict], list[di
                 "correct_answers": correct_answers,
                 "incorrect_answers": incorrect_answers,
                 "accuracy": accuracy,
-                "mistake_note": f"{incorrect_answers} ошибок · {accuracy}% точность",
-                "success_note": f"{correct_answers} верных ответов · {accuracy}% точность",
+                "mistake_note": (
+                    _count_label(incorrect_answers, "ошибка", "ошибки", "ошибок") + f" · {accuracy}% точность"
+                ),
+                "success_note": (
+                    _count_label(correct_answers, "верный ответ", "верных ответа", "верных ответов")
+                    + f" · {accuracy}% точность"
+                ),
             }
         )
 
@@ -374,53 +387,74 @@ def _build_question_performance(activity: Activity) -> tuple[list[dict], list[di
                 "prompt": prompt,
                 "correct_answers": correct_answers,
                 "total_answers": total_answers,
-                "success_label": _count_label(correct_answers, "успех", "успеха", "успехов"),
             }
         )
-
-    chart_max = max((item["correct_answers"] for item in chart_source), default=0)
-    for item in chart_source:
-        item["height_percent"] = round((item["correct_answers"] / chart_max) * 100) if chart_max else 0
-        item["column_label"] = f"Задание {item['index']}"
 
     return weakest_items, strongest_items, chart_source
 
 
+def _chart_axis_step(count: int) -> int:
+    # Past a dozen questions only every 2nd/5th/10th number fits under the line.
+    if count <= 12:
+        return 1
+    if count <= 24:
+        return 2
+    if count <= 60:
+        return 5
+    return 10
+
+
 def _build_success_chart(success_chart_items: list[dict]) -> dict | None:
-    if not success_chart_items:
+    # Without a single answer the line would lie flat at zero; the template shows an empty state instead.
+    if not any(item["total_answers"] for item in success_chart_items):
         return None
 
     width = 760
     height = 320
-    left_padding = 30
-    right_padding = 28
-    top_padding = 32
-    bottom_padding = 54
+    left_padding = 44
+    right_padding = 44
+    top_padding = 44
+    bottom_padding = 56
     baseline_y = height - bottom_padding
+    axis_label_y = baseline_y + 34
     plot_width = max(width - left_padding - right_padding, 1)
     plot_height = max(baseline_y - top_padding, 1)
-    max_success = max((item["correct_answers"] for item in success_chart_items), default=0) or 1
+    max_success = max(item["correct_answers"] for item in success_chart_items)
     count = len(success_chart_items)
+    axis_step = _chart_axis_step(count)
 
     points: list[dict] = []
-    for index, item in enumerate(success_chart_items):
+    for position, item in enumerate(success_chart_items):
         if count == 1:
             x = width / 2
         else:
-            x = left_padding + (plot_width * index / (count - 1))
+            x = left_padding + (plot_width * position / (count - 1))
         ratio = item["correct_answers"] / max_success if max_success else 0
         y = baseline_y - (ratio * plot_height)
+        index = item["index"]
+        if axis_step == 1 or index == 1 or index % axis_step == 0:
+            # «Задание N» is too wide for more than five points, so the axis falls back to bare numbers.
+            axis_label = f"Задание {index}" if count <= 5 else str(index)
+        else:
+            axis_label = ""
+        if item["total_answers"]:
+            result_label = (
+                _count_label(item["correct_answers"], "верный ответ", "верных ответа", "верных ответов")
+                + f" из {item['total_answers']}"
+            )
+        else:
+            result_label = "пока нет ответов"
+        # Coordinates go to the template as strings: the ru locale would print floats with a comma.
         points.append(
             {
                 **item,
                 "x": round(x, 2),
                 "y": round(y, 2),
-                "label_x": round(x, 2),
-                "label_y": round(max(y - 18, 18), 2),
                 "x_svg": f"{x:.2f}",
                 "y_svg": f"{y:.2f}",
-                "label_x_svg": f"{x:.2f}",
-                "label_y_svg": f"{max(y - 18, 18):.2f}",
+                "label_y_svg": f"{y - 20:.2f}",
+                "axis_label": axis_label,
+                "tooltip": f"Задание {index} · {item['prompt']} · {result_label}",
             }
         )
 
@@ -459,10 +493,12 @@ def _build_success_chart(success_chart_items: list[dict]) -> dict | None:
     return {
         "width": width,
         "height": height,
-        "baseline_y": round(baseline_y, 2),
+        "grid_lines_svg": [f"{top_padding + plot_height * step / 4:.2f}" for step in range(5)],
+        "axis_label_y_svg": f"{axis_label_y:.2f}",
         "points": points,
         "line_path": line_path,
         "area_path": area_path,
+        "max_success": max_success,
         "max_success_label": _count_label(max_success, "успех", "успеха", "успехов"),
         "success_note": (
             "Линия показывает, на каких заданиях ученики чаще справлялись успешно: "
@@ -548,23 +584,6 @@ def home(request):
     profile = getattr(request, "user_profile", ensure_user_profile(request.user))
     activities = (
         Activity.objects.filter(owner=request.user)
-        .annotate(
-            launches=Count("sessions", distinct=True),
-            active_sessions=Count(
-                "sessions",
-                filter=Q(sessions__status=ActivitySession.Status.STARTED),
-                distinct=True,
-            ),
-            completions=Count(
-                "sessions",
-                filter=Q(sessions__status=ActivitySession.Status.COMPLETED),
-                distinct=True,
-            ),
-            avg_percent=Avg(
-                "sessions__percent_score",
-                filter=Q(sessions__status=ActivitySession.Status.COMPLETED),
-            ),
-        )
         .prefetch_related(
             Prefetch(
                 "share_links",
@@ -599,11 +618,10 @@ def home(request):
         }
 
     total_activities = len(activity_cards)
-    now = timezone.now()
+    # The month boundary follows the teacher's clock (TIME_ZONE), not UTC.
+    month_start = timezone.localtime().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     created_this_month = sum(
-        1
-        for activity_card in activity_cards
-        if activity_card["created_at"].year == now.year and activity_card["created_at"].month == now.month
+        1 for activity_card in activity_cards if activity_card["created_at"] >= month_start
     )
     average_score = float(session_summary["average_score"] or 0)
     teacher_display_name = profile_short_name(request.user, profile)
@@ -689,9 +707,7 @@ def home(request):
 def activity_analytics(request, pk: int):
     activity = get_object_or_404(Activity, pk=pk, owner=request.user)
     profile = getattr(request, "user_profile", ensure_user_profile(request.user))
-    sessions = list(
-        activity.sessions.select_related("participant_user").prefetch_related("answers").all()
-    )
+    sessions = list(activity.sessions.select_related("participant_user").all())
     completed_sessions = [
         session for session in sessions if session.status == ActivitySession.Status.COMPLETED
     ]
@@ -723,6 +739,8 @@ def activity_analytics(request, pk: int):
     ]
     teacher_display_name = profile_short_name(request.user, profile)
     success_chart = _build_success_chart(success_chart_items)
+    # The empty chart state hands the teacher the link to send, but only a published activity has a working one.
+    share_link = activity.active_share_link if not success_chart and activity.is_published else None
 
     return render(
         request,
@@ -735,16 +753,17 @@ def activity_analytics(request, pk: int):
             "teacher_avatar_url": profile.avatar.url if profile.avatar else "",
             "sessions": session_rows,
             "launches": len(sessions),
+            "launches_label": _count_label(len(sessions), "запуск", "запуска", "запусков"),
             "completions": len(completed_sessions),
-            "average_score": float(sessions_summary["avg_percent"] or 0),
+            "average_score": float(sessions_summary["avg_percent"] or 0) if completed_sessions else None,
             "average_duration": _format_duration(average_duration),
             "average_duration_note": (
                 _count_label(len(completed_durations), "завершение", "завершения", "завершений") + " в расчёте"
                 if completed_durations
-                else "Пока нет завершённых прохождений"
+                else "Появится после первого завершённого прохождения."
             ),
-            "success_chart_items": success_chart_items,
             "success_chart": success_chart,
+            "share_url": request.build_absolute_uri(share_link.get_absolute_url()) if share_link else "",
             "top_students": _build_top_students(completed_sessions),
             "weakest_items": weakest_items,
             "strongest_items": strongest_items,

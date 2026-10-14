@@ -1086,3 +1086,68 @@ class PublicPlayTests(TestCase):
         session = ActivitySession.objects.get(activity__template_key="quiz")
         self.assertEqual(session.participant_user, student)
         self.assertEqual(session.participant_name, "Петров Иван Сергеевич")
+
+
+class PlayerFixesTests(TestCase):
+    def setUp(self):
+        self.teacher = User.objects.create_user(username="teacher-player-fixes", password="pass12345")
+        self.activity = Activity.objects.create(
+            owner=self.teacher,
+            title="Quiz",
+            template_key="quiz",
+            config_json={
+                "show_result_at_end": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "2+2?",
+                        "points": 10,
+                        "options": [
+                            {"id": "item-1-a", "text": "4", "is_correct": True},
+                            {"id": "item-1-b", "text": "5", "is_correct": False},
+                        ],
+                    }
+                ],
+            },
+            status=Activity.Status.PUBLISHED,
+        )
+        self.link = ShareLink.objects.create(activity=self.activity)
+        self.url = f"/p/{self.link.slug}/"
+
+    def test_too_long_name_shows_an_error_instead_of_silently_reloading(self):
+        response = self.client.post(self.url, {"action": "start", "participant_name": "x" * 121})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "player/launch.html")
+        self.assertTrue(response.context["form"].errors)
+        self.assertFalse(ActivitySession.objects.exists())
+
+    def test_results_stay_available_after_unpublishing(self):
+        self.client.post(self.url, {"action": "start"})
+        self.client.post(self.url, {"action": "submit_quiz", "question_item-1": "4"})
+        self.activity.unpublish()
+        self.activity.save()
+
+        response = self.client.get(f"{self.url}results/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'value="restart"', html=False)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_results_of_unpublished_activity_without_a_run_are_404(self):
+        self.activity.unpublish()
+        self.activity.save()
+
+        self.assertEqual(self.client.get(f"{self.url}results/").status_code, 404)
+
+    def test_unknown_template_is_404_not_500(self):
+        Activity.objects.filter(pk=self.activity.pk).update(template_key="removed")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_launch_form_is_submit_once(self):
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "data-submit-once", html=False)

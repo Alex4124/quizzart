@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -13,8 +15,11 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
-SECRET_KEY = os.getenv("QUIZZART_SECRET_KEY", "quizzart-dev-secret-key")
+DEV_SECRET_KEY = "quizzart-dev-secret-key"
+SECRET_KEY = os.getenv("QUIZZART_SECRET_KEY", DEV_SECRET_KEY)
 DEBUG = env_bool("QUIZZART_DEBUG", True)
+if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
+    raise ImproperlyConfigured("Set QUIZZART_SECRET_KEY: the built-in development key must not be used with DEBUG off.")
 ALLOWED_HOSTS = [
     host
     for host in os.getenv("QUIZZART_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
@@ -57,6 +62,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.account_navigation",
+                "config.context_processors.asset_version",
             ],
         },
     }
@@ -104,6 +110,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+# Empty means "derive from the newest CSS/JS file", so a deploy busts browser caches by itself.
+ASSET_VERSION = os.getenv("QUIZZART_ASSET_VERSION", "")
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"

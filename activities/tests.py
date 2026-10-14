@@ -463,7 +463,7 @@ class ActivityEditorTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("activities:edit", args=[activity.pk]))
+        self.assertRedirects(response, f"{reverse('activities:edit', args=[activity.pk])}?tab=publish")
         activity.refresh_from_db()
         self.assertEqual(activity.status, Activity.Status.DRAFT)
 
@@ -948,3 +948,120 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, 'data-snake-direction="right"', html=False)
         self.assertContains(response, 'data-snake-direction="down"', html=False)
         self.assertContains(response, 'data-snake-direction="left"', html=False)
+
+
+class EditorFixesTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teacher-fixes", password="pass12345")
+        self.client.force_login(self.user)
+
+    def _post_quiz(self, items: list[dict], **extra):
+        payload = {
+            "title": "Quiz",
+            "description": "",
+            "template_key": "quiz",
+            "items_json": json.dumps(items, ensure_ascii=False),
+            "action": "save_draft",
+        }
+        payload.update(extra)
+        return self.client.post(reverse("activities:create"), payload)
+
+    @staticmethod
+    def _item(points=10, options=None):
+        return {
+            "prompt": "2+2?",
+            "points": points,
+            "options": options or [{"text": "4", "is_correct": True}, {"text": "5", "is_correct": False}],
+        }
+
+    def test_duplicate_requires_post(self):
+        activity = Activity.objects.create(owner=self.user, title="Original", template_key="quiz", config_json={})
+
+        response = self.client.get(reverse("activities:duplicate", kwargs={"pk": activity.pk}))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(Activity.objects.count(), 1)
+        response = self.client.post(reverse("activities:duplicate", kwargs={"pk": activity.pk}))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Activity.objects.count(), 2)
+
+    def test_points_outside_range_are_rejected(self):
+        for points in (-5, 1001):
+            with self.subTest(points=points):
+                response = self._post_quiz([self._item(points=points)])
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "баллы должны быть от 0 до 1000")
+                self.assertFalse(Activity.objects.exists())
+
+    def test_zero_points_are_kept(self):
+        response = self._post_quiz([self._item(points=0)])
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Activity.objects.get().config_json["items"][0]["points"], 0)
+
+    def test_superscript_digit_in_text_row_is_an_option_not_a_crash(self):
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "Quiz",
+                "template_key": "quiz",
+                "items_text": "2+2? | *4 | 5 | ²",
+                "action": "save_draft",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        options = Activity.objects.get().config_json["items"][0]["options"]
+        self.assertEqual([option["text"] for option in options], ["4", "5", "²"])
+
+    def test_repeated_option_text_is_rejected(self):
+        response = self._post_quiz(
+            [self._item(options=[{"text": "4", "is_correct": True}, {"text": " 4 ", "is_correct": False}])]
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "варианты ответа не должны повторяться")
+
+    def test_save_returns_to_the_tab_it_was_made_from(self):
+        response = self._post_quiz([self._item()], active_tab="content")
+
+        activity = Activity.objects.get()
+        edit_url = reverse("activities:edit", kwargs={"pk": activity.pk})
+        self.assertRedirects(response, f"{edit_url}?tab=content")
+        response = self.client.get(response["Location"])
+        self.assertContains(response, 'data-active-tab="content"', html=False)
+
+    def test_save_from_general_tab_has_no_tab_query(self):
+        response = self._post_quiz([self._item()], active_tab="general")
+
+        activity = Activity.objects.get()
+        self.assertRedirects(response, reverse("activities:edit", kwargs={"pk": activity.pk}))
+
+    def test_template_switch_does_not_need_a_title(self):
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "",
+                "template_key": "matching",
+                "items_json": json.dumps([self._item()]),
+                "action": "switch_template",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "novalidate", html=False)
+        self.assertEqual(response.context["template_definition"].metadata.key, "matching")
+
+    def test_stepper_is_russian(self):
+        response = self.client.get(reverse("activities:create"))
+
+        self.assertContains(response, "Черновик")
+        self.assertNotContains(response, "Configured")
+
+    def test_preview_of_unknown_template_is_404(self):
+        activity = Activity.objects.create(owner=self.user, title="Old", template_key="removed", config_json={})
+
+        response = self.client.get(reverse("activities:preview", kwargs={"pk": activity.pk}))
+
+        self.assertEqual(response.status_code, 404)

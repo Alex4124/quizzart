@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from django.core.exceptions import ValidationError
 
 DEFAULT_QUESTION_POINTS = 10
+MAX_QUESTION_POINTS = 1000
 
 QUESTION_BANK_HELP_TEXT = (
     "Одна строка на вопрос: Вопрос | *Правильный ответ | Неверный 1 | Неверный 2 | необязательные баллы"
@@ -27,6 +29,22 @@ def split_pipe_row(raw_line: str, line_number: int) -> list[str]:
 
 def normalize_answer(value: str) -> str:
     return " ".join(value.lower().strip().split())
+
+
+def validate_question_points(points: int, label: str) -> int:
+    if not 0 <= points <= MAX_QUESTION_POINTS:
+        raise ValidationError(f"{label}: баллы должны быть от 0 до {MAX_QUESTION_POINTS}.")
+    return points
+
+
+def validate_unique_options(options: list[dict[str, Any]], label: str) -> None:
+    # Answers are compared by text, so a wrong option equal to the correct one would score as correct.
+    seen: set[str] = set()
+    for option in options:
+        key = normalize_answer(option["text"])
+        if key in seen:
+            raise ValidationError(f"{label}: варианты ответа не должны повторяться («{option['text']}»).")
+        seen.add(key)
 
 
 def is_scoring_enabled(config: dict[str, Any]) -> bool:
@@ -62,8 +80,9 @@ def parse_question_bank_text(
         prompt = parts[0]
         option_parts = parts[1:]
         points = default_points
-        if option_parts and option_parts[-1].lstrip("-").isdigit():
-            points = int(option_parts[-1])
+        # ASCII digits only: str.isdigit() also accepts "²", which int() then rejects.
+        if option_parts and re.fullmatch(r"-?[0-9]+", option_parts[-1]):
+            points = validate_question_points(int(option_parts[-1]), f"Строка {index}")
             option_parts = option_parts[:-1]
 
         if len(option_parts) < 2:
@@ -88,6 +107,7 @@ def parse_question_bank_text(
 
         if correct_count != 1:
             raise ValidationError(f"В строке {index} должен быть ровно один правильный ответ, помеченный *.")
+        validate_unique_options(options, f"Строка {index}")
 
         items.append(
             {
@@ -185,12 +205,14 @@ def parse_question_bank_editor_json(
 
         if correct_count != 1:
             raise ValidationError(f"У вопроса {row_index} должен быть ровно один отмеченный правильный ответ.")
+        validate_unique_options(normalized_options, f"Вопрос {row_index}")
 
         raw_points = raw_item.get("points", default_points)
         try:
             points = int(str(raw_points).strip() or default_points)
         except (TypeError, ValueError) as exc:
             raise ValidationError(f"У вопроса {row_index} баллы должны быть целым числом.") from exc
+        validate_question_points(points, f"Вопрос {row_index}")
 
         item_index = len(items) + 1
         items.append(
