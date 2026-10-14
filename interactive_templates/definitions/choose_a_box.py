@@ -10,10 +10,15 @@ from interactive_templates.base import (
     TemplateEvaluation,
     TemplateMetadata,
 )
+from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    DEFAULT_QUESTION_POINTS,
     build_review_items,
     choice_texts,
     correct_option,
+    get_question_bank_max_score,
+    get_question_score,
+    is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
     serialize_question_bank,
@@ -21,7 +26,7 @@ from interactive_templates.utils import (
 )
 
 
-class ChooseABoxEditorForm(forms.Form):
+class ChooseABoxEditorForm(QuestionBankEditorForm):
     no_repeat = forms.BooleanField(
         required=False,
         initial=True,
@@ -32,8 +37,6 @@ class ChooseABoxEditorForm(forms.Form):
         initial=True,
         label="Показывать правильный ответ сразу после выбора",
     )
-    items_json = forms.CharField(required=False, widget=forms.HiddenInput())
-    items_text = forms.CharField(required=False, widget=forms.HiddenInput())
 
 
 def _sample_items() -> list[dict[str, Any]]:
@@ -46,7 +49,7 @@ def _sample_items() -> list[dict[str, Any]]:
                 {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
                 {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
             ],
-            "points": index * 100,
+            "points": DEFAULT_QUESTION_POINTS,
         }
         for index in range(1, 7)
     ]
@@ -62,32 +65,35 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
     editor_form_class = ChooseABoxEditorForm
     player_template_name = "player/choose_a_box.html"
     preview_template_name = "player/choose_a_box.html"
-    editor_question_default_points = 100
+    editor_question_default_points = DEFAULT_QUESTION_POINTS
 
     def default_config(self) -> dict[str, Any]:
         return {
+            "scoring_enabled": True,
             "no_repeat": True,
             "reveal_correct_answer": True,
             "items": _sample_items(),
         }
 
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
-        items = normalize_question_bank(config, default_points=100)
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         return {
+            "disable_scoring": not is_scoring_enabled(config),
             "no_repeat": config.get("no_repeat", True),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
-            "items_json": serialize_question_bank_editor(items, default_points=100),
-            "items_text": serialize_question_bank(items, default_points=100),
+            "items_json": serialize_question_bank_editor(items, default_points=DEFAULT_QUESTION_POINTS),
+            "items_text": serialize_question_bank(items, default_points=DEFAULT_QUESTION_POINTS),
         }
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
         return {
+            "scoring_enabled": not cleaned_data.get("disable_scoring", False),
             "no_repeat": cleaned_data.get("no_repeat", False),
             "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
             "items": question_bank_items_from_payload(
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
-                default_points=100,
+                default_points=DEFAULT_QUESTION_POINTS,
             ),
         }
 
@@ -98,7 +104,7 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=100)
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         answers_by_key = {}
         opened_keys = set()
         if session:
@@ -120,7 +126,7 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
                     "number": index,
                     "prompt": item["prompt"],
                     "options": choice_texts(item),
-                    "points": item.get("points", 0),
+                    "points": get_question_score(config, item),
                     "state": state,
                     "submitted_answer": answer.submitted_value.get("choice", "") if answer else "",
                     "expected_answer": correct_option(item)["text"],
@@ -132,16 +138,16 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
             "boxes": boxes,
             "no_repeat": config.get("no_repeat", False),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
+            "scoring_enabled": is_scoring_enabled(config),
             "answered_count": len(answers_by_key),
             "total_boxes": len(items),
             "max_score": self.get_max_score(config),
             "show_finish": not preview and (answers_by_key or opened_keys),
-            "review_items": build_review_items(items, answers_by_key),
+            "review_items": build_review_items(items, answers_by_key, config=config),
         }
 
     def get_max_score(self, config: dict[str, Any]) -> int:
-        items = normalize_question_bank(config, default_points=100)
-        return sum(item.get("points", 0) for item in items)
+        return get_question_bank_max_score(config)
 
     def evaluate_submission(
         self,
@@ -149,7 +155,11 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
         session: Any,
         payload: dict[str, Any],
     ) -> TemplateEvaluation:
-        items = {item["id"]: item for item in normalize_question_bank(activity.config_json, default_points=100)}
+        config = activity.config_json
+        items = {
+            item["id"]: item
+            for item in normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
+        }
         existing_answers = {answer.item_key: answer for answer in session.answers.all()}
         opened = list(session.runtime_state.get("opened", []))
         score = sum(answer.score_awarded for answer in existing_answers.values())
@@ -184,7 +194,7 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
 
             item = items[item_key]
             is_correct = selected_choice == correct_option(item)["text"]
-            score_awarded = item["points"] if is_correct else 0
+            score_awarded = get_question_score(config, item) if is_correct else 0
             score += score_awarded
             answered_total = len(existing_answers) + 1
             return TemplateEvaluation(
@@ -234,7 +244,7 @@ class ChooseABoxDefinition(BaseTemplateDefinition):
                     continue
 
                 is_correct = selected_choice == correct_option(item)["text"]
-                score_awarded = item["points"] if is_correct else 0
+                score_awarded = get_question_score(config, item) if is_correct else 0
                 score += score_awarded
                 if item_key not in opened:
                     opened.append(item_key)

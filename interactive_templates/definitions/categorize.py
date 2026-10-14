@@ -7,9 +7,14 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    DEFAULT_QUESTION_POINTS,
     build_review_items,
     correct_option,
+    get_question_bank_max_score,
+    get_question_score,
+    is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
     serialize_question_bank,
@@ -17,15 +22,13 @@ from interactive_templates.utils import (
 )
 
 
-class CategorizeEditorForm(forms.Form):
+class CategorizeEditorForm(QuestionBankEditorForm):
     shuffle = forms.BooleanField(required=False, initial=True, label="Перемешивать порядок карточек")
     reveal_correct_answer = forms.BooleanField(
         required=False,
         initial=True,
         label="Показывать правильный ответ сразу после выбора",
     )
-    items_json = forms.CharField(required=False, widget=forms.HiddenInput())
-    items_text = forms.CharField(required=False, widget=forms.HiddenInput())
 
 
 def _sample_items() -> list[dict[str, Any]]:
@@ -37,7 +40,7 @@ def _sample_items() -> list[dict[str, Any]]:
                 {"id": f"item-{index}-option-1", "text": f"Правильный ответ {index}", "is_correct": True},
                 {"id": f"item-{index}-option-2", "text": f"Неверный ответ {index}", "is_correct": False},
             ],
-            "points": 1,
+            "points": DEFAULT_QUESTION_POINTS,
         }
         for index in range(1, 5)
     ]
@@ -53,32 +56,35 @@ class CategorizeDefinition(BaseTemplateDefinition):
     editor_form_class = CategorizeEditorForm
     player_template_name = "player/categorize.html"
     preview_template_name = "player/categorize.html"
-    editor_question_default_points = 1
+    editor_question_default_points = DEFAULT_QUESTION_POINTS
 
     def default_config(self) -> dict[str, Any]:
         return {
+            "scoring_enabled": True,
             "shuffle": True,
             "reveal_correct_answer": True,
             "items": _sample_items(),
         }
 
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
-        items = normalize_question_bank(config, default_points=1)
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         return {
+            "disable_scoring": not is_scoring_enabled(config),
             "shuffle": config.get("shuffle", True),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
-            "items_json": serialize_question_bank_editor(items, default_points=1),
-            "items_text": serialize_question_bank(items, default_points=1),
+            "items_json": serialize_question_bank_editor(items, default_points=DEFAULT_QUESTION_POINTS),
+            "items_text": serialize_question_bank(items, default_points=DEFAULT_QUESTION_POINTS),
         }
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
         return {
+            "scoring_enabled": not cleaned_data.get("disable_scoring", False),
             "shuffle": cleaned_data.get("shuffle", False),
             "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
             "items": question_bank_items_from_payload(
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
-                default_points=1,
+                default_points=DEFAULT_QUESTION_POINTS,
             ),
         }
 
@@ -88,7 +94,8 @@ class CategorizeDefinition(BaseTemplateDefinition):
         session: Any | None = None,
         preview: bool = False,
     ) -> dict[str, Any]:
-        items = normalize_question_bank(activity.config_json, default_points=1)
+        config = activity.config_json
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         answer_map = {}
         if session:
             answer_map = {answer.item_key: answer for answer in session.answers.all()}
@@ -115,7 +122,7 @@ class CategorizeDefinition(BaseTemplateDefinition):
                     "selected": selected_value,
                     "is_answered": bool(answer),
                     "correct_option": correct_option(item)["text"],
-                    "points": item.get("points", 1),
+                    "points": get_question_score(config, item),
                 }
             )
 
@@ -125,13 +132,13 @@ class CategorizeDefinition(BaseTemplateDefinition):
         return {
             "cards": cards,
             "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
-            "max_score": self.get_max_score(activity.config_json),
-            "review_items": build_review_items(items, answer_map),
+            "scoring_enabled": is_scoring_enabled(config),
+            "max_score": self.get_max_score(config),
+            "review_items": build_review_items(items, answer_map, config=config),
         }
 
     def get_max_score(self, config: dict[str, Any]) -> int:
-        items = normalize_question_bank(config, default_points=1)
-        return sum(item.get("points", 1) for item in items)
+        return get_question_bank_max_score(config)
 
     def evaluate_submission(
         self,
@@ -142,7 +149,8 @@ class CategorizeDefinition(BaseTemplateDefinition):
         if payload.get("action") != "submit_categorize":
             raise ValidationError("Неизвестное действие для шаблона 'Карточки'.")
 
-        items = normalize_question_bank(activity.config_json, default_points=1)
+        config = activity.config_json
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         answers = []
         score = 0
         for item in items:
@@ -150,8 +158,9 @@ class CategorizeDefinition(BaseTemplateDefinition):
             legacy_field = f"category_{item['id']}"
             choice = str(payload.get(question_field, payload.get(legacy_field, ""))).strip()
             is_correct = choice == correct_option(item)["text"]
+            awarded_points = get_question_score(config, item) if is_correct else 0
             if is_correct:
-                score += item.get("points", 1)
+                score += awarded_points
             answers.append(
                 {
                     "item_key": item["id"],
@@ -161,7 +170,7 @@ class CategorizeDefinition(BaseTemplateDefinition):
                         "correct_option": correct_option(item)["text"],
                     },
                     "is_correct": is_correct,
-                    "score_awarded": item.get("points", 1) if is_correct else 0,
+                    "score_awarded": awarded_points,
                 }
             )
 

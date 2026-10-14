@@ -26,6 +26,18 @@ class TemplateRegistryTests(TestCase):
             },
         )
 
+    def test_all_templates_default_to_scoring_with_ten_points_per_question(self):
+        for definition in registry.all():
+            with self.subTest(template_key=definition.metadata.key):
+                config = definition.default_config()
+                editor_initial = definition.build_editor_initial(config)
+
+                self.assertTrue(config["scoring_enabled"])
+                self.assertFalse(editor_initial["disable_scoring"])
+                self.assertEqual(definition.editor_question_default_points, 10)
+                self.assertTrue(config["items"])
+                self.assertTrue(all(item["points"] == 10 for item in config["items"]))
+
 
 class ActivityEditorTests(TestCase):
     def setUp(self):
@@ -72,6 +84,8 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, "Контент / Вопросы")
         self.assertContains(response, "Параметры шаблона")
         self.assertContains(response, "Публикация")
+        self.assertContains(response, "Не считать баллы")
+        self.assertContains(response, 'data-default-points="10"', html=False)
         self.assertContains(response, "Сначала сохраните интерактив")
         self.assertContains(response, "data-template-card", html=False)
 
@@ -79,15 +93,15 @@ class ActivityEditorTests(TestCase):
         payloads = {
             "choose_a_box": {
                 "no_repeat": "on",
-                "items_text": "Capital of France? | *Paris | London | Berlin | 100",
+                "items_text": "Capital of France? | *Paris | London | Berlin",
             },
             "quiz": {
                 "show_result_at_end": "on",
-                "items_text": "2+2? | *4 | 3 | 5",
+                "items_text": "2+2? | *4 | 3 | Five",
             },
             "wheel_of_fortune": {
                 "no_repeat": "on",
-                "items_text": "Largest ocean? | *Pacific | Atlantic | Indian | 100",
+                "items_text": "Largest ocean? | *Pacific | Atlantic | Indian",
             },
             "matching": {
                 "shuffle": "on",
@@ -106,7 +120,7 @@ class ActivityEditorTests(TestCase):
                 "reveal_correct_answer": "on",
                 "items_text": "\n".join(
                     [
-                        "2+2? | *4 | 3 | 5",
+                        "2+2? | *4 | 3 | Five",
                         "Largest ocean? | *Pacific | Atlantic | Indian",
                     ]
                 ),
@@ -129,6 +143,8 @@ class ActivityEditorTests(TestCase):
                 activity = Activity.objects.get(title=f"Activity {template_key}")
                 self.assertEqual(activity.status, Activity.Status.PUBLISHED)
                 self.assertIsNotNone(activity.active_share_link)
+                self.assertTrue(activity.config_json["scoring_enabled"])
+                self.assertEqual(activity.config_json["items"][0]["points"], 10)
 
     def test_saved_editor_renders_preview_publish_block_and_quick_actions(self):
         activity = Activity.objects.create(
@@ -182,6 +198,156 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(activity.config_json["items"][0]["points"], 5)
         self.assertEqual(activity.config_json["items"][0]["options"][0]["text"], "Paris")
         self.assertTrue(activity.config_json["items"][0]["options"][0]["is_correct"])
+
+    def test_teacher_can_disable_scoring_without_losing_custom_points(self):
+        items_json = json.dumps(
+            [
+                {
+                    "prompt": "Capital of France?",
+                    "points": 37,
+                    "options": [
+                        {"text": "Paris", "is_correct": True},
+                        {"text": "Berlin", "is_correct": False},
+                    ],
+                }
+            ],
+            ensure_ascii=False,
+        )
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "Scoreless quiz",
+                "description": "Count correct answers",
+                "template_key": "quiz",
+                "disable_scoring": "on",
+                "items_json": items_json,
+                "items_text": "",
+                "action": "save_draft",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        activity = Activity.objects.get(title="Scoreless quiz")
+        self.assertFalse(activity.config_json["scoring_enabled"])
+        self.assertEqual(activity.config_json["items"][0]["points"], 37)
+
+        response = self.client.post(
+            reverse("activities:edit", args=[activity.pk]),
+            {
+                "title": activity.title,
+                "description": activity.description,
+                "template_key": "quiz",
+                "items_json": items_json,
+                "items_text": "",
+                "action": "save_changes",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        activity.refresh_from_db()
+        self.assertTrue(activity.config_json["scoring_enabled"])
+        self.assertEqual(activity.config_json["items"][0]["points"], 37)
+
+    def test_teacher_can_publish_matching_with_duplicate_correct_answers(self):
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "True or false",
+                "description": "Repeated matching answers",
+                "template_key": "matching",
+                "shuffle": "on",
+                "items_json": json.dumps(
+                    [
+                        {
+                            "prompt": "The Earth is round",
+                            "points": 10,
+                            "options": [
+                                {"text": "Верно", "is_correct": True},
+                                {"text": "Неверно", "is_correct": False},
+                            ],
+                        },
+                        {
+                            "prompt": "Water freezes at zero degrees",
+                            "points": 10,
+                            "options": [
+                                {"text": "верно", "is_correct": True},
+                                {"text": "неверно", "is_correct": False},
+                            ],
+                        },
+                    ],
+                    ensure_ascii=False,
+                ),
+                "items_text": "",
+                "action": "publish",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        activity = Activity.objects.get(title="True or false")
+        self.assertEqual(activity.status, Activity.Status.PUBLISHED)
+        self.assertFalse(activity.config_json["correct_answers_only"])
+        self.assertEqual(
+            [item["options"][0]["text"] for item in activity.config_json["items"]],
+            ["Верно", "верно"],
+        )
+
+    def test_matching_editor_saves_correct_answers_only_setting(self):
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "Correct choices only",
+                "description": "Matching bank setting",
+                "template_key": "matching",
+                "correct_answers_only": "on",
+                "items_json": json.dumps(
+                    [
+                        {
+                            "prompt": "2 + 2",
+                            "points": 10,
+                            "options": [
+                                {"text": "4", "is_correct": True},
+                                {"text": "5", "is_correct": False},
+                            ],
+                        }
+                    ]
+                ),
+                "items_text": "",
+                "action": "save_draft",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        activity = Activity.objects.get(title="Correct choices only")
+        self.assertTrue(activity.config_json["correct_answers_only"])
+
+    def test_switching_template_preserves_disabled_scoring_setting(self):
+        response = self.client.post(
+            reverse("activities:create"),
+            {
+                "title": "Switch score mode",
+                "description": "Keep score mode",
+                "template_key": "matching",
+                "disable_scoring": "on",
+                "items_json": json.dumps(
+                    [
+                        {
+                            "prompt": "Python creator",
+                            "points": 42,
+                            "options": [
+                                {"text": "Guido", "is_correct": True},
+                                {"text": "Dennis", "is_correct": False},
+                            ],
+                        }
+                    ]
+                ),
+                "items_text": "",
+                "action": "switch_template",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["config_form"]["disable_scoring"].value())
+        self.assertContains(response, 'data-default-points="10"', html=False)
 
     def test_switching_template_preserves_posted_question_bank(self):
         response = self.client.post(
@@ -532,7 +698,7 @@ class ActivityEditorTests(TestCase):
 
         self.assertCountEqual(
             [choice["id"] for choice in matching_runtime["answer_bank"]],
-            ["a", "b"],
+            ["matching-choice-1", "matching-choice-2"],
         )
         self.assertCountEqual(
             [choice["text"] for choice in matching_runtime["answer_bank"]],
@@ -540,7 +706,88 @@ class ActivityEditorTests(TestCase):
         )
         self.assertCountEqual(matching_runtime["choices"], ["Guido", "Dennis"])
         self.assertTrue(matching_runtime["reveal_correct_answer"])
-        self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "a")
+        self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "matching-choice-1")
+
+    def test_matching_runtime_deduplicates_answers_case_insensitively(self):
+        matching_activity = Activity(
+            title="True or false preview",
+            template_key="matching",
+            config_json={
+                "shuffle": False,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "First statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "a", "text": "Верно", "is_correct": True},
+                            {"id": "b", "text": "Неверно", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Second statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "c", "text": "  верно  ", "is_correct": True},
+                            {"id": "d", "text": "НЕВЕРНО", "is_correct": False},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        runtime = registry.get("matching").build_runtime_data(matching_activity, preview=True)
+
+        self.assertEqual(
+            runtime["answer_bank"],
+            [
+                {"id": "matching-choice-1", "text": "Верно"},
+                {"id": "matching-choice-2", "text": "Неверно"},
+            ],
+        )
+        self.assertEqual(
+            [row["correct_choice_id"] for row in runtime["rows"]],
+            ["matching-choice-1", "matching-choice-1"],
+        )
+
+    def test_matching_runtime_can_keep_only_unique_correct_answers(self):
+        matching_activity = Activity(
+            title="Correct answers only preview",
+            template_key="matching",
+            config_json={
+                "shuffle": False,
+                "correct_answers_only": True,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "First statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "a", "text": "Верно", "is_correct": True},
+                            {"id": "b", "text": "Лишний вариант", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Second statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "c", "text": "верно", "is_correct": False},
+                            {"id": "d", "text": "Неверно", "is_correct": True},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        runtime = registry.get("matching").build_runtime_data(matching_activity, preview=True)
+
+        self.assertEqual(
+            [choice["text"] for choice in runtime["answer_bank"]],
+            ["Верно", "Неверно"],
+        )
+        self.assertNotIn("Лишний вариант", runtime["choices"])
 
     def test_cards_runtime_is_deterministic_and_uses_card_collection(self):
         activity = Activity(

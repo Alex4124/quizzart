@@ -5,6 +5,7 @@ from typing import Any
 from django.http import HttpRequest
 
 from accounts.services import ensure_user_profile, profile_initials, profile_short_name
+from interactive_templates.utils import is_scoring_enabled
 
 
 PLAYER_UNIT_LABELS = {
@@ -57,7 +58,7 @@ def _player_mode_labels(mode: str) -> tuple[str, str, str]:
         return ("Старт интерактива", "Готово к запуску", "Введите имя и начните прохождение в один клик.")
     if mode == "results":
         return ("Результаты", "Прохождение завершено", "Разберите ответы и при необходимости запустите интерактив заново.")
-    return ("Интерактив Quizzart", "Текущий прогресс", "Отвечайте по порядку и следите за очками в реальном времени.")
+    return ("Интерактив Quizzart", "Текущий прогресс", "Отвечайте по порядку и следите за результатом в реальном времени.")
 
 
 def _participant_context(
@@ -121,11 +122,20 @@ def build_player_shell_context(
     participant = _participant_context(request, session, participant_name)
     item_label = PLAYER_UNIT_LABELS.get(template_key, "элементов")
     filled_segments = max(0, min(5, round(progress_percent / 20)))
+    scoring_enabled = is_scoring_enabled(getattr(activity, "config_json", {}))
 
     if mode == "launch":
-        footer_text = "Сначала запустите интерактив, а затем ответы и баллы появятся здесь."
+        footer_text = (
+            "Сначала запустите интерактив, а затем ответы и баллы появятся здесь."
+            if scoring_enabled
+            else "Сначала запустите интерактив, а затем здесь появится количество правильных ответов."
+        )
     elif mode == "results":
-        footer_text = "Баллы, процент и ответы сохранены для этого прохождения."
+        footer_text = (
+            "Баллы, процент и ответы сохранены для этого прохождения."
+            if scoring_enabled
+            else "Количество правильных ответов, процент и разбор сохранены для этого прохождения."
+        )
     else:
         footer_text = "Следите за ходом интерактива и возвращайтесь к экрану после каждого ответа."
 
@@ -144,15 +154,25 @@ def build_player_shell_context(
         "item_label": item_label,
         "score": current_score,
         "max_score": max_score,
+        "scoring_enabled": scoring_enabled,
         "summary_cards": [
-            {"key": "score", "label": "Очки", "value": str(current_score), "tone": "accent"},
+            {
+                "key": "score",
+                "label": "Очки" if scoring_enabled else "Верные ответы",
+                "value": str(current_score),
+                "tone": "accent",
+            },
             {"key": "progress", "label": "Прогресс", "value": f"{progress_percent}%", "tone": "peach"},
             {"key": "total", "label": item_label.capitalize(), "value": str(total_count), "tone": "violet"},
         ],
         "fact_rows": [
             {"key": "answered", "label": "Отвечено", "value": f"{answered_count} из {total_count}" if total_count else "0"},
             {"key": "remaining", "label": "Осталось", "value": str(remaining_count)},
-            {"key": "max", "label": "Максимум", "value": str(max_score) if max_score else "—"},
+            {
+                "key": "max",
+                "label": "Максимум" if scoring_enabled else "Всего заданий",
+                "value": str(max_score) if max_score else "—",
+            },
         ],
         "footer_title": "Ваш прогресс" if mode != "results" else "Итог прохождения",
         "footer_text": footer_text,

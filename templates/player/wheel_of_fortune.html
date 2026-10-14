@@ -68,7 +68,7 @@
                 {% if not runtime.active_item or runtime.active_item.id != sector.id %}hidden{% endif %}
             >
                 <h2>{{ sector.prompt }}</h2>
-                <p class="muted">{{ sector.points }} балл.</p>
+                {% if player_shell.scoring_enabled %}<p class="muted">{{ sector.points }} балл.</p>{% endif %}
                 {% if preview %}
                     <form
                         class="stack-form"

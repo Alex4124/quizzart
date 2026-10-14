@@ -629,6 +629,10 @@
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.question-editor-points[hidden] {
+    display: none;
+}
+
 .editor-setting-card {
     display: grid;
     gap: 0.7rem;
