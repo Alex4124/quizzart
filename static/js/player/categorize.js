@@ -106,6 +106,11 @@
                     if (finishIfComplete(payload, root)) {
                         return;
                     }
+                    if (cards.every((candidate) => stateOf(candidate) === "answered")) {
+                        // The teacher added cards mid-run: the server has more than this page.
+                        window.location.reload();
+                        return;
+                    }
                     focusNextCard(card);
                 });
             });

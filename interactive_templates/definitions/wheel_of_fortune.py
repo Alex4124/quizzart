@@ -156,6 +156,9 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
         if posted_key and posted_key != active_key and session.answers.filter(item_key=posted_key).exists():
             # The same answer posted again (a double click, a retry after a lost reply): the saved answer stands.
             return posted_key
+        if not active_key and posted_key and str(payload.get("action", "")) == "answer_wheel":
+            # Pages loaded before the server picked sectors chose the sector themselves; keep their answer.
+            return posted_key
         if not active_key:
             raise ValidationError("Сначала раскрутите колесо.")
         if posted_key and posted_key != active_key:

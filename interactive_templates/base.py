@@ -152,7 +152,7 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
 
     def get_item(self, config: dict[str, Any], item_key: str) -> dict[str, Any]:
         for item in self.get_items(config):
-            if item["id"] == item_key:
+            if str(item["id"]) == item_key:
                 return item
         raise ValidationError("Задание не найдено. Обновите страницу.")
 
@@ -167,7 +167,8 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
 
     def resolve_choice(self, config: dict[str, Any], item: dict[str, Any], choice: str) -> str | None:
         """The option the student picked, as the page shows it, or None if it is not an option of this item."""
-        return choice if choice in self.option_texts(config, item) else None
+        # Posted answers are stripped; imported configs may keep spaces around an option.
+        return next((text for text in self.option_texts(config, item) if text.strip() == choice), None)
 
     def check_answer(self, config: dict[str, Any], item: dict[str, Any], raw_answer: Any) -> AnswerCheck:
         choice = str(raw_answer or "").strip()
@@ -179,7 +180,7 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
         correct_text = correct_option(item)["text"]
         is_correct = self.answers_match(choice, correct_text)
         return AnswerCheck(
-            item_key=item["id"],
+            item_key=str(item["id"]),
             prompt=item["prompt"],
             choice=choice,
             is_correct=is_correct,
@@ -214,7 +215,7 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
 
     def score_answers(self, config: dict[str, Any], answers: Iterable[Any]) -> tuple[int, int]:
         """Score from saved answers against the current questions and points."""
-        items = {item["id"]: item for item in self.get_items(config)}
+        items = {str(item["id"]): item for item in self.get_items(config)}
         score = sum(
             get_question_score(config, items[answer.item_key])
             for answer in answers
@@ -223,7 +224,7 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
         return score, sum(get_question_score(config, item) for item in items.values())
 
     def is_complete(self, config: dict[str, Any], answered_keys: set[str]) -> bool:
-        item_ids = {item["id"] for item in self.get_items(config)}
+        item_ids = {str(item["id"]) for item in self.get_items(config)}
         return bool(item_ids) and item_ids <= answered_keys
 
     def build_item_states(
@@ -244,10 +245,10 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
             if shuffle_options:
                 # Teachers usually type the correct answer first, so authoring order would give it away.
                 random.Random(f"{seed_base}-{item['id']}").shuffle(options)
-            answer = answers_by_key.get(item["id"])
+            answer = answers_by_key.get(str(item["id"]))
             states.append(
                 {
-                    "id": item["id"],
+                    "id": str(item["id"]),
                     "number": index,
                     "prompt": item["prompt"],
                     "options": options,
@@ -281,8 +282,8 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
             check = self.check_answer(config, item, payload.get("answer"))
             return TemplateEvaluation(
                 answers=[check.to_answer_row()],
-                item_key=item["id"],
-                runtime_state=self.after_answer_state(session, item["id"]),
+                item_key=check.item_key,
+                runtime_state=self.after_answer_state(session, check.item_key),
             )
 
         if action in self.legacy_bulk_actions:
@@ -313,7 +314,7 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
                 rows.append(self.check_answer(config, item, raw).to_answer_row())
             except ValidationError:
                 continue
-            answered.add(item["id"])
+            answered.add(str(item["id"]))
         if self.legacy_bulk_requires_all and not self.is_complete(config, answered):
             raise ValidationError("Ответьте на все задания, прежде чем завершать.")
         return TemplateEvaluation(answers=rows, is_complete=True)

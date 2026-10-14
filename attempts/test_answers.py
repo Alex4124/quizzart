@@ -231,3 +231,57 @@ class PreviewActionTests(AnswerProtocolTestCase):
     def test_get_is_not_allowed(self):
         self.client.force_login(self.teacher)
         self.assertEqual(self.client.get(self.url).status_code, 405)
+
+
+class MidRunChangesTests(AnswerProtocolTestCase):
+    def test_run_completes_when_the_remaining_questions_were_deleted(self):
+        link = self.publish(question_bank(3))
+        self.start(link)
+        self.answer(link, "q-1", "ZZCORRECT 1")
+        self.answer(link, "q-2", "ZZWRONG 2")
+        activity = link.activity
+        activity.config_json["items"] = activity.config_json["items"][:2]
+        activity.save()
+
+        response = self.client.get(f"/p/{link.slug}/")
+
+        self.assertRedirects(response, f"/p/{link.slug}/results/")
+        session = ActivitySession.objects.get()
+        self.assertEqual((session.status, session.score, session.max_score), ("completed", 10, 20))
+
+    def test_second_tab_after_completion_goes_to_results(self):
+        link = self.publish(question_bank(1))
+        self.start(link)
+        self.answer(link, "q-1", "ZZCORRECT 1")
+
+        response = self.answer(link, "q-1", "ZZWRONG 1")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["redirect_url"], f"/p/{link.slug}/results/")
+        self.assertRedirects(self.answer(link, "q-1", "ZZWRONG 1", ajax=False), f"/p/{link.slug}/results/")
+
+    def test_old_wheel_page_answer_without_a_server_spin_is_kept(self):
+        link = self.publish(question_bank(2), template_key="wheel_of_fortune")
+        self.start(link)
+
+        response = self.client.post(
+            f"/p/{link.slug}/", {"action": "answer_wheel", "item_key": "q-2", "answer": "ZZCORRECT 2"}, **AJAX
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["feedback"]["is_correct"])
+        # The new protocol still requires a spin.
+        response = self.answer(link, "q-1", "ZZCORRECT 1")
+        self.assertEqual(response.status_code, 400)
+
+    def test_imported_config_with_integer_ids_and_padded_options(self):
+        config = question_bank(1)
+        config["items"][0]["id"] = 7
+        config["items"][0]["options"][0]["text"] = " ZZCORRECT 1 "
+        link = self.publish(config)
+        self.start(link)
+
+        payload = self.answer(link, "7", "ZZCORRECT 1").json()
+
+        self.assertTrue(payload["feedback"]["is_correct"])
+        self.assertTrue(payload["is_complete"])

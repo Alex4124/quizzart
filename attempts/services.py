@@ -44,7 +44,7 @@ def apply_evaluation(session: ActivitySession, activity: Any, definition: Any, e
     if evaluation.runtime_state is not None:
         session.runtime_state = evaluation.runtime_state
 
-    item_ids = {item["id"] for item in definition.get_items(config)}
+    item_ids = {str(item["id"]) for item in definition.get_items(config)}
     # A fresh query: answers to questions the teacher deleted mid-run no longer count.
     current_answers = [answer for answer in session.answers.all() if answer.item_key in item_ids]
     score, max_score = definition.score_answers(config, current_answers)

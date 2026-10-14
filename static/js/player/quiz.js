@@ -63,6 +63,9 @@
                     const next = questions.find((candidate) => candidate.dataset.state !== "answered");
                     if (next) {
                         showQuestion(next);
+                    } else {
+                        // The teacher added questions mid-run: the server has more than this page.
+                        window.location.reload();
                     }
                 });
             });

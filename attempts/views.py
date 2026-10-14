@@ -13,6 +13,7 @@ from attempts.forms import LaunchForm
 from attempts.models import ActivitySession
 from attempts.presentation import build_player_shell_context
 from attempts.services import apply_evaluation
+from interactive_templates.base import TemplateEvaluation
 from interactive_templates.registry import registry
 
 
@@ -111,6 +112,21 @@ def _finish_run(request, slug: str, session: ActivitySession) -> None:
     request.session.pop(_active_session_key(slug), None)
 
 
+def _complete_if_nothing_left(activity, definition, session: ActivitySession) -> bool:
+    """Finish a run whose remaining questions the teacher deleted mid-run: nothing is left to answer."""
+    is_complete = getattr(definition, "is_complete", None)
+    if not callable(is_complete):
+        return False
+    answered = {answer.item_key for answer in session.answers.all()}
+    if not is_complete(activity.config_json, answered):
+        return False
+    with transaction.atomic():
+        locked = ActivitySession.objects.select_for_update().get(pk=session.pk)
+        if locked.status != ActivitySession.Status.COMPLETED:
+            apply_evaluation(locked, activity, definition, TemplateEvaluation())
+    return True
+
+
 def _action_payload(action: str, activity, definition, session, evaluation, outcome, results_url: str) -> dict:
     """The JSON a player gets back: feedback on its answer and the recomputed run, never the answer key."""
     config = activity.config_json
@@ -127,7 +143,7 @@ def _action_payload(action: str, activity, definition, session, evaluation, outc
     }
     if evaluation.item_key and evaluation.item_key in outcome.stored:
         answer, created = outcome.stored[evaluation.item_key]
-        item = next((item for item in definition.get_items(config) if item["id"] == evaluation.item_key), None)
+        item = next((item for item in definition.get_items(config) if str(item["id"]) == evaluation.item_key), None)
         payload["already_answered"] = not created
         payload["feedback"] = definition.build_answer_feedback(config, item, answer)
     if getattr(definition, "reveals_correctness", lambda _config: True)(config):
@@ -152,6 +168,16 @@ def _handle_session_action(request, share_link: ShareLink, definition):
     play_url = reverse("attempts:play", kwargs={"slug": slug})
     results_url = reverse("attempts:results", kwargs={"slug": slug})
     token = request.session.get(_active_session_key(slug))
+    if not token:
+        # Another tab already finished this run: send the student to the results, not to a new start.
+        finished = _get_result_session(request, share_link)
+        if finished and finished.status == ActivitySession.Status.COMPLETED:
+            if is_ajax:
+                return JsonResponse(
+                    {"ok": False, "error": "Прохождение уже завершено.", "redirect_url": results_url},
+                    status=409,
+                )
+            return redirect(results_url)
 
     try:
         with transaction.atomic():
@@ -243,7 +269,10 @@ def play(request, slug: str):
         return _handle_session_action(request, share_link, definition)
 
     current_session = _get_current_session(request, share_link)
-    if current_session and current_session.status == ActivitySession.Status.COMPLETED:
+    if current_session and (
+        current_session.status == ActivitySession.Status.COMPLETED
+        or _complete_if_nothing_left(activity, definition, current_session)
+    ):
         _finish_run(request, slug, current_session)
         return redirect("attempts:results", slug=slug)
 
