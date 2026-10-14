@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -80,4 +81,8 @@
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Одна карточка вопроса за раз</h3>
     <p>После выбора ответа в ячейку вопроса вставляется верная карточка, а затем сцена переходит к следующей паре.</p>
+{% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/matching.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

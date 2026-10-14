@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -76,4 +77,8 @@
     <p class="player-panel__eyebrow">Формат</p>
     <h3>Классическая викторина</h3>
     <p>Вопросы идут последовательно, а карточка мягко переворачивается перед переходом к следующему вопросу.</p>
+{% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/quiz.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

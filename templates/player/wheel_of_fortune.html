@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -123,4 +124,8 @@
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Колесо фортуны</h3>
     <p>Сначала крутите колесо, затем отвечайте на выпавший вопрос. Повторы и раскрытие ответов зависят от настроек шаблона.</p>
+{% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/wheel_of_fortune.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

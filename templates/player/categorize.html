@@ -99,3 +99,7 @@
     <h3>Интерактивные карточки</h3>
     <p>После ответа карточка остаётся на поле, остаётся открытой и становится более тусклой, чтобы прогресс был виден сразу.</p>
 {% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/categorize.js' %}?v={{ asset_version }}"></script>
+{% endblock %}

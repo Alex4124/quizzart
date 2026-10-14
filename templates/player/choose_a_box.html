@@ -195,3 +195,7 @@
     <h3>Выбери коробку</h3>
     <p>Каждая коробка скрывает отдельный вопрос. Открытые и завершённые ячейки остаются видимыми до конца прохождения.</p>
 {% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/choose_a_box.js' %}?v={{ asset_version }}"></script>
+{% endblock %}

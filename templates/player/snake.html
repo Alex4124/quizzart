@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 {% load l10n %}
 
 {% block title %}{{ activity.title }}{% endblock %}
@@ -172,4 +173,8 @@
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Змейка</h3>
     <p>Все ответы собираются прямо по ходу движения, а финальный submit отправляется автоматически после последнего яблока.</p>
+{% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/snake.js' %}?v={{ asset_version }}"></script>
 {% endblock %}
