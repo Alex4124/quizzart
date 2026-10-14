@@ -16,7 +16,14 @@
     {% endif %}
 
     <section class="card snake-shell">
-        <div class="player-panel__identity">
+        <div class="player-panel__identity snake-shell__heading">
+            <span class="snake-shell__icon" aria-hidden="true">
+                <svg viewBox="0 0 48 48" role="presentation">
+                    <path d="M9 31c0 5 4 8 9 8h11c6 0 10-4 10-9s-4-9-9-9H19c-4 0-7-3-7-7s3-7 7-7h10" />
+                    <circle cx="34" cy="7" r="5" />
+                    <circle class="snake-shell__icon-eye" cx="36" cy="6" r="1" />
+                </svg>
+            </span>
             <div>
                 <p class="player-panel__eyebrow">Мини-игра</p>
                 <h2>Ведите змейку к яблокам</h2>
@@ -24,7 +31,13 @@
         </div>
 
         <div class="snake-controls-intro">
-            <p class="snake-controls-hint">Используйте клавиши ← ↑ → ↓, чтобы менять направление змейки.</p>
+            <p class="snake-controls-hint">
+                <span>Используйте клавиши</span>
+                <span class="snake-key-group" aria-label="клавишами со стрелками">
+                    <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd>
+                </span>
+                <span>для поворота и собирайте яблоки с вопросами.</span>
+            </p>
             <p class="snake-controls-hint snake-controls-hint-mobile">На телефоне можно управлять экранными стрелками под полем.</p>
         </div>
 
@@ -32,6 +45,34 @@
             <div class="snake-playfield" data-snake-playfield>
                 <div class="snake-arena-glow" aria-hidden="true"></div>
                 <div class="snake-grid" aria-hidden="true"></div>
+                <div class="snake-decor" aria-hidden="true">
+                    <span class="snake-decor__blob snake-decor__blob--apricot"></span>
+                    <span class="snake-decor__blob snake-decor__blob--violet"></span>
+                    <span class="snake-decor__ring snake-decor__ring--large"></span>
+                    <span class="snake-decor__ring snake-decor__ring--small"></span>
+                    <span class="snake-decor__pill"></span>
+                    <span class="snake-decor__spark snake-decor__spark--one"></span>
+                    <span class="snake-decor__spark snake-decor__spark--two"></span>
+                    <span class="snake-decor__spark snake-decor__spark--three"></span>
+                    <span class="snake-decor__dot snake-decor__dot--one"></span>
+                    <span class="snake-decor__dot snake-decor__dot--two"></span>
+                    <span class="snake-decor__dash snake-decor__dash--one"></span>
+                    <span class="snake-decor__dash snake-decor__dash--two"></span>
+                </div>
+                <div class="snake-hud" aria-live="polite">
+                    <span class="snake-hud__item">
+                        <span class="snake-hud__dot snake-hud__dot--apple" aria-hidden="true"></span>
+                        Собрано <strong data-snake-progress>{{ player_shell.answered_count }}</strong>/{{ runtime.apples|length }}
+                    </span>
+                    <span class="snake-hud__item">
+                        Осталось <strong data-snake-remaining>{{ player_shell.remaining_count }}</strong>
+                    </span>
+                    {% if player_shell.scoring_enabled %}
+                        <span class="snake-hud__item snake-hud__item--score">
+                            Очки <strong data-snake-score>{{ session.score|default:0 }}</strong>
+                        </span>
+                    {% endif %}
+                </div>
                 <div class="snake-segments" data-snake-segments></div>
                 <div class="snake-head" data-snake-head>
                     <span class="snake-eye snake-eye-left" aria-hidden="true"></span>
@@ -66,7 +107,7 @@
                         >
                             <p class="player-panel__eyebrow">Яблоко {{ apple.number }} из {{ runtime.apples|length }}</p>
                             <h2>{{ apple.prompt }}</h2>
-                            <p class="muted">{{ apple.points }} балл.</p>
+                            {% if player_shell.scoring_enabled %}<p class="muted">{{ apple.points }} балл.</p>{% endif %}
                             <div class="option-list">
                                 {% for option in apple.options %}
                                     <label class="option-row">

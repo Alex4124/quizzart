@@ -5,6 +5,8 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 
+DEFAULT_QUESTION_POINTS = 10
+
 QUESTION_BANK_HELP_TEXT = (
     "Одна строка на вопрос: Вопрос | *Правильный ответ | Неверный 1 | Неверный 2 | необязательные баллы"
 )
@@ -27,7 +29,24 @@ def normalize_answer(value: str) -> str:
     return " ".join(value.lower().strip().split())
 
 
-def parse_question_bank_text(raw_text: str, default_points: int = 1) -> list[dict[str, Any]]:
+def is_scoring_enabled(config: dict[str, Any]) -> bool:
+    return bool(config.get("scoring_enabled", True))
+
+
+def get_question_score(
+    config: dict[str, Any],
+    item: dict[str, Any],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> int:
+    if not is_scoring_enabled(config):
+        return 1
+    return int(item.get("points", default_points))
+
+
+def parse_question_bank_text(
+    raw_text: str,
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     rows = non_empty_lines(raw_text)
     if not rows:
@@ -82,7 +101,10 @@ def parse_question_bank_text(raw_text: str, default_points: int = 1) -> list[dic
     return items
 
 
-def serialize_question_bank_editor(items: list[dict[str, Any]], default_points: int = 1) -> str:
+def serialize_question_bank_editor(
+    items: list[dict[str, Any]],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> str:
     editor_items = []
     for item in items:
         editor_items.append(
@@ -101,7 +123,10 @@ def serialize_question_bank_editor(items: list[dict[str, Any]], default_points: 
     return json.dumps(editor_items, ensure_ascii=False)
 
 
-def parse_question_bank_editor_json(raw_value: str | list[dict[str, Any]], default_points: int = 1) -> list[dict[str, Any]]:
+def parse_question_bank_editor_json(
+    raw_value: str | list[dict[str, Any]],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> list[dict[str, Any]]:
     payload = raw_value
     if isinstance(raw_value, str):
         if not raw_value.strip():
@@ -186,14 +211,17 @@ def parse_question_bank_editor_json(raw_value: str | list[dict[str, Any]], defau
 def question_bank_items_from_payload(
     items_json: str | list[dict[str, Any]] | None,
     items_text: str,
-    default_points: int = 1,
+    default_points: int = DEFAULT_QUESTION_POINTS,
 ) -> list[dict[str, Any]]:
     if items_json:
         return parse_question_bank_editor_json(items_json, default_points=default_points)
     return parse_question_bank_text(items_text, default_points=default_points)
 
 
-def serialize_question_bank(items: list[dict[str, Any]], default_points: int = 1) -> str:
+def serialize_question_bank(
+    items: list[dict[str, Any]],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> str:
     rows = []
     for item in items:
         options = []
@@ -220,6 +248,8 @@ def choice_texts(item: dict[str, Any]) -> list[str]:
 def build_review_items(
     items: list[dict[str, Any]],
     answer_map: dict[str, Any] | None = None,
+    *,
+    config: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     review_items = []
     answer_map = answer_map or {}
@@ -232,7 +262,7 @@ def build_review_items(
                 "submitted": submitted_value.get("choice", submitted_value.get("answer", "")),
                 "correct": correct_option(item)["text"],
                 "is_correct": answer.is_correct if answer else None,
-                "points": item.get("points", 0),
+                "points": get_question_score(config or {}, item),
             }
         )
     return review_items
@@ -256,7 +286,10 @@ def _build_options(correct_text: str, distractors: list[str]) -> list[dict[str, 
     ]
 
 
-def normalize_question_bank(config: dict[str, Any], default_points: int = 1) -> list[dict[str, Any]]:
+def normalize_question_bank(
+    config: dict[str, Any],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> list[dict[str, Any]]:
     if config.get("items") and config["items"] and config["items"][0].get("options"):
         return config["items"]
 
@@ -349,3 +382,11 @@ def normalize_question_bank(config: dict[str, Any], default_points: int = 1) -> 
         return items
 
     return []
+
+
+def get_question_bank_max_score(
+    config: dict[str, Any],
+    default_points: int = DEFAULT_QUESTION_POINTS,
+) -> int:
+    items = normalize_question_bank(config, default_points=default_points)
+    return sum(get_question_score(config, item, default_points) for item in items)

@@ -160,7 +160,7 @@ def _build_activity_card(activity: Activity, request) -> dict:
     active_share_links = getattr(activity, "dashboard_active_share_links", [])
     share_link = active_share_links[0] if active_share_links else None
     template_title = _dashboard_template_title(activity.template_key)
-    question_count = len(normalize_question_bank(activity.config_json, default_points=1))
+    question_count = len(normalize_question_bank(activity.config_json))
 
     return {
         "id": activity.pk,
@@ -311,7 +311,7 @@ def _session_duration(session: ActivitySession) -> timedelta | None:
 
 
 def _build_question_performance(activity: Activity) -> tuple[list[dict], list[dict], list[dict]]:
-    ordered_items = normalize_question_bank(activity.config_json, default_points=1)
+    ordered_items = normalize_question_bank(activity.config_json)
     ordered_lookup = {
         item.get("id"): {
             "index": index,

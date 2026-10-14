@@ -9,15 +9,19 @@
         <article class="card">
             <p class="player-panel__eyebrow">Результат</p>
             <h2>{{ activity.title }}</h2>
-            <p>Прохождение завершено. Ниже сохранены ваши баллы и разбор ответов.</p>
+            {% if player_shell.scoring_enabled %}
+                <p>Прохождение завершено. Ниже сохранены ваши баллы и разбор ответов.</p>
+            {% else %}
+                <p>Прохождение завершено. Ниже сохранено количество правильных ответов и их разбор.</p>
+            {% endif %}
 
             <div class="student-player__stats">
                 <article class="student-player__stat student-player__stat--accent">
-                    <span>Баллы</span>
-                    <strong>{{ session.score }}</strong>
+                    <span>{% if player_shell.scoring_enabled %}Баллы{% else %}Правильные ответы{% endif %}</span>
+                    <strong>{% if player_shell.scoring_enabled %}{{ session.score }}{% else %}{{ session.score }} из {{ session.max_score }}{% endif %}</strong>
                 </article>
                 <article class="student-player__stat student-player__stat--peach">
-                    <span>Максимум</span>
+                    <span>{% if player_shell.scoring_enabled %}Максимум{% else %}Всего заданий{% endif %}</span>
                     <strong>{{ session.max_score }}</strong>
                 </article>
                 <article class="student-player__stat student-player__stat--violet">
@@ -44,7 +48,7 @@
                         <h2>{{ item.prompt }}</h2>
                         <p class="muted">Ваш ответ: {{ item.submitted|default:"Нет ответа" }}</p>
                         <p class="muted">Правильный ответ: {{ item.correct }}</p>
-                        <p class="muted">{{ item.points }} балл.</p>
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ item.points }} балл.</p>{% endif %}
                         <span class="status-chip {% if item.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
                             {% if item.is_correct %}Верно{% else %}Неверно{% endif %}
                         </span>
@@ -58,7 +62,11 @@
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Итог</p>
     <h2>{{ session.percent_score|floatformat:0 }}% результата</h2>
-    <p>Баллы и ответы уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+    {% if player_shell.scoring_enabled %}
+        <p>Баллы и ответы уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+    {% else %}
+        <p>Количество правильных ответов и разбор уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+    {% endif %}
 {% endblock %}
 
 {% block player_footer_accent %}

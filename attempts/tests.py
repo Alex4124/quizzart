@@ -23,6 +23,144 @@ class PublicPlayTests(TestCase):
         )
         return ShareLink.objects.create(activity=activity)
 
+    def _scoreless_config(self, *, item_count: int = 1) -> dict:
+        return {
+            "scoring_enabled": False,
+            "items": [
+                {
+                    "id": f"item-{index}",
+                    "prompt": f"Question {index}?",
+                    "points": index * 90,
+                    "options": [
+                        {"id": f"item-{index}-a", "text": f"Correct {index}", "is_correct": True},
+                        {"id": f"item-{index}-b", "text": f"Wrong {index}", "is_correct": False},
+                    ],
+                }
+                for index in range(1, item_count + 1)
+            ],
+        }
+
+    def test_scoreless_mode_counts_correct_answers_in_every_template(self):
+        payloads = {
+            "quiz": {"action": "submit_quiz", "question_item-1": "Correct 1"},
+            "matching": {"action": "submit_matching", "match_item-1": "Correct 1"},
+            "categorize": {"action": "submit_categorize", "question_item-1": "Correct 1"},
+            "snake": {"action": "submit_snake", "question_item-1": "Correct 1"},
+            "choose_a_box": {"action": "answer_box", "item_key": "item-1", "answer": "Correct 1"},
+            "wheel_of_fortune": {"action": "answer_wheel", "answer": "Correct 1"},
+        }
+
+        for template_key, payload in payloads.items():
+            with self.subTest(template_key=template_key):
+                link = self._create_published_activity(template_key, self._scoreless_config())
+                self.client.post(f"/p/{link.slug}/", {"action": "start"})
+                if template_key == "wheel_of_fortune":
+                    self.client.post(f"/p/{link.slug}/", {"action": "spin_wheel"})
+
+                response = self.client.post(f"/p/{link.slug}/", payload)
+
+                self.assertEqual(response.status_code, 302)
+                session = ActivitySession.objects.get(activity=link.activity)
+                self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+                self.assertEqual(session.score, 1)
+                self.assertEqual(session.max_score, 1)
+                self.assertEqual(float(session.percent_score), 100.0)
+                self.assertEqual(session.answers.get().score_awarded, 1)
+
+    def test_legacy_config_without_scoring_flag_remains_weighted(self):
+        link = self._create_published_activity(
+            "quiz",
+            {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "Legacy question?",
+                        "points": 37,
+                        "options": [
+                            {"id": "a", "text": "Correct", "is_correct": True},
+                            {"id": "b", "text": "Wrong", "is_correct": False},
+                        ],
+                    }
+                ]
+            },
+        )
+
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "submit_quiz", "question_item-1": "Correct"},
+        )
+
+        session = ActivitySession.objects.get(activity=link.activity)
+        self.assertEqual(session.score, 37)
+        self.assertEqual(session.max_score, 37)
+
+    def test_scoreless_player_and_results_use_correct_answer_labels(self):
+        link = self._create_published_activity("quiz", self._scoreless_config())
+
+        play_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "start"},
+            follow=True,
+        )
+
+        self.assertContains(play_response, "Верные ответы")
+        self.assertNotContains(play_response, "90 балл.")
+
+        result_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "submit_quiz", "question_item-1": "Correct 1"},
+            follow=True,
+        )
+
+        self.assertContains(result_response, "Правильные ответы")
+        self.assertContains(result_response, "1 из 1")
+        self.assertContains(result_response, "100%")
+        self.assertNotContains(result_response, "Баллы")
+
+    def test_scoreless_wheel_ajax_awards_one_and_keeps_question_maximum(self):
+        link = self._create_published_activity(
+            "wheel_of_fortune",
+            self._scoreless_config(item_count=2),
+        )
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        session = ActivitySession.objects.get(activity=link.activity)
+        session.runtime_state = {"active_item": "item-1"}
+        session.save(update_fields=["runtime_state"])
+
+        response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "answer_wheel", "answer": "Correct 1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["score"], 1)
+        self.assertEqual(response.json()["max_score"], 2)
+        self.assertFalse(response.json()["is_complete"])
+        session.refresh_from_db()
+        self.assertEqual(session.score, 1)
+        self.assertEqual(session.answers.get().score_awarded, 1)
+
+    def test_scoreless_choose_a_box_finish_uses_total_question_count(self):
+        link = self._create_published_activity(
+            "choose_a_box",
+            self._scoreless_config(item_count=2),
+        )
+        self.client.post(f"/p/{link.slug}/", {"action": "start"})
+
+        self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "finish", "box_item-1": "Correct 1"},
+        )
+
+        session = ActivitySession.objects.get(activity=link.activity)
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 1)
+        self.assertEqual(session.max_score, 2)
+        self.assertEqual(session.answers.count(), 1)
+
     def test_student_can_complete_quiz(self):
         link = self._create_published_activity(
             "quiz",
@@ -497,6 +635,71 @@ class PublicPlayTests(TestCase):
         session = ActivitySession.objects.get(activity__template_key="matching")
         self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
         self.assertEqual(session.score, 1)
+
+    def test_matching_reuses_duplicate_answers_and_ignores_case(self):
+        link = self._create_published_activity(
+            "matching",
+            {
+                "shuffle": False,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "prompt": "First statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "a", "text": "Верно", "is_correct": True},
+                            {"id": "b", "text": "Неверно", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-2",
+                        "prompt": "Second statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "c", "text": "ВЕРНО", "is_correct": True},
+                            {"id": "d", "text": "НЕВЕРНО", "is_correct": False},
+                        ],
+                    },
+                    {
+                        "id": "item-3",
+                        "prompt": "Third statement",
+                        "points": 10,
+                        "options": [
+                            {"id": "e", "text": "верно", "is_correct": False},
+                            {"id": "f", "text": "неверно", "is_correct": True},
+                        ],
+                    },
+                ],
+            },
+        )
+
+        play_response = self.client.post(
+            f"/p/{link.slug}/",
+            {"action": "start"},
+            follow=True,
+        )
+
+        self.assertEqual(play_response.status_code, 200)
+        self.assertContains(play_response, "data-matching-choice", count=2, html=False)
+
+        submit_response = self.client.post(
+            f"/p/{link.slug}/",
+            {
+                "action": "submit_matching",
+                "match_item-1": "верно",
+                "match_item-2": "  Верно  ",
+                "match_item-3": "НЕВЕРНО",
+            },
+        )
+
+        self.assertEqual(submit_response.status_code, 302)
+        session = ActivitySession.objects.get(activity=link.activity)
+        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
+        self.assertEqual(session.score, 30)
+        self.assertEqual(session.max_score, 30)
+        self.assertEqual(float(session.percent_score), 100.0)
+        self.assertEqual(session.answers.count(), 3)
+        self.assertTrue(all(answer.is_correct for answer in session.answers.all()))
 
     def test_student_can_complete_wheel_matching_and_categorize(self):
         wheel = self._create_published_activity(

@@ -47,7 +47,7 @@
                 >
                     <div class="box-card-head">
                         <span class="box-label">#{{ box.number }}</span>
-                        <span class="muted">{{ box.points }} балл.</span>
+                        {% if player_shell.scoring_enabled %}<span class="muted">{{ box.points }} балл.</span>{% endif %}
                     </div>
 
                     {% if preview %}
@@ -108,7 +108,7 @@
                             </div>
                             <div class="box-card__cover-copy">
                                 <p class="box-card__cover-title">Подарочная коробка</p>
-                                <p class="muted">Внутри спрятан вопрос на {{ box.points }} балл.</p>
+                                {% if player_shell.scoring_enabled %}<p class="muted">Внутри спрятан вопрос на {{ box.points }} балл.</p>{% endif %}
                             </div>
                             <form class="stack-form box-card__open-form" data-box-open-form {% if box.state != "unopened" %}hidden{% endif %}>
                                 <button class="button button-small box-card__open-button" type="submit">Открыть коробку</button>

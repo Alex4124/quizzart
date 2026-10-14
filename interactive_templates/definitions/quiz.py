@@ -11,10 +11,15 @@ from interactive_templates.base import (
     TemplateEvaluation,
     TemplateMetadata,
 )
+from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    DEFAULT_QUESTION_POINTS,
     build_review_items,
     choice_texts,
     correct_option,
+    get_question_bank_max_score,
+    get_question_score,
+    is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
     serialize_question_bank,
@@ -22,15 +27,13 @@ from interactive_templates.utils import (
 )
 
 
-class QuizEditorForm(forms.Form):
+class QuizEditorForm(QuestionBankEditorForm):
     show_result_at_end = forms.BooleanField(required=False, initial=True, label="Показывать результат в конце")
     reveal_correct_answer = forms.BooleanField(
         required=False,
         initial=True,
         label="Показывать правильный ответ сразу после выбора",
     )
-    items_json = forms.CharField(required=False, widget=forms.HiddenInput())
-    items_text = forms.CharField(required=False, widget=forms.HiddenInput())
 
 
 def _sample_items() -> list[dict[str, Any]]:
@@ -43,7 +46,7 @@ def _sample_items() -> list[dict[str, Any]]:
                 {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
                 {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
             ],
-            "points": 1,
+            "points": DEFAULT_QUESTION_POINTS,
         }
         for index in range(1, 4)
     ]
@@ -59,32 +62,35 @@ class QuizDefinition(BaseTemplateDefinition):
     editor_form_class = QuizEditorForm
     player_template_name = "player/quiz.html"
     preview_template_name = "player/quiz.html"
-    editor_question_default_points = 1
+    editor_question_default_points = DEFAULT_QUESTION_POINTS
 
     def default_config(self) -> dict[str, Any]:
         return {
+            "scoring_enabled": True,
             "show_result_at_end": True,
             "reveal_correct_answer": True,
             "items": _sample_items(),
         }
 
     def build_editor_initial(self, config: dict[str, Any]) -> dict[str, Any]:
-        items = normalize_question_bank(config, default_points=1)
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         return {
+            "disable_scoring": not is_scoring_enabled(config),
             "show_result_at_end": config.get("show_result_at_end", True),
             "reveal_correct_answer": config.get("reveal_correct_answer", True),
-            "items_json": serialize_question_bank_editor(items, default_points=1),
-            "items_text": serialize_question_bank(items, default_points=1),
+            "items_json": serialize_question_bank_editor(items, default_points=DEFAULT_QUESTION_POINTS),
+            "items_text": serialize_question_bank(items, default_points=DEFAULT_QUESTION_POINTS),
         }
 
     def build_config(self, cleaned_data: dict[str, Any]) -> dict[str, Any]:
         return {
+            "scoring_enabled": not cleaned_data.get("disable_scoring", False),
             "show_result_at_end": cleaned_data.get("show_result_at_end", False),
             "reveal_correct_answer": cleaned_data.get("reveal_correct_answer", False),
             "items": question_bank_items_from_payload(
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
-                default_points=1,
+                default_points=DEFAULT_QUESTION_POINTS,
             ),
         }
 
@@ -94,7 +100,8 @@ class QuizDefinition(BaseTemplateDefinition):
         session: Any | None = None,
         preview: bool = False,
     ) -> dict[str, Any]:
-        items = normalize_question_bank(activity.config_json, default_points=1)
+        config = activity.config_json
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         answer_map = {}
         seed_base = "preview" if preview else str(session.token) if session else "anonymous"
         if session:
@@ -113,21 +120,21 @@ class QuizDefinition(BaseTemplateDefinition):
                     "selected_option": answer.submitted_value.get("choice") if answer else "",
                     "correct_option": correct_option(item)["text"],
                     "is_correct": answer.is_correct if answer else None,
-                    "points": item.get("points", 1),
+                    "points": get_question_score(config, item),
                 }
             )
 
         return {
             "questions": questions,
-            "show_result_at_end": activity.config_json.get("show_result_at_end", True),
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
-            "max_score": self.get_max_score(activity.config_json),
-            "review_items": build_review_items(items, answer_map),
+            "show_result_at_end": config.get("show_result_at_end", True),
+            "reveal_correct_answer": config.get("reveal_correct_answer", True),
+            "scoring_enabled": is_scoring_enabled(config),
+            "max_score": self.get_max_score(config),
+            "review_items": build_review_items(items, answer_map, config=config),
         }
 
     def get_max_score(self, config: dict[str, Any]) -> int:
-        items = normalize_question_bank(config, default_points=1)
-        return sum(item.get("points", 1) for item in items)
+        return get_question_bank_max_score(config)
 
     def evaluate_submission(
         self,
@@ -138,7 +145,8 @@ class QuizDefinition(BaseTemplateDefinition):
         if payload.get("action") != "submit_quiz":
             raise ValidationError("Неизвестное действие для шаблона 'Викторина'.")
 
-        items = normalize_question_bank(activity.config_json, default_points=1)
+        config = activity.config_json
+        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
         answers = []
         score = 0
         max_score = self.get_max_score(activity.config_json)
@@ -147,8 +155,9 @@ class QuizDefinition(BaseTemplateDefinition):
             field_name = f"question_{item['id']}"
             choice = str(payload.get(field_name, "")).strip()
             is_correct = choice == correct_option(item)["text"]
+            awarded_points = get_question_score(config, item) if is_correct else 0
             if is_correct:
-                score += item.get("points", 1)
+                score += awarded_points
             answers.append(
                 {
                     "item_key": item["id"],
@@ -158,7 +167,7 @@ class QuizDefinition(BaseTemplateDefinition):
                         "correct_option": correct_option(item)["text"],
                     },
                     "is_correct": is_correct,
-                    "score_awarded": item.get("points", 1) if is_correct else 0,
+                    "score_awarded": awarded_points,
                 }
             )
 

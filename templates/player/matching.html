@@ -40,7 +40,7 @@
                             <div class="matching-dock-card" data-matching-docked-card hidden></div>
                         </div>
                     </div>
-                    <p class="muted">{{ row.points }} балл.</p>
+                    {% if player_shell.scoring_enabled %}<p class="muted">{{ row.points }} балл.</p>{% endif %}
                     <p class="muted question-feedback" data-question-feedback hidden></p>
                 </article>
             {% endfor %}
@@ -53,7 +53,6 @@
                     type="button"
                     data-matching-choice
                     data-choice-id="{{ choice.id }}"
-                    data-choice-item-id="{{ choice.item_id }}"
                     data-choice-value="{{ choice.text }}"
                 >
                     <span class="matching-choice__token">{{ forloop.counter }}</span>

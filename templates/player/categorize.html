@@ -52,7 +52,9 @@
                                 <span class="cards-card__badge cards-card__badge--{{ card_theme }}" data-categorize-badge>
                                     {% if card.is_answered %}Отвечено{% else %}Открыта{% endif %}
                                 </span>
-                                <span class="cards-card__points cards-card__points--{{ card_theme }}">{{ card.points }} балл.</span>
+                                {% if player_shell.scoring_enabled %}
+                                    <span class="cards-card__points cards-card__points--{{ card_theme }}">{{ card.points }} балл.</span>
+                                {% endif %}
                             </div>
                             <h2>{{ card.prompt }}</h2>
                             <div class="cards-card__answers">

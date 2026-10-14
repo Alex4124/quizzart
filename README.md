@@ -83,7 +83,8 @@ Open:
 
 - The template system is code-registered and Python-driven.
 - All template editors are backed by a shared question bank format:
-  - `Prompt | *Correct answer | Wrong answer 1 | Wrong answer 2 | 100 optional points`
+  - `Prompt | *Correct answer | Wrong answer 1 | Wrong answer 2 | 10 optional points`
+  - New questions default to 10 points; the editor can instead count correct answers without points.
 - Each template definition owns:
   - metadata
   - editor form
@@ -94,6 +95,7 @@ Open:
 - `choose_a_box` supports incremental box answering.
 - `quiz` supports single-answer quiz submission and end-of-run scoring.
 - `wheel_of_fortune`, `matching`, and `categorize` reuse the same question bank and adapt it into their own runtime layouts.
+- `matching` deduplicates answer cards case-insensitively, allows reuse, and can show either all options or correct options only.
 
 ## Tests
 

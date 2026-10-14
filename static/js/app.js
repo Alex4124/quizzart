@@ -206,7 +206,8 @@
             const templateSwitch = document.querySelector("[data-template-switch]");
             const itemsJsonInput = form?.querySelector("input[name='items_json']");
             const itemsTextInput = form?.querySelector("input[name='items_text']");
-            const defaultPoints = Number.parseInt(root.dataset.defaultPoints || "1", 10) || 1;
+            const disableScoringInput = form?.querySelector("input[name='disable_scoring']");
+            const defaultPoints = Number.parseInt(root.dataset.defaultPoints || "10", 10) || 10;
 
             if (
                 !form ||
@@ -251,6 +252,14 @@
                 if (itemsTextInput) {
                     itemsTextInput.value = "";
                 }
+            }
+
+            function syncScoringVisibility() {
+                const scoringDisabled = Boolean(disableScoringInput?.checked);
+                root.classList.toggle("is-scoring-disabled", scoringDisabled);
+                root.querySelectorAll(".question-editor-points").forEach((pointsField) => {
+                    pointsField.hidden = scoringDisabled;
+                });
             }
 
             function syncTemplateKey() {
@@ -377,6 +386,7 @@
 
                 normalizedQuestion.options.forEach((option) => appendAnswer(questionCard, option));
                 refreshQuestionLabels();
+                syncScoringVisibility();
                 serializeItems();
 
                 if (focusPrompt) {
@@ -394,6 +404,9 @@
             addQuestionButton.addEventListener("click", () => {
                 appendQuestion(createEmptyQuestion(), true);
             });
+
+            disableScoringInput?.addEventListener("change", syncScoringVisibility);
+            syncScoringVisibility();
 
             form.addEventListener("submit", () => {
                 syncTemplateKey();
@@ -1224,11 +1237,9 @@
 
             function syncChoiceStates() {
                 choiceButtons.forEach((button) => {
-                    const isUsed = button.dataset.used === "1";
                     button.classList.remove("is-selected", "is-correct", "is-wrong", "matching-choice-correct");
-                    button.classList.toggle("matching-choice-used", isUsed);
-                    button.hidden = isUsed;
-                    button.disabled = isUsed;
+                    button.hidden = false;
+                    button.disabled = false;
                 });
             }
 
@@ -1351,10 +1362,6 @@
                         dockSource,
                         correctOption,
                     );
-                    if (correctButton) {
-                        correctButton.dataset.used = "1";
-                    }
-
                     const exitDelay = isCorrectAnswer ? 520 : 760;
 
                     window.setTimeout(() => {

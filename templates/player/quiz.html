@@ -32,7 +32,7 @@
                     <div class="quiz-card__content">
                         <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
                         <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
-                        <p class="muted">{{ question.points }} балл.</p>
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ question.points }} балл.</p>{% endif %}
                         <div class="option-list">
                             {% for option in question.options %}
                                 <label class="option-row">

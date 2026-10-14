@@ -137,7 +137,7 @@
                 </article>
                 <article class="teacher-metric teacher-metric--analytics teacher-metric--violet-soft">
                     <p class="teacher-metric__delta">Точность по завершённым</p>
-                    <p class="teacher-metric__label">Средний балл</p>
+                    <p class="teacher-metric__label">Средний результат</p>
                     <strong>{{ average_score|floatformat:1 }}%</strong>
                     <p class="teacher-metric__note">Средний процент правильных ответов по завершённым сессиям.</p>
                 </article>
@@ -216,7 +216,7 @@
                                     <div role="row">
                                         <span role="columnheader">Имя ученика</span>
                                         <span role="columnheader">Статус</span>
-                                        <span role="columnheader">Балл</span>
+                                        <span role="columnheader">Результат</span>
                                         <span role="columnheader">Время</span>
                                         <span role="columnheader">Старт</span>
                                     </div>
@@ -226,7 +226,7 @@
                                         <div class="teacher-analytics-table__row" role="row">
                                             <span role="cell" data-label="Имя ученика">{{ session.participant }}</span>
                                             <span role="cell" data-label="Статус">{{ session.status }}</span>
-                                            <span role="cell" data-label="Балл">{{ session.score_label }} · {{ session.percent_label }}</span>
+                                            <span role="cell" data-label="Результат">{{ session.score_label }} · {{ session.percent_label }}</span>
                                             <span role="cell" data-label="Время">{{ session.duration_label }}</span>
                                             <span role="cell" data-label="Старт">{{ session.started_at|date:"d.m.Y H:i" }}</span>
                                         </div>
