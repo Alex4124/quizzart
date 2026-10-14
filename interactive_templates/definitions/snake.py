@@ -5,16 +5,14 @@ import random
 from typing import Any
 
 from django import forms
-from django.core.exceptions import ValidationError
 
-from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
     build_review_items,
     choice_texts,
     correct_option,
-    get_question_bank_max_score,
     get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
@@ -96,7 +94,7 @@ def _build_apple_positions(count: int, seed: str) -> list[tuple[float, float]]:
     return positions
 
 
-class SnakeDefinition(BaseTemplateDefinition):
+class SnakeDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="snake",
         title="Змейка",
@@ -107,6 +105,8 @@ class SnakeDefinition(BaseTemplateDefinition):
     player_template_name = "player/snake.html"
     preview_template_name = "player/snake.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
+    legacy_bulk_actions = {"submit_snake": "question_{key}"}
+    legacy_bulk_requires_all = True
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -179,56 +179,3 @@ class SnakeDefinition(BaseTemplateDefinition):
             "scoring_enabled": is_scoring_enabled(config),
             "review_items": build_review_items(items, answer_map, config=config),
         }
-
-    def get_max_score(self, config: dict[str, Any]) -> int:
-        return get_question_bank_max_score(config)
-
-    def evaluate_submission(
-        self,
-        activity: Any,
-        session: Any,
-        payload: dict[str, Any],
-    ) -> TemplateEvaluation:
-        if payload.get("action") != "submit_snake":
-            raise ValidationError("Неизвестное действие для шаблона 'Змейка'.")
-
-        config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers = []
-        score = 0
-        missing_answers = False
-
-        for item in items:
-            field_name = f"question_{item['id']}"
-            choice = str(payload.get(field_name, "")).strip()
-            if not choice:
-                missing_answers = True
-                continue
-
-            is_correct = choice == correct_option(item)["text"]
-            awarded_points = get_question_score(config, item) if is_correct else 0
-            if is_correct:
-                score += awarded_points
-            answers.append(
-                {
-                    "item_key": item["id"],
-                    "prompt": item["prompt"],
-                    "submitted_value": {
-                        "choice": choice,
-                        "correct_option": correct_option(item)["text"],
-                    },
-                    "is_correct": is_correct,
-                    "score_awarded": awarded_points,
-                }
-            )
-
-        if missing_answers or len(answers) != len(items):
-            raise ValidationError("Сначала ответьте на все вопросы, чтобы завершить змейку.")
-
-        return TemplateEvaluation(
-            score=score,
-            max_score=self.get_max_score(activity.config_json),
-            is_complete=True,
-            answers=answers,
-            runtime_state={},
-        )

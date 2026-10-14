@@ -4,61 +4,41 @@
 {% block title %}{{ activity.title }}{% endblock %}
 
 {% block player_board %}
-    {% if player_error %}
-        <div class="message">{{ player_error }}</div>
-    {% endif %}
-
-    <form
-        method="post"
+    <div
         class="player-quiz-form quiz-flow"
+        data-player-root
         data-quiz-player
         data-preview="{{ preview|yesno:'1,0' }}"
-        data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+        data-action-url="{{ runtime.action_url }}"
+        data-total-count="{{ runtime.total_count }}"
     >
-        {% csrf_token %}
-        {% if not preview %}
-            <input type="hidden" name="action" value="submit_quiz">
-        {% endif %}
-
         <div class="quiz-stage">
             {% for question in runtime.questions %}
                 <article
-                    class="card question-card quiz-card quiz-card-themed{% if forloop.first %} question-card-current{% endif %}"
+                    class="card question-card quiz-card quiz-card-themed{% if question.id == runtime.current_item_id %} question-card-current{% endif %}"
                     data-reveal-stagger
                     data-quiz-question
-                    data-question-index="{{ forloop.counter0 }}"
-                    data-correct-option="{{ question.correct_option }}"
-                    {% if not forloop.first %}hidden{% endif %}
+                    data-item-id="{{ question.id }}"
+                    data-state="{% if question.is_answered %}answered{% else %}open{% endif %}"
+                    {% if question.id != runtime.current_item_id %}hidden{% endif %}
                 >
-                    <div class="quiz-card__content">
-                        <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }} из {{ runtime.questions|length }}</p>
-                        <h2>{{ forloop.counter }}. {{ question.prompt }}</h2>
+                    <form method="post" action="{{ runtime.action_url }}" class="quiz-card__content" data-answer-form>
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="answer">
+                        <input type="hidden" name="item_key" value="{{ question.id }}">
+                        <p class="player-panel__eyebrow">Вопрос {{ question.number }} из {{ runtime.total_count }}</p>
+                        <h2>{{ question.number }}. {{ question.prompt }}</h2>
                         {% if player_shell.scoring_enabled %}<p class="muted">{{ question.points }} балл.</p>{% endif %}
-                        <div class="option-list">
-                            {% for option in question.options %}
-                                <label class="option-row">
-                                    <input
-                                        type="radio"
-                                        name="question_{{ question.id }}"
-                                        value="{{ option }}"
-                                        {% if option == question.selected_option %}checked{% endif %}
-                                    >
-                                    <span>{{ option }}</span>
-                                </label>
-                            {% endfor %}
-                        </div>
-                        <p class="muted question-feedback" data-question-feedback hidden></p>
-                    </div>
+                        {% include "player/_answer_options.html" with item=question %}
+                    </form>
                 </article>
             {% endfor %}
         </div>
 
-        {% if not preview %}
-            <button class="button" type="submit" data-quiz-submit>Завершить викторину</button>
-        {% else %}
+        {% if preview %}
             <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти викторину.</div>
         {% endif %}
-    </form>
+    </div>
 {% endblock %}
 
 {% block player_sidebar_spotlight %}

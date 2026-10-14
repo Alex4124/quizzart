@@ -4,15 +4,13 @@ import random
 from typing import Any
 
 from django import forms
-from django.core.exceptions import ValidationError
 
-from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
     build_review_items,
     correct_option,
-    get_question_bank_max_score,
     get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
@@ -46,7 +44,7 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
-class CategorizeDefinition(BaseTemplateDefinition):
+class CategorizeDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="categorize",
         title="Карточки",
@@ -57,6 +55,7 @@ class CategorizeDefinition(BaseTemplateDefinition):
     player_template_name = "player/categorize.html"
     preview_template_name = "player/categorize.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
+    legacy_bulk_actions = {"submit_categorize": "question_{key}"}
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -138,47 +137,6 @@ class CategorizeDefinition(BaseTemplateDefinition):
             "review_items": build_review_items(items, answer_map, config=config),
         }
 
-    def get_max_score(self, config: dict[str, Any]) -> int:
-        return get_question_bank_max_score(config)
-
-    def evaluate_submission(
-        self,
-        activity: Any,
-        session: Any,
-        payload: dict[str, Any],
-    ) -> TemplateEvaluation:
-        if payload.get("action") != "submit_categorize":
-            raise ValidationError("Неизвестное действие для шаблона 'Карточки'.")
-
-        config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers = []
-        score = 0
-        for item in items:
-            question_field = f"question_{item['id']}"
-            legacy_field = f"category_{item['id']}"
-            choice = str(payload.get(question_field, payload.get(legacy_field, ""))).strip()
-            is_correct = choice == correct_option(item)["text"]
-            awarded_points = get_question_score(config, item) if is_correct else 0
-            if is_correct:
-                score += awarded_points
-            answers.append(
-                {
-                    "item_key": item["id"],
-                    "prompt": item["prompt"],
-                    "submitted_value": {
-                        "choice": choice,
-                        "correct_option": correct_option(item)["text"],
-                    },
-                    "is_correct": is_correct,
-                    "score_awarded": awarded_points,
-                }
-            )
-
-        return TemplateEvaluation(
-            score=score,
-            max_score=self.get_max_score(activity.config_json),
-            is_complete=True,
-            answers=answers,
-            runtime_state={},
-        )
+    def reveals_correctness(self, config: dict[str, Any]) -> bool:
+        # With the reveal setting off, cards only say «Ответ сохранён» until the results page.
+        return bool(config.get("reveal_correct_answer", True))

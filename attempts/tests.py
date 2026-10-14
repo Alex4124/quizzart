@@ -1041,9 +1041,12 @@ class PublicPlayTests(TestCase):
                 "action": "submit_snake",
                 "question_item-1": "4",
             },
+            follow=True,
         )
 
+        # Errors now come back as a message on the play page (POST-redirect-GET), not a re-render of the POST.
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ответьте на все задания")
         session = ActivitySession.objects.get(activity__template_key="snake")
         self.assertEqual(session.status, ActivitySession.Status.STARTED)
         self.assertEqual(session.answers.count(), 0)

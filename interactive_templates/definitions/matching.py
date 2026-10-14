@@ -4,15 +4,13 @@ import random
 from typing import Any
 
 from django import forms
-from django.core.exceptions import ValidationError
 
-from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
     build_review_items,
     correct_option,
-    get_question_bank_max_score,
     get_question_score,
     is_scoring_enabled,
     normalize_answer,
@@ -52,7 +50,7 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
-class MatchingDefinition(BaseTemplateDefinition):
+class MatchingDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="matching",
         title="\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435",
@@ -63,6 +61,7 @@ class MatchingDefinition(BaseTemplateDefinition):
     player_template_name = "player/matching.html"
     preview_template_name = "player/matching.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
+    legacy_bulk_actions = {"submit_matching": "match_{key}"}
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -94,6 +93,47 @@ class MatchingDefinition(BaseTemplateDefinition):
                 previous_items=cleaned_data.get("previous_items"),
             ),
         }
+
+    def answer_bank(self, config: dict[str, Any]) -> list[dict[str, Any]]:
+        """One card per distinct answer text (case-insensitive), shared by every row, in authoring order."""
+        bank: dict[str, dict[str, Any]] = {}
+        correct_answers_only = config.get("correct_answers_only", False)
+        for item in self.get_items(config):
+            for option in item["options"]:
+                if correct_answers_only and not option.get("is_correct", False):
+                    continue
+                normalized_text = normalize_answer(option["text"])
+                if not normalized_text or normalized_text in bank:
+                    continue
+                bank[normalized_text] = {"id": f"matching-choice-{len(bank) + 1}", "text": option["text"]}
+        return list(bank.values())
+
+    def option_texts(self, config: dict[str, Any], item: dict[str, Any]) -> list[str]:
+        # Every row picks from the same bank of cards.
+        return [choice["text"] for choice in self.answer_bank(config)]
+
+    def answers_match(self, choice: str, correct_text: str) -> bool:
+        return normalize_answer(choice) == normalize_answer(correct_text)
+
+    def resolve_choice(self, config: dict[str, Any], item: dict[str, Any], choice: str) -> str | None:
+        wanted = normalize_answer(choice)
+        return next((text for text in self.option_texts(config, item) if normalize_answer(text) == wanted), None)
+
+    def reveals_correct_option(self, config: dict[str, Any]) -> bool:
+        # Matching has no reveal setting: the right card is always shown after a wrong pick.
+        return True
+
+    def build_answer_feedback(self, config: dict[str, Any], item: dict[str, Any] | None, answer: Any) -> dict[str, Any]:
+        feedback = super().build_answer_feedback(config, item, answer)
+        feedback["correct_choice_id"] = None
+        if item is not None and feedback["correct_option"] is not None:
+            # The bank shows each text once, possibly in another letter case than this row's answer.
+            wanted = normalize_answer(feedback["correct_option"])
+            card = next((card for card in self.answer_bank(config) if normalize_answer(card["text"]) == wanted), None)
+            if card:
+                feedback["correct_option"] = card["text"]
+                feedback["correct_choice_id"] = card["id"]
+        return feedback
 
     def build_runtime_data(
         self,
@@ -155,49 +195,3 @@ class MatchingDefinition(BaseTemplateDefinition):
             "max_score": self.get_max_score(config),
             "review_items": build_review_items(items, answer_map, config=config),
         }
-
-    def get_max_score(self, config: dict[str, Any]) -> int:
-        return get_question_bank_max_score(config)
-
-    def evaluate_submission(
-        self,
-        activity: Any,
-        session: Any,
-        payload: dict[str, Any],
-    ) -> TemplateEvaluation:
-        if payload.get("action") != "submit_matching":
-            raise ValidationError(
-                "\u041d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0434\u043b\u044f \u0448\u0430\u0431\u043b\u043e\u043d\u0430 '\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435'."
-            )
-
-        config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers = []
-        score = 0
-        for item in items:
-            field_name = f"match_{item['id']}"
-            choice = str(payload.get(field_name, "")).strip()
-            is_correct = normalize_answer(choice) == normalize_answer(correct_option(item)["text"])
-            awarded_points = get_question_score(config, item) if is_correct else 0
-            if is_correct:
-                score += awarded_points
-            answers.append(
-                {
-                    "item_key": item["id"],
-                    "prompt": item["prompt"],
-                    "submitted_value": {
-                        "choice": choice,
-                        "correct_option": correct_option(item)["text"],
-                    },
-                    "is_correct": is_correct,
-                    "score_awarded": awarded_points,
-                }
-            )
-
-        return TemplateEvaluation(
-            score=score,
-            max_score=self.get_max_score(activity.config_json),
-            is_complete=True,
-            answers=answers,
-            runtime_state={},
-        )

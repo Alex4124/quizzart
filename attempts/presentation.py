@@ -29,6 +29,8 @@ def _safe_avatar_url(profile: object | None) -> str:
 
 
 def _player_total_count(template_key: str, runtime: dict[str, Any]) -> int:
+    if "total_count" in runtime:
+        return int(runtime["total_count"] or 0)
     if template_key == "quiz":
         return len(runtime.get("questions", []))
     if template_key == "wheel_of_fortune":
@@ -45,7 +47,7 @@ def _player_total_count(template_key: str, runtime: dict[str, Any]) -> int:
 
 
 def _player_answered_count(template_key: str, runtime: dict[str, Any], session: object | None) -> int:
-    if template_key in {"wheel_of_fortune", "choose_a_box", "snake"}:
+    if "answered_count" in runtime or template_key in {"wheel_of_fortune", "choose_a_box", "snake"}:
         return int(runtime.get("answered_count") or 0)
     if session is None:
         return 0
@@ -123,6 +125,11 @@ def build_player_shell_context(
     item_label = PLAYER_UNIT_LABELS.get(template_key, "элементов")
     filled_segments = max(0, min(5, round(progress_percent / 20)))
     scoring_enabled = is_scoring_enabled(getattr(activity, "config_json", {}))
+    # While playing, a running score would tell which answers were right when the template hides that.
+    reveals_correctness = getattr(template_definition, "reveals_correctness", None)
+    hides_score = mode == "play" and callable(reveals_correctness) and not reveals_correctness(
+        getattr(activity, "config_json", {})
+    )
 
     if mode == "launch":
         footer_text = (
@@ -159,7 +166,7 @@ def build_player_shell_context(
             {
                 "key": "score",
                 "label": "Очки" if scoring_enabled else "Верные ответы",
-                "value": str(current_score),
+                "value": "—" if hides_score else str(current_score),
                 "tone": "accent",
             },
             {"key": "progress", "label": "Прогресс", "value": f"{progress_percent}%", "tone": "peach"},

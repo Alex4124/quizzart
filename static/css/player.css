@@ -474,6 +474,20 @@ body.player-page {
     justify-content: flex-start;
 }
 
+/* An answered item keeps its options visible but inert. */
+.player-page button.option-row:disabled {
+    cursor: default;
+    transform: none;
+}
+
+.player-page .question-feedback.is-error {
+    color: #b3364a;
+}
+
+.player-shell-checking [data-answer-form] button[name="answer"] {
+    cursor: progress;
+}
+
 .player-page .option-row.is-selected {
     border-color: rgba(120, 54, 217, 0.36);
     background: rgba(120, 54, 217, 0.08);
