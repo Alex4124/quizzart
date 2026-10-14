@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/editor.css' %}">
+    <link rel="stylesheet" href="{% static 'css/editor.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block body_class %}editor-workspace-page{% endblock %}
@@ -145,12 +145,13 @@
             </div>
         </section>
 
-        <form method="post" class="editor-form" id="activity-editor-form" data-activity-editor-form>
+        {# novalidate: required fields can sit on a hidden tab, where the browser blocks the submit without showing why. #}
+        <form method="post" class="editor-form" id="activity-editor-form" data-activity-editor-form data-submit-once novalidate>
             {% csrf_token %}
             {% for field in activity_form.hidden_fields %}{{ field }}{% endfor %}
             {% for field in config_form.hidden_fields %}{{ field }}{% endfor %}
             <input type="hidden" name="active_tab" value="{{ active_tab }}" data-editor-active-tab>
-            <button type="submit" name="action" value="switch_template" hidden data-switch-template-submit></button>
+            <button type="submit" name="action" value="switch_template" formnovalidate hidden data-switch-template-submit></button>
 
             <label class="editor-template-switch-native" aria-hidden="true">
                 <span>Template switch</span>
@@ -291,7 +292,7 @@
                                     </label>
                                     <label class="question-editor-cell question-editor-points">
                                         <span class="editor-cell-label">Баллы</span>
-                                        <input type="number" min="0" step="1" data-question-points>
+                                        <input type="number" min="0" max="1000" step="1" data-question-points>
                                     </label>
                                 </div>
                                 <div class="answer-editor-grid" data-answer-list></div>
@@ -452,11 +453,14 @@
             {% if is_saved %}
                 <div class="editor-side-actions">
                     <a href="{{ quick_actions.analytics_url }}">Открыть аналитику</a>
-                    <a href="{{ quick_actions.duplicate_url }}">Дублировать</a>
+                    <form method="post" action="{{ quick_actions.duplicate_url }}" class="editor-side-actions__form" data-submit-once>
+                        {% csrf_token %}
+                        <button type="submit" class="editor-side-actions__button">Дублировать</button>
+                    </form>
                     {% if share_url %}<a href="{{ share_url }}" target="_blank" rel="noreferrer">Ссылка для учеников</a>{% endif %}
                 </div>
 
-                <form method="post" action="{{ quick_actions.delete_url }}" class="editor-side-delete" onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
+                <form method="post" action="{{ quick_actions.delete_url }}" class="editor-side-delete" data-submit-once onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
                     {% csrf_token %}
                     <button class="button button-danger" type="submit">Удалить интерактив</button>
                 </form>
@@ -469,6 +473,6 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{% static 'js/app.js' %}"></script>
-    <script src="{% static 'js/editor.js' %}"></script>
+    <script src="{% static 'js/app.js' %}?v={{ asset_version }}"></script>
+    <script src="{% static 'js/editor.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

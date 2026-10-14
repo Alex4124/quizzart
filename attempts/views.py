@@ -43,15 +43,21 @@ def _get_result_session(request, share_link: ShareLink) -> ActivitySession | Non
     )
 
 
-def _get_share_link_or_404(slug: str) -> ShareLink:
+def _get_share_link_or_404(slug: str, *, require_published: bool = True) -> ShareLink:
     share_link = get_object_or_404(
         ShareLink.objects.select_related("activity"),
         slug=slug,
         is_active=True,
     )
-    if share_link.activity.status != Activity.Status.PUBLISHED:
-        raise Http404("This activity is not published.")
+    if require_published and share_link.activity.status != Activity.Status.PUBLISHED:
+        raise Http404("Интерактив не опубликован.")
     return share_link
+
+
+def _get_definition_or_404(activity: Activity):
+    if activity.template_key not in registry.keys():
+        raise Http404("Шаблон интерактива больше не поддерживается.")
+    return registry.get(activity.template_key)
 
 
 def _get_student_identity(request) -> tuple[object | None, str]:
@@ -100,7 +106,7 @@ def _player_context(
 def play(request, slug: str):
     share_link = _get_share_link_or_404(slug)
     activity = share_link.activity
-    definition = registry.get(activity.template_key)
+    definition = _get_definition_or_404(activity)
     student_profile, student_name = _get_student_identity(request)
 
     if not definition.metadata.playable:
@@ -127,16 +133,28 @@ def play(request, slug: str):
         if action == "start":
             if not current_session:
                 form = LaunchForm(request.POST)
-                if form.is_valid():
-                    participant_name = form.cleaned_data["participant_name"].strip() or student_name
-                    current_session = ActivitySession.objects.create(
-                        activity=activity,
-                        share_link=share_link,
-                        participant_name=participant_name,
-                        participant_user=request.user if student_profile else None,
-                        max_score=definition.get_max_score(activity.config_json),
+                if not form.is_valid():
+                    runtime = definition.build_runtime_data(activity)
+                    return render(
+                        request,
+                        "player/launch.html",
+                        {
+                            **_player_context(
+                                request, activity, definition, runtime, mode="launch", participant_name=student_name
+                            ),
+                            "share_link": share_link,
+                            "form": form,
+                        },
                     )
-                    request.session[_active_session_key(slug)] = str(current_session.token)
+                participant_name = form.cleaned_data["participant_name"].strip() or student_name
+                current_session = ActivitySession.objects.create(
+                    activity=activity,
+                    share_link=share_link,
+                    participant_name=participant_name,
+                    participant_user=request.user if student_profile else None,
+                    max_score=definition.get_max_score(activity.config_json),
+                )
+                request.session[_active_session_key(slug)] = str(current_session.token)
             return redirect("attempts:play", slug=slug)
 
         if not current_session:
@@ -230,11 +248,14 @@ def play(request, slug: str):
 
 
 def results(request, slug: str):
-    share_link = _get_share_link_or_404(slug)
+    # A finished run stays viewable to its student after the teacher unpublishes the activity.
+    share_link = _get_share_link_or_404(slug, require_published=False)
     activity = share_link.activity
-    definition = registry.get(activity.template_key)
+    definition = _get_definition_or_404(activity)
     result_session = _get_result_session(request, share_link)
     if not result_session:
+        if not activity.is_published:
+            raise Http404("Интерактив не опубликован.")
         return redirect("attempts:play", slug=slug)
 
     runtime = definition.build_runtime_data(activity, session=result_session)

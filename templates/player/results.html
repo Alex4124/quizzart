@@ -30,10 +30,12 @@
                 </article>
             </div>
 
-            <form method="post" action="{% url 'attempts:play' session.share_link.slug %}" class="stack-form">
-                {% csrf_token %}
-                <button class="button button-secondary" type="submit" name="action" value="restart">Пройти заново</button>
-            </form>
+            {% if activity.is_published %}
+                <form method="post" action="{% url 'attempts:play' session.share_link.slug %}" class="stack-form" data-submit-once>
+                    {% csrf_token %}
+                    <button class="button button-secondary" type="submit" name="action" value="restart">Пройти заново</button>
+                </form>
+            {% endif %}
         </article>
 
         {% if activity.template_key == "quiz" and not runtime.show_result_at_end %}

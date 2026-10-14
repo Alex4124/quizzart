@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block body_class %}teacher-dashboard-page{% endblock %}
@@ -108,8 +108,8 @@
                 <div class="teacher-analytics-hero-prototype__top">
                     <span class="teacher-analytics-hero-prototype__eyebrow">Performance insights</span>
                     <div class="teacher-analytics-hero-prototype__actions">
-                        <span class="teacher-analytics-hero-prototype__control teacher-analytics-hero-prototype__control--muted">{{ launches }} запусков</span>
-                        <span class="teacher-analytics-hero-prototype__control">Шаблон · {{ activity_template_title }}</span>
+                        <span class="teacher-analytics-hero-prototype__chip teacher-analytics-hero-prototype__chip--muted">{{ launches_label }}</span>
+                        <span class="teacher-analytics-hero-prototype__chip">Шаблон · {{ activity_template_title }}</span>
                     </div>
                 </div>
 
@@ -138,13 +138,18 @@
                 <article class="teacher-metric teacher-metric--analytics teacher-metric--violet-soft">
                     <p class="teacher-metric__delta">Точность по завершённым</p>
                     <p class="teacher-metric__label">Средний результат</p>
-                    <strong>{{ average_score|floatformat:1 }}%</strong>
-                    <p class="teacher-metric__note">Средний процент правильных ответов по завершённым сессиям.</p>
+                    {% if average_score is None %}
+                        <strong class="is-empty">—</strong>
+                        <p class="teacher-metric__note">Появится после первого завершённого прохождения.</p>
+                    {% else %}
+                        <strong>{{ average_score|floatformat:1 }}%</strong>
+                        <p class="teacher-metric__note">Средний процент правильных ответов по завершённым сессиям.</p>
+                    {% endif %}
                 </article>
                 <article class="teacher-metric teacher-metric--analytics teacher-metric--apricot-soft">
                     <p class="teacher-metric__delta">Ритм прохождения</p>
                     <p class="teacher-metric__label">Среднее время</p>
-                    <strong>{{ average_duration }}</strong>
+                    <strong{% if not completions %} class="is-empty"{% endif %}>{{ average_duration }}</strong>
                     <p class="teacher-metric__note">{{ average_duration_note }}</p>
                 </article>
             </section>
@@ -155,11 +160,13 @@
                         <div class="teacher-analytics-card__head teacher-analytics-card__head--stacked">
                             <div>
                                 <h2>Зависимость номера задания от количества успешных выполнений</h2>
-                                <p class="teacher-analytics-card__subcopy">
-                                    Чем выше линия, тем чаще ученики успешно справлялись с заданием.
-                                </p>
+                                {% if success_chart %}
+                                    <p class="teacher-analytics-card__subcopy">
+                                        Чем выше линия, тем чаще ученики успешно справлялись с заданием.
+                                    </p>
+                                {% endif %}
                             </div>
-                            {% if success_chart %}
+                            {% if success_chart.max_success %}
                                 <span class="teacher-analytics-card__meta">{{ success_chart.max_success_label }} максимум</span>
                             {% endif %}
                         </div>
@@ -167,34 +174,57 @@
                         {% if success_chart %}
                             <div class="teacher-analytics-chart teacher-analytics-chart--line" role="img" aria-label="График зависимости номера задания от количества успешных выполнений">
                                 <div class="teacher-analytics-chart__canvas">
-                                    <svg class="teacher-analytics-chart__svg" viewBox="0 0 {{ success_chart.width }} {{ success_chart.height }}" preserveAspectRatio="none" aria-hidden="true">
+                                    <svg class="teacher-analytics-chart__svg" viewBox="0 0 {{ success_chart.width }} {{ success_chart.height }}" aria-hidden="true">
                                         <defs>
                                             <linearGradient id="teacherAnalyticsArea" x1="0%" y1="0%" x2="0%" y2="100%">
                                                 <stop offset="0%" stop-color="#6f3bd1" stop-opacity="0.28"></stop>
                                                 <stop offset="100%" stop-color="#6f3bd1" stop-opacity="0.02"></stop>
                                             </linearGradient>
                                         </defs>
+                                        {% for grid_y in success_chart.grid_lines_svg %}
+                                            <line class="teacher-analytics-chart__grid" x1="0" y1="{{ grid_y }}" x2="{{ success_chart.width }}" y2="{{ grid_y }}"></line>
+                                        {% endfor %}
                                         <path class="teacher-analytics-chart__area" d="{{ success_chart.area_path }}"></path>
                                         <path class="teacher-analytics-chart__line teacher-analytics-chart__line--glow" d="{{ success_chart.line_path }}"></path>
                                         <path class="teacher-analytics-chart__line" d="{{ success_chart.line_path }}"></path>
                                         {% for point in success_chart.points %}
-                                            <circle class="teacher-analytics-chart__point-halo" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="11"></circle>
-                                            <circle class="teacher-analytics-chart__point" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="5.5"></circle>
-                                            <text class="teacher-analytics-chart__point-label" x="{{ point.label_x_svg }}" y="{{ point.label_y_svg }}">{{ point.correct_answers }}</text>
+                                            <g>
+                                                <title>{{ point.tooltip }}</title>
+                                                <circle class="teacher-analytics-chart__point-halo" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="11"></circle>
+                                                <circle class="teacher-analytics-chart__point" cx="{{ point.x_svg }}" cy="{{ point.y_svg }}" r="5.5"></circle>
+                                                <text class="teacher-analytics-chart__point-label" x="{{ point.x_svg }}" y="{{ point.label_y_svg }}">{{ point.correct_answers }}</text>
+                                                {% if point.axis_label %}
+                                                    <text class="teacher-analytics-chart__axis-label" x="{{ point.x_svg }}" y="{{ success_chart.axis_label_y_svg }}">{{ point.axis_label }}</text>
+                                                {% endif %}
+                                            </g>
                                         {% endfor %}
                                     </svg>
-                                </div>
-
-                                <div class="teacher-analytics-chart__axis">
-                                    {% for point in success_chart.points %}
-                                        <span>Задание {{ point.index }}</span>
-                                    {% endfor %}
                                 </div>
                                 <p class="teacher-analytics-chart__note">{{ success_chart.success_note }}</p>
                             </div>
                         {% else %}
-                            <div class="teacher-analytics-card__empty">
-                                График появится после первых сохранённых ответов по заданиям.
+                            <div class="teacher-analytics-empty">
+                                <p class="teacher-analytics-empty__lead">
+                                    {% if launches %}
+                                        Ученики уже открывали интерактив, но ответов пока нет. Статистика по каждому вопросу появится после первых ответов.
+                                    {% else %}
+                                        Пока никто не прошёл интерактив. Отправьте ссылку ученикам — здесь появится статистика по каждому вопросу.
+                                    {% endif %}
+                                </p>
+                                {% if share_url %}
+                                    <span class="teacher-analytics-empty__url">{{ share_url }}</span>
+                                    <div class="teacher-analytics-empty__actions">
+                                        <button class="button teacher-header__create" type="button" data-copy-link="{{ share_url }}">Скопировать ссылку</button>
+                                        <a class="button button-secondary teacher-header__secondary" href="{{ share_url }}" target="_blank" rel="noreferrer">Открыть</a>
+                                    </div>
+                                {% else %}
+                                    {% if not activity.is_published %}
+                                        <p class="teacher-analytics-empty__hint">
+                                            Сначала опубликуйте интерактив в редакторе: пока это черновик, ученики не смогут его открыть.
+                                        </p>
+                                    {% endif %}
+                                    <a class="button button-secondary teacher-header__secondary" href="{% url 'activities:edit' activity.pk %}">Перейти в редактор</a>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </section>
@@ -330,4 +360,7 @@
             </section>
         </div>
     </section>
+    {% if share_url %}
+        <div class="teacher-copy-toast" data-copy-toast role="status" aria-live="polite" hidden></div>
+    {% endif %}
 {% endblock %}

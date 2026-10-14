@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
+from unittest import mock
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -253,7 +255,7 @@ class DashboardHomeViewTests(TestCase):
         response = self.client.get(reverse("dashboard:home"))
         markup = response.content.decode()
 
-        self.assertContains(response, "3 вопросов")
+        self.assertContains(response, "3 вопроса")
         self.assertContains(response, reverse("activities:edit", kwargs={"pk": activity.pk}))
         self.assertContains(response, reverse("activities:preview", kwargs={"pk": activity.pk}))
         self.assertContains(response, reverse("dashboard:analytics", kwargs={"pk": activity.pk}))
@@ -262,6 +264,64 @@ class DashboardHomeViewTests(TestCase):
         self.assertContains(response, f'data-copy-link="http://testserver{share_link.get_absolute_url()}"')
         self.assertContains(response, "data-copy-toast")
         self.assertContains(response, "Опубликован", count=1)
+
+    def test_dashboard_draft_card_has_no_copy_link_button(self):
+        published = self._create_activity(
+            title="Опубликованная",
+            description="Ссылка работает.",
+            published=True,
+        )
+        published_link = ShareLink.objects.create(activity=published, slug="published-link")
+        unpublished = self._create_activity(
+            title="Снятая с публикации",
+            description="Ссылка осталась активной, но плеер отвечает 404.",
+            published=True,
+        )
+        stale_link = ShareLink.objects.create(activity=unpublished, slug="stale-link")
+        unpublished.unpublish()
+        unpublished.save(update_fields=["status", "updated_at"])
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertContains(response, "data-copy-link=", count=1)
+        self.assertContains(response, f'data-copy-link="http://testserver{published_link.get_absolute_url()}"')
+        self.assertNotContains(response, stale_link.get_absolute_url())
+
+    def test_dashboard_feed_drops_published_event_after_unpublish(self):
+        activity = self._create_activity(
+            title="Временно скрытая",
+            description="Опубликована и снята с публикации.",
+            published=True,
+        )
+        activity.unpublish()
+        activity.save(update_fields=["status", "updated_at"])
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertIsNotNone(Activity.objects.get(pk=activity.pk).published_at)
+        self.assertNotContains(response, "Активность опубликована")
+        self.assertNotContains(response, "доступна по ссылке")
+
+    @override_settings(TIME_ZONE="Europe/Moscow")
+    def test_dashboard_month_count_uses_local_time(self):
+        moscow = ZoneInfo("Europe/Moscow")
+        october_night = self._create_activity(title="Первая ночь октября", description="")
+        september_evening = self._create_activity(title="Последний вечер сентября", description="")
+        # 01:00 MSK on 1 October is still 30 September in UTC.
+        Activity.objects.filter(pk=october_night.pk).update(
+            created_at=datetime(2026, 10, 1, 1, 0, tzinfo=moscow)
+        )
+        Activity.objects.filter(pk=september_evening.pk).update(
+            created_at=datetime(2026, 9, 30, 23, 30, tzinfo=moscow)
+        )
+
+        with mock.patch(
+            "django.utils.timezone.now",
+            return_value=datetime(2026, 10, 15, 9, 0, tzinfo=dt_timezone.utc),
+        ):
+            response = self.client.get(reverse("dashboard:home"))
+
+        self.assertContains(response, "1 новая активность в этом месяце")
 
     def test_dashboard_shows_all_teacher_activities_without_truncation(self):
         first = self._create_activity(
@@ -434,9 +494,9 @@ class DashboardAnalyticsViewTests(TestCase):
         self.assertContains(response, "5 мин")
         self.assertContains(response, "80,0%")
         self.assertContains(response, "Question 1")
-        self.assertContains(response, "2 ошибок")
+        self.assertContains(response, "2 ошибки")
         self.assertContains(response, "Question 2")
-        self.assertContains(response, "3 верных ответов")
+        self.assertContains(response, "3 верных ответа")
         self.assertContains(response, "Boris")
         self.assertContains(response, "Alice")
         self.assertContains(response, "Clara")
@@ -488,3 +548,108 @@ class DashboardAnalyticsViewTests(TestCase):
         self.assertContains(response, "Задание 1")
         self.assertContains(response, "Задание 2")
         self.assertContains(response, "Задание 3")
+        self.assertContains(response, 'class="teacher-analytics-chart__axis-label"', count=3)
+        self.assertNotContains(response, "preserveAspectRatio")
+        self.assertContains(response, "1 успех максимум")
+
+    def test_teacher_analytics_without_sessions_shows_empty_state_with_share_link(self):
+        activity = self._create_activity()
+        activity.publish()
+        activity.save(update_fields=["status", "published_at", "updated_at"])
+        share_link = ShareLink.objects.create(activity=activity, slug="analytics-empty")
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        share_url = f"http://testserver{share_link.get_absolute_url()}"
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Пока никто не прошёл интерактив.")
+        self.assertContains(response, f'data-copy-link="{share_url}"')
+        self.assertContains(response, f'href="{share_url}"')
+        self.assertContains(response, "data-copy-toast")
+        self.assertNotContains(response, "teacher-analytics-chart__svg")
+        self.assertNotContains(response, "максимум")
+        self.assertNotContains(response, "0,0%")
+        self.assertContains(response, "Появится после первого завершённого прохождения.", count=2)
+        self.assertContains(response, "0 запусков")
+
+    def test_teacher_analytics_draft_without_sessions_points_to_editor(self):
+        activity = self._create_activity()
+        # A link left over from an earlier publication must not be offered for a draft.
+        stale_link = ShareLink.objects.create(activity=activity, slug="analytics-stale")
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        self.assertContains(response, "Пока никто не прошёл интерактив.")
+        self.assertContains(response, "Сначала опубликуйте интерактив в редакторе")
+        self.assertContains(response, "Перейти в редактор")
+        self.assertNotContains(response, stale_link.get_absolute_url())
+        self.assertNotContains(response, "data-copy-link")
+        self.assertNotContains(response, "максимум")
+
+    def test_teacher_analytics_hides_max_pill_when_every_answer_is_wrong(self):
+        activity = self._create_activity()
+        session = self._create_completed_session(
+            activity=activity,
+            participant_name="Unlucky Student",
+            score=0,
+            max_score=100,
+            started_at=timezone.now() - timedelta(hours=1),
+            duration_minutes=3,
+        )
+        ActivityAnswer.objects.create(
+            session=session,
+            item_key="item-1",
+            prompt="Question 1",
+            submitted_value={"choice": "b"},
+            is_correct=False,
+            score_awarded=0,
+        )
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        self.assertContains(response, "teacher-analytics-chart__svg")
+        self.assertNotContains(response, "максимум")
+        self.assertContains(response, "0,0%")
+
+    def test_teacher_analytics_chart_thins_axis_labels_for_many_questions(self):
+        items = [
+            {
+                "id": f"item-{index}",
+                "prompt": f"Question {index}",
+                "points": 1,
+                "options": [
+                    {"id": f"item-{index}-a", "text": "Correct", "is_correct": True},
+                    {"id": f"item-{index}-b", "text": "Wrong", "is_correct": False},
+                ],
+            }
+            for index in range(1, 16)
+        ]
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Long quiz",
+            template_key="quiz",
+            config_json={"items": items},
+        )
+        session = self._create_completed_session(
+            activity=activity,
+            participant_name="Patient Student",
+            score=15,
+            max_score=15,
+            started_at=timezone.now() - timedelta(hours=1),
+            duration_minutes=10,
+        )
+        for item in items:
+            ActivityAnswer.objects.create(
+                session=session,
+                item_key=item["id"],
+                prompt=item["prompt"],
+                submitted_value={"choice": "a"},
+                is_correct=True,
+                score_awarded=1,
+            )
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+        axis_labels = re.findall(r'class="teacher-analytics-chart__axis-label"[^>]*>([^<]+)<', response.content.decode())
+
+        self.assertContains(response, 'class="teacher-analytics-chart__point"', count=15)
+        self.assertEqual(axis_labels, ["1", "2", "4", "6", "8", "10", "12", "14"])
