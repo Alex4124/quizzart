@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from typing import Any
 
 from django.core.exceptions import ValidationError
 
 DEFAULT_QUESTION_POINTS = 10
 MAX_QUESTION_POINTS = 1000
+# Ids end up in HTML attributes and CSS selectors, so the alphabet stays narrow.
+ITEM_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 
 QUESTION_BANK_HELP_TEXT = (
     "Одна строка на вопрос: Вопрос | *Правильный ответ | Неверный 1 | Неверный 2 | необязательные баллы"
@@ -47,6 +50,56 @@ def validate_unique_options(options: list[dict[str, Any]], label: str) -> None:
         seen.add(key)
 
 
+def new_item_id() -> str:
+    return f"q-{uuid.uuid4().hex[:12]}"
+
+
+def assign_item_ids(
+    items: list[dict[str, Any]],
+    previous_items: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Give every question a stable id, so saved answers keep pointing at the same question after edits.
+
+    A valid id posted by the editor is kept; otherwise an unused id of a previous question with the same
+    wording is reused (older editor scripts post no ids); otherwise a fresh random id is created.
+    """
+    used: set[str] = set()
+    for item in items:
+        raw_id = str(item.get("id") or "")
+        if ITEM_ID_RE.match(raw_id) and raw_id not in used:
+            item["id"] = raw_id
+            used.add(raw_id)
+        else:
+            item["id"] = ""
+
+    free_ids_by_prompt: dict[str, list[str]] = {}
+    for previous in previous_items or []:
+        previous_id = str(previous.get("id") or "")
+        if ITEM_ID_RE.match(previous_id) and previous_id not in used:
+            free_ids_by_prompt.setdefault(normalize_answer(previous.get("prompt", "")), []).append(previous_id)
+
+    for item in items:
+        if item["id"]:
+            continue
+        candidates = free_ids_by_prompt.get(normalize_answer(item.get("prompt", "")), [])
+        while candidates and candidates[0] in used:
+            candidates.pop(0)
+        if candidates:
+            item["id"] = candidates.pop(0)
+            used.add(item["id"])
+
+    for item in items:
+        if not item["id"]:
+            item_id = new_item_id()
+            while item_id in used:
+                item_id = new_item_id()
+            item["id"] = item_id
+            used.add(item_id)
+        for option_index, option in enumerate(item.get("options", []), start=1):
+            option["id"] = f"{item['id']}-option-{option_index}"
+    return items
+
+
 def is_scoring_enabled(config: dict[str, Any]) -> bool:
     return bool(config.get("scoring_enabled", True))
 
@@ -64,6 +117,7 @@ def get_question_score(
 def parse_question_bank_text(
     raw_text: str,
     default_points: int = DEFAULT_QUESTION_POINTS,
+    previous_items: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     rows = non_empty_lines(raw_text)
@@ -111,14 +165,14 @@ def parse_question_bank_text(
 
         items.append(
             {
-                "id": f"item-{index}",
+                "id": "",
                 "prompt": prompt,
                 "options": options,
                 "points": points,
             }
         )
 
-    return items
+    return assign_item_ids(items, previous_items)
 
 
 def serialize_question_bank_editor(
@@ -129,6 +183,7 @@ def serialize_question_bank_editor(
     for item in items:
         editor_items.append(
             {
+                "id": item.get("id", ""),
                 "prompt": item.get("prompt", ""),
                 "points": item.get("points", default_points),
                 "options": [
@@ -146,6 +201,7 @@ def serialize_question_bank_editor(
 def parse_question_bank_editor_json(
     raw_value: str | list[dict[str, Any]],
     default_points: int = DEFAULT_QUESTION_POINTS,
+    previous_items: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     payload = raw_value
     if isinstance(raw_value, str):
@@ -214,10 +270,9 @@ def parse_question_bank_editor_json(
             raise ValidationError(f"У вопроса {row_index} баллы должны быть целым числом.") from exc
         validate_question_points(points, f"Вопрос {row_index}")
 
-        item_index = len(items) + 1
         items.append(
             {
-                "id": f"item-{item_index}",
+                "id": str(raw_item.get("id") or ""),
                 "prompt": prompt,
                 "options": normalized_options,
                 "points": points,
@@ -227,17 +282,18 @@ def parse_question_bank_editor_json(
     if not items:
         raise ValidationError("Добавьте хотя бы один вопрос.")
 
-    return items
+    return assign_item_ids(items, previous_items)
 
 
 def question_bank_items_from_payload(
     items_json: str | list[dict[str, Any]] | None,
     items_text: str,
     default_points: int = DEFAULT_QUESTION_POINTS,
+    previous_items: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     if items_json:
-        return parse_question_bank_editor_json(items_json, default_points=default_points)
-    return parse_question_bank_text(items_text, default_points=default_points)
+        return parse_question_bank_editor_json(items_json, default_points=default_points, previous_items=previous_items)
+    return parse_question_bank_text(items_text, default_points=default_points, previous_items=previous_items)
 
 
 def serialize_question_bank(

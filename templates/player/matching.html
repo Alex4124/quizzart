@@ -1,83 +1,97 @@
 {% extends "player/player_base.html" %}
+{% load static %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block player_layout_attrs %}
-    data-matching-player
-    data-preview="{{ preview|yesno:'1,0' }}"
-    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
-{% endblock %}
-
 {% block player_board %}
-    <form method="post" class="stack-form player-matching-layout matching-flow" id="matching-flow-form" data-matching-flow>
-        {% csrf_token %}
-        {% if not preview %}
-            <input type="hidden" name="action" value="submit_matching">
-        {% endif %}
-        {% for row in runtime.rows %}
-            <input type="hidden" name="match_{{ row.id }}" value="{{ row.selected }}" data-answer-target="{{ row.id }}">
-        {% endfor %}
-
+    <div
+        class="player-matching-layout matching-flow"
+        data-player-root
+        data-matching-player
+        data-preview="{{ preview|yesno:'1,0' }}"
+        data-action-url="{{ runtime.action_url }}"
+        data-total-count="{{ runtime.total_count }}"
+    >
         <div class="matching-stage">
             {% for row in runtime.rows %}
                 <article
-                    class="card question-card matching-card{% if forloop.first %} matching-card-current{% endif %}"
+                    class="card question-card matching-card{% if row.id == runtime.current_item_id %} matching-card-current{% endif %}"
+                    data-reveal-stagger
                     data-matching-question
                     data-item-id="{{ row.id }}"
-                    data-correct-option="{{ row.correct_option }}"
-                    data-correct-choice-id="{{ row.correct_choice_id }}"
-                    data-reveal-stagger
-                    {% if not forloop.first %}hidden{% endif %}
+                    data-state="{% if row.is_answered %}answered{% else %}open{% endif %}"
+                    {% if row.id != runtime.current_item_id %}hidden{% endif %}
                 >
-                    <p class="player-panel__eyebrow">Пара {{ forloop.counter }} из {{ runtime.rows|length }}</p>
-                    <h2>{{ row.prompt }}</h2>
-                    <div class="matching-dock-shell">
-                        <p class="player-panel__eyebrow">Карточка ответа</p>
-                        <div class="matching-dock" data-matching-dock data-item-id="{{ row.id }}">
-                            <span class="matching-dock-placeholder" data-matching-dock-placeholder>
-                                Выберите подходящую карточку из общего банка ответов.
-                            </span>
-                            <div class="matching-dock-card" data-matching-docked-card hidden></div>
+                    {% comment %}The cards of the shared bank below submit this form through their form attribute.{% endcomment %}
+                    <form method="post" action="{{ runtime.action_url }}" id="matching-answer-{{ row.id }}" class="matching-card__content" data-answer-form>
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="answer">
+                        <input type="hidden" name="item_key" value="{{ row.id }}">
+                        <p class="player-panel__eyebrow">Пара {{ row.number }} из {{ runtime.total_count }}</p>
+                        <h2 id="matching-prompt-{{ row.id }}">{{ row.prompt }}</h2>
+                        <div class="matching-dock-shell">
+                            <p class="player-panel__eyebrow">Карточка ответа</p>
+                            <div class="matching-dock{% if row.placed_card %} matching-dock-filled{% endif %}" data-matching-dock>
+                                {% if row.placed_card %}
+                                    <span class="option-row matching-choice matching-dock-card is-selected{% if row.feedback.is_correct is True %} is-correct{% elif row.feedback.is_correct is False %} is-wrong{% endif %}">
+                                        {% if row.placed_card.number %}<span class="matching-choice__token" aria-hidden="true">{{ row.placed_card.number }}</span>{% endif %}
+                                        <span>{{ row.placed_card.text }}</span>
+                                    </span>
+                                    {% if row.right_card %}
+                                        <span class="option-row matching-choice matching-dock-card is-correct">
+                                            {% if row.right_card.number %}<span class="matching-choice__token" aria-hidden="true">{{ row.right_card.number }}</span>{% endif %}
+                                            <span>{{ row.right_card.text }}</span>
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="matching-dock-placeholder">Выберите подходящую карточку в банке ответов ниже.</span>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                    {% if player_shell.scoring_enabled %}<p class="muted">{{ row.points }} балл.</p>{% endif %}
-                    <p class="muted question-feedback" data-question-feedback hidden></p>
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ row.points }} балл.</p>{% endif %}
+                        <p class="muted question-feedback" data-question-feedback aria-live="polite"{% if not row.feedback %} hidden{% endif %}>
+                            {% if row.feedback %}{% include "player/_feedback_text.html" with feedback=row.feedback %}{% endif %}
+                        </p>
+                    </form>
                 </article>
             {% endfor %}
         </div>
 
-        <div class="matching-bank" data-matching-bank>
+        {% comment %}No card ids here: they follow the authoring order and would undo the shuffle.{% endcomment %}
+        <div class="matching-bank" role="group" aria-label="Банк ответов" data-matching-bank>
             {% for choice in runtime.answer_bank %}
                 <button
                     class="option-row matching-choice"
-                    type="button"
+                    type="submit"
+                    name="answer"
+                    value="{{ choice.text }}"
                     data-matching-choice
-                    data-choice-id="{{ choice.id }}"
-                    data-choice-value="{{ choice.text }}"
+                    {% if runtime.current_item_id %}form="matching-answer-{{ runtime.current_item_id }}" aria-describedby="matching-prompt-{{ runtime.current_item_id }}"{% else %}disabled{% endif %}
                 >
-                    <span class="matching-choice__token">{{ forloop.counter }}</span>
+                    <span class="matching-choice__token" aria-hidden="true">{{ forloop.counter }}</span>
                     <span>{{ choice.text }}</span>
                 </button>
             {% endfor %}
         </div>
 
-        {% if not preview %}
-            <button class="button" type="submit" data-matching-submit>Завершить сопоставление</button>
+        {% if preview %}
+            <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти шаблон.</div>
         {% endif %}
-    </form>
+    </div>
 {% endblock %}
 
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Сопоставление</p>
     <h2>Соединяйте вопросы с карточками из общего банка</h2>
-    <p>Вопросы идут по одному, а справа собраны все ответы, которые учитель добавил в этот интерактив.</p>
-    {% if preview %}
-        <div class="message" data-preview-complete hidden>Предпросмотр завершён. Обновите страницу, чтобы снова пройти шаблон.</div>
-    {% endif %}
+    <p>Вопросы идут по одному, а под карточкой вопроса собраны все ответы, которые учитель добавил в этот интерактив.</p>
 {% endblock %}
 
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Одна карточка вопроса за раз</h3>
     <p>После выбора ответа в ячейку вопроса вставляется верная карточка, а затем сцена переходит к следующей паре.</p>
+{% endblock %}
+
+{% block player_script %}
+    <script src="{% static 'js/player/matching.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Avg, Count, Prefetch, Q
+from django.db.models import Avg, Count, Max, Prefetch, Q
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -327,10 +327,12 @@ def _build_question_performance(activity: Activity) -> tuple[list[dict], list[di
         }
         for index, item in enumerate(ordered_items, start=1)
     }
+    # One row per question id: answers saved before the teacher edited the wording stay in the same row.
     answer_stats = list(
         ActivityAnswer.objects.filter(session__activity=activity)
-        .values("item_key", "prompt")
+        .values("item_key")
         .annotate(
+            saved_prompt=Max("prompt"),
             total_answers=Count("id"),
             correct_answers=Count("id", filter=Q(is_correct=True)),
             incorrect_answers=Count("id", filter=Q(is_correct=False)),
@@ -340,7 +342,11 @@ def _build_question_performance(activity: Activity) -> tuple[list[dict], list[di
     items: list[dict] = []
     for answer_stat in answer_stats:
         ordered_meta = ordered_lookup.get(answer_stat["item_key"], {})
-        prompt = (answer_stat["prompt"] or "").strip() or ordered_meta.get("prompt") or f"Задание {answer_stat['item_key']}"
+        saved_prompt = (answer_stat["saved_prompt"] or "").strip()
+        if ordered_meta:
+            prompt = ordered_meta["prompt"]
+        else:
+            prompt = f"{saved_prompt or 'Задание'} (вопрос удалён)"
         total_answers = answer_stat["total_answers"] or 0
         correct_answers = answer_stat["correct_answers"] or 0
         incorrect_answers = answer_stat["incorrect_answers"] or 0

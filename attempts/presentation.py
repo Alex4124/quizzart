@@ -28,29 +28,12 @@ def _safe_avatar_url(profile: object | None) -> str:
         return ""
 
 
-def _player_total_count(template_key: str, runtime: dict[str, Any]) -> int:
-    if template_key == "quiz":
-        return len(runtime.get("questions", []))
-    if template_key == "wheel_of_fortune":
-        return int(runtime.get("total_items") or len(runtime.get("sectors", [])))
-    if template_key == "choose_a_box":
-        return int(runtime.get("total_boxes") or 0)
-    if template_key == "matching":
-        return len(runtime.get("rows", []))
-    if template_key == "categorize":
-        return len(runtime.get("cards", []))
-    if template_key == "snake":
-        return int(runtime.get("total_items") or len(runtime.get("apples", [])))
-    return len(runtime.get("review_items", []))
+def _player_total_count(runtime: dict[str, Any]) -> int:
+    return int(runtime.get("total_count") or 0)
 
 
-def _player_answered_count(template_key: str, runtime: dict[str, Any], session: object | None) -> int:
-    if template_key in {"wheel_of_fortune", "choose_a_box", "snake"}:
-        return int(runtime.get("answered_count") or 0)
-    if session is None:
-        return 0
-    answers = getattr(session, "answers", None)
-    return answers.count() if hasattr(answers, "count") else 0
+def _player_answered_count(runtime: dict[str, Any]) -> int:
+    return int(runtime.get("answered_count") or 0)
 
 
 def _player_mode_labels(mode: str) -> tuple[str, str, str]:
@@ -105,8 +88,8 @@ def build_player_shell_context(
     participant_name: str = "",
 ) -> dict[str, Any]:
     template_key = getattr(activity, "template_key", "")
-    total_count = _player_total_count(template_key, runtime)
-    answered_count = _player_answered_count(template_key, runtime, session)
+    total_count = _player_total_count(runtime)
+    answered_count = _player_answered_count(runtime)
     remaining_count = max(total_count - answered_count, 0)
     current_score = int(getattr(session, "score", 0) or 0)
     max_score = int(getattr(session, "max_score", 0) or runtime.get("max_score") or 0)
@@ -123,6 +106,11 @@ def build_player_shell_context(
     item_label = PLAYER_UNIT_LABELS.get(template_key, "элементов")
     filled_segments = max(0, min(5, round(progress_percent / 20)))
     scoring_enabled = is_scoring_enabled(getattr(activity, "config_json", {}))
+    # While playing, a running score would tell which answers were right when the template hides that.
+    reveals_correctness = getattr(template_definition, "reveals_correctness", None)
+    hides_score = mode == "play" and callable(reveals_correctness) and not reveals_correctness(
+        getattr(activity, "config_json", {})
+    )
 
     if mode == "launch":
         footer_text = (
@@ -159,7 +147,7 @@ def build_player_shell_context(
             {
                 "key": "score",
                 "label": "Очки" if scoring_enabled else "Верные ответы",
-                "value": str(current_score),
+                "value": "—" if hides_score else str(current_score),
                 "tone": "accent",
             },
             {"key": "progress", "label": "Прогресс", "value": f"{progress_percent}%", "tone": "peach"},

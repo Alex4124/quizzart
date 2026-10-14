@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from accounts.services import ensure_user_profile, profile_full_name
 from activities.models import Activity, ShareLink
 from attempts.forms import LaunchForm
 from attempts.models import ActivitySession
 from attempts.presentation import build_player_shell_context
-from attempts.services import persist_template_answers
+from attempts.services import apply_evaluation
+from interactive_templates.base import TemplateEvaluation
 from interactive_templates.registry import registry
 
 
@@ -103,6 +107,113 @@ def _player_context(
     }
 
 
+def _finish_run(request, slug: str, session: ActivitySession) -> None:
+    request.session[_result_session_key(slug)] = str(session.token)
+    request.session.pop(_active_session_key(slug), None)
+
+
+def _complete_if_nothing_left(activity, definition, session: ActivitySession) -> bool:
+    """Finish a run whose remaining questions the teacher deleted mid-run: nothing is left to answer."""
+    is_complete = getattr(definition, "is_complete", None)
+    if not callable(is_complete):
+        return False
+    answered = {answer.item_key for answer in session.answers.all()}
+    if not is_complete(activity.config_json, answered):
+        return False
+    with transaction.atomic():
+        locked = ActivitySession.objects.select_for_update().get(pk=session.pk)
+        if locked.status != ActivitySession.Status.COMPLETED:
+            apply_evaluation(locked, activity, definition, TemplateEvaluation())
+    return True
+
+
+def _action_payload(action: str, activity, definition, session, evaluation, outcome, results_url: str) -> dict:
+    """The JSON a player gets back: feedback on its answer and the recomputed run, never the answer key."""
+    config = activity.config_json
+    payload = {
+        "ok": True,
+        "action": action,
+        "item_key": evaluation.item_key,
+        "already_answered": False,
+        "feedback": None,
+        "answered_count": outcome.answered_count,
+        "total_count": outcome.total_count,
+        "is_complete": outcome.is_complete,
+        "redirect_url": results_url if outcome.is_complete else None,
+    }
+    if evaluation.item_key and evaluation.item_key in outcome.stored:
+        answer, created = outcome.stored[evaluation.item_key]
+        item = next((item for item in definition.get_items(config) if str(item["id"]) == evaluation.item_key), None)
+        payload["already_answered"] = not created
+        payload["feedback"] = definition.build_answer_feedback(config, item, answer)
+    if getattr(definition, "reveals_correctness", lambda _config: True)(config):
+        payload.update(
+            {
+                "score": session.score,
+                "max_score": session.max_score,
+                "percent_score": float(session.percent_score),
+            }
+        )
+    else:
+        # The running score would tell which answers were right when the template hides correctness.
+        payload.update({"score": None, "max_score": session.max_score, "percent_score": None})
+    payload.update(evaluation.response)
+    return payload
+
+
+def _handle_session_action(request, share_link: ShareLink, definition):
+    slug = share_link.slug
+    activity = share_link.activity
+    is_ajax = _is_ajax_request(request)
+    play_url = reverse("attempts:play", kwargs={"slug": slug})
+    results_url = reverse("attempts:results", kwargs={"slug": slug})
+    token = request.session.get(_active_session_key(slug))
+    if not token:
+        # Another tab already finished this run: send the student to the results, not to a new start.
+        finished = _get_result_session(request, share_link)
+        if finished and finished.status == ActivitySession.Status.COMPLETED:
+            if is_ajax:
+                return JsonResponse(
+                    {"ok": False, "error": "Прохождение уже завершено.", "redirect_url": results_url},
+                    status=409,
+                )
+            return redirect(results_url)
+
+    try:
+        with transaction.atomic():
+            session = ActivitySession.objects.select_for_update().get(share_link=share_link, token=token)
+            if session.status == ActivitySession.Status.COMPLETED:
+                evaluation = outcome = None
+            else:
+                evaluation = definition.evaluate_submission(activity, session, request.POST)
+                outcome = apply_evaluation(session, activity, definition, evaluation)
+    except (ActivitySession.DoesNotExist, ValidationError) as exc:
+        if isinstance(exc, ValidationError):
+            message, status, target = exc.messages[0], 400, None
+        else:
+            message, status, target = "Прохождение не найдено. Начните заново.", 409, play_url
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": message, "redirect_url": target}, status=status)
+        messages.error(request, message)
+        return redirect(play_url)
+
+    if outcome is None:
+        _finish_run(request, slug, session)
+        if is_ajax:
+            return JsonResponse(
+                {"ok": False, "error": "Прохождение уже завершено.", "redirect_url": results_url},
+                status=409,
+            )
+        return redirect(results_url)
+
+    if outcome.is_complete:
+        _finish_run(request, slug, session)
+    if is_ajax:
+        action = str(request.POST.get("action", ""))
+        return JsonResponse(_action_payload(action, activity, definition, session, evaluation, outcome, results_url))
+    return redirect(results_url if outcome.is_complete else play_url)
+
+
 def play(request, slug: str):
     share_link = _get_share_link_or_404(slug)
     activity = share_link.activity
@@ -117,12 +228,6 @@ def play(request, slug: str):
             _player_context(request, activity, definition, runtime, mode="launch", participant_name=student_name),
         )
 
-    current_session = _get_current_session(request, share_link)
-    if current_session and current_session.status == ActivitySession.Status.COMPLETED:
-        request.session[_result_session_key(slug)] = str(current_session.token)
-        request.session.pop(_active_session_key(slug), None)
-        return redirect("attempts:results", slug=slug)
-
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "restart":
@@ -131,6 +236,10 @@ def play(request, slug: str):
             return redirect("attempts:play", slug=slug)
 
         if action == "start":
+            current_session = _get_current_session(request, share_link)
+            if current_session and current_session.status == ActivitySession.Status.COMPLETED:
+                _finish_run(request, slug, current_session)
+                return redirect("attempts:results", slug=slug)
             if not current_session:
                 form = LaunchForm(request.POST)
                 if not form.is_valid():
@@ -157,67 +266,15 @@ def play(request, slug: str):
                 request.session[_active_session_key(slug)] = str(current_session.token)
             return redirect("attempts:play", slug=slug)
 
-        if not current_session:
-            return redirect("attempts:play", slug=slug)
+        return _handle_session_action(request, share_link, definition)
 
-        try:
-            evaluation = definition.evaluate_submission(activity, current_session, request.POST)
-        except ValidationError as exc:
-            if _is_ajax_request(request):
-                return JsonResponse({"ok": False, "error": exc.messages[0]}, status=400)
-            runtime = definition.build_runtime_data(activity, session=current_session)
-            return render(
-                request,
-                definition.player_template_name,
-                {
-                    **_player_context(
-                        request,
-                        activity,
-                        definition,
-                        runtime,
-                        session=current_session,
-                        mode="play",
-                        participant_name=current_session.participant_name or student_name,
-                    ),
-                    "player_error": exc.messages[0],
-                },
-            )
-
-        persist_template_answers(current_session, evaluation.answers)
-        current_session.runtime_state = evaluation.runtime_state
-        current_session.update_scores(evaluation.score, evaluation.max_score)
-        save_fields = ["runtime_state", "score", "max_score", "percent_score"]
-        if evaluation.is_complete:
-            current_session.mark_completed(evaluation.score, evaluation.max_score)
-            save_fields.extend(["status", "completed_at"])
-        current_session.save(update_fields=save_fields)
-
-        if evaluation.is_complete:
-            request.session[_result_session_key(slug)] = str(current_session.token)
-            request.session.pop(_active_session_key(slug), None)
-            if _is_ajax_request(request):
-                return JsonResponse(
-                    {
-                        "ok": True,
-                        "is_complete": True,
-                        "score": current_session.score,
-                        "max_score": current_session.max_score,
-                        "percent_score": float(current_session.percent_score),
-                        "redirect_url": redirect("attempts:results", slug=slug).url,
-                    }
-                )
-            return redirect("attempts:results", slug=slug)
-        if _is_ajax_request(request):
-            return JsonResponse(
-                {
-                    "ok": True,
-                    "is_complete": False,
-                    "score": current_session.score,
-                    "max_score": current_session.max_score,
-                    "percent_score": float(current_session.percent_score),
-                }
-            )
-        return redirect("attempts:play", slug=slug)
+    current_session = _get_current_session(request, share_link)
+    if current_session and (
+        current_session.status == ActivitySession.Status.COMPLETED
+        or _complete_if_nothing_left(activity, definition, current_session)
+    ):
+        _finish_run(request, slug, current_session)
+        return redirect("attempts:results", slug=slug)
 
     if not current_session:
         runtime = definition.build_runtime_data(activity)
@@ -232,6 +289,7 @@ def play(request, slug: str):
         )
 
     runtime = definition.build_runtime_data(activity, session=current_session)
+    runtime["action_url"] = reverse("attempts:play", kwargs={"slug": slug})
     return render(
         request,
         definition.player_template_name,
@@ -259,6 +317,7 @@ def results(request, slug: str):
         return redirect("attempts:play", slug=slug)
 
     runtime = definition.build_runtime_data(activity, session=result_session)
+    runtime.update(definition.build_results_data(activity, result_session))
     return render(
         request,
         "player/results.html",

@@ -1,0 +1,3 @@
+{% comment %}Same wording as feedbackText() in static/js/player/core.js.{% endcomment %}{% spaceless %}
+{% if feedback.is_correct is True %}Верно. Ответ засчитан.{% elif feedback.is_correct is False %}{% if feedback.correct_option %}Неверно. Правильный ответ: {{ feedback.correct_option }}{% else %}Неверно.{% endif %}{% else %}Ответ сохранён.{% endif %}
+{% endspaceless %}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -184,7 +184,10 @@ def _activity_editor(request, activity: Activity | None = None):
         if action == "switch_template":
             config_form = _switch_config_form(definition, request.POST, activity)
         else:
-            config_form = definition.get_editor_form(request.POST)
+            config_form = definition.get_editor_form(
+                request.POST,
+                previous_config=activity.config_json if activity else None,
+            )
             if activity_form.is_valid() and config_form.is_valid():
                 try:
                     candidate_config = definition.build_config(config_form.cleaned_data)
@@ -338,6 +341,7 @@ def preview_activity(request, pk: int):
         raise Http404("Шаблон интерактива больше не поддерживается.")
     definition = registry.get(activity.template_key)
     runtime = definition.build_runtime_data(activity, preview=True)
+    runtime["action_url"] = reverse("activities:preview_action", kwargs={"pk": activity.pk})
     return render(
         request,
         definition.preview_template_name,
@@ -356,3 +360,18 @@ def preview_activity(request, pk: int):
             ),
         },
     )
+
+
+@teacher_required
+@require_POST
+def preview_action(request, pk: int):
+    """Checks an answer for the teacher's preview: same rules as for students, nothing is saved."""
+    activity = get_object_or_404(Activity, pk=pk, owner=request.user)
+    if activity.template_key not in registry.keys():
+        raise Http404("Шаблон интерактива больше не поддерживается.")
+    definition = registry.get(activity.template_key)
+    try:
+        payload = definition.evaluate_preview_action(activity, request.POST)
+    except ValidationError as exc:
+        return JsonResponse({"ok": False, "error": exc.messages[0]}, status=400)
+    return JsonResponse({"ok": True, **payload})

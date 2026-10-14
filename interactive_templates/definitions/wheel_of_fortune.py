@@ -6,15 +6,10 @@ from typing import Any
 from django import forms
 from django.core.exceptions import ValidationError
 
-from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.base import QuestionBankTemplateDefinition, TemplateEvaluation, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    choice_texts,
-    correct_option,
-    get_question_bank_max_score,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -48,6 +43,10 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
+# The server picks the sector, so a student cannot choose which question to answer. Tests patch _rng.choice.
+_rng = random.SystemRandom()
+
+
 def _wheel_sector_fills(count: int) -> list[str]:
     palette = ["#c11755", "#aa7af1", "#ff9368", "#7d44c8", "#62bdf5"]
     if count <= 0:
@@ -65,7 +64,7 @@ def _wheel_sector_fills(count: int) -> list[str]:
     return fills
 
 
-class WheelOfFortuneDefinition(BaseTemplateDefinition):
+class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="wheel_of_fortune",
         title="Колесо фортуны",
@@ -76,6 +75,8 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
     player_template_name = "player/wheel_of_fortune.html"
     preview_template_name = "player/wheel_of_fortune.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
+    answer_actions = frozenset({"answer", "answer_wheel"})
+    allows_early_finish = True
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -104,6 +105,7 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
                 default_points=DEFAULT_QUESTION_POINTS,
+                previous_items=cleaned_data.get("previous_items"),
             ),
         }
 
@@ -114,131 +116,98 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers_by_key = {}
-        active_item_id = ""
-        if session:
-            answers_by_key = {answer.item_key: answer for answer in session.answers.all()}
-            active_item_id = session.runtime_state.get("active_item", "")
-
-        active_item = next((item for item in items if item["id"] == active_item_id), None)
-        sectors = []
-        fills = _wheel_sector_fills(len(items))
-        for index, item in enumerate(items, start=1):
-            sectors.append(
-                {
-                    "id": item["id"],
-                    "label": get_question_score(config, item) if is_scoring_enabled(config) else index,
-                    "prompt": item["prompt"],
-                    "options": choice_texts(item),
-                    "correct_option": correct_option(item)["text"],
-                    "points": get_question_score(config, item),
-                    "is_active": item["id"] == active_item_id,
-                    "is_answered": item["id"] in answers_by_key,
-                    "fill": fills[index - 1],
-                }
-            )
-
-        return {
-            "sectors": sectors,
-            "active_item": {
-                "id": active_item["id"],
-                "prompt": active_item["prompt"],
-                "options": choice_texts(active_item),
-                "correct_option": correct_option(active_item)["text"],
-                "points": get_question_score(config, active_item),
+        scoring_enabled = is_scoring_enabled(config)
+        states = self.build_item_states(activity, session, preview=preview)
+        active_key = str(session.runtime_state.get("active_item", "")) if session else ""
+        # The question the wheel stopped on and the student has not answered yet: a reload shows it again.
+        active_item = next((state for state in states if state["id"] == active_key and not state["is_answered"]), None)
+        fills = _wheel_sector_fills(len(states))
+        sectors = [
+            {
+                **state,
+                "label": state["points"] if scoring_enabled else state["number"],
+                "is_active": active_item is not None and state["id"] == active_item["id"],
+                "fill": fills[index],
             }
-            if active_item
-            else None,
-            "answered_count": len(answers_by_key),
-            "total_items": len(items),
+            for index, state in enumerate(states)
+        ]
+        answered_count = sum(1 for state in states if state["is_answered"])
+        return {
+            # No answer key here: options and, for answered sectors, the feedback the reveal policy allows.
+            "sectors": sectors,
+            "active_item": active_item,
+            "active_item_id": active_item["id"] if active_item else "",
+            "answered_count": answered_count,
+            "total_count": len(states),
+            "remaining_count": len(states) - answered_count,
             "max_score": self.get_max_score(config),
-            "review_items": build_review_items(items, answers_by_key, config=config),
             "preview": preview,
-            "no_repeat": config.get("no_repeat", False),
-            "reveal_correct_answer": config.get("reveal_correct_answer", True),
-            "scoring_enabled": is_scoring_enabled(config),
+            "no_repeat": self.no_repeat(config),
+            "reveal_correct_answer": self.reveals_correct_option(config),
+            "scoring_enabled": scoring_enabled,
         }
 
-    def get_max_score(self, config: dict[str, Any]) -> int:
-        return get_question_bank_max_score(config)
+    def no_repeat(self, config: dict[str, Any]) -> bool:
+        return bool(config.get("no_repeat", True))
 
-    def evaluate_submission(
-        self,
-        activity: Any,
-        session: Any,
-        payload: dict[str, Any],
-    ) -> TemplateEvaluation:
+    def answer_item_key(self, activity: Any, session: Any, payload: Any) -> str:
+        active_key = str(session.runtime_state.get("active_item", ""))
+        posted_key = str(payload.get("item_key", "")).strip()
+        if posted_key and posted_key != active_key and session.answers.filter(item_key=posted_key).exists():
+            # The same answer posted again (a double click, a retry after a lost reply): the saved answer stands.
+            return posted_key
+        if not active_key and posted_key and str(payload.get("action", "")) == "answer_wheel":
+            # Pages loaded before the server picked sectors chose the sector themselves; keep their answer.
+            return posted_key
+        if not active_key:
+            raise ValidationError("Сначала раскрутите колесо.")
+        if posted_key and posted_key != active_key:
+            raise ValidationError("Ответьте на вопрос сектора, на котором остановилось колесо.")
+        return active_key
+
+    def after_answer_state(self, session: Any, item_key: str) -> dict[str, Any] | None:
+        if item_key != session.runtime_state.get("active_item"):
+            # A repeated answer to an earlier sector must not close the question that is open now.
+            return None
+        return {**session.runtime_state, "active_item": "", "last_spin": {}}
+
+    def pick_sector(self, config: dict[str, Any], answered_keys: set[str], active_key: str) -> dict[str, Any] | None:
+        """The next sector, or None when every question is answered."""
+        item_ids = [item["id"] for item in self.get_items(config)]
+        if active_key in item_ids and active_key not in answered_keys:
+            # A question that is on screen stays until it is answered: spinning again cannot skip it.
+            return {"item_key": active_key, "repeat": False, "resumed": True}
+        unanswered = [item_id for item_id in item_ids if item_id not in answered_keys]
+        if not unanswered:
+            return None
+        chosen = _rng.choice(unanswered if self.no_repeat(config) else item_ids)
+        return {"item_key": chosen, "repeat": chosen in answered_keys, "resumed": False}
+
+    def handle_custom_action(self, activity: Any, session: Any, action: str, payload: Any) -> TemplateEvaluation | None:
+        if action not in {"spin", "spin_wheel"}:
+            return None
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        items_by_id = {item["id"]: item for item in items}
-        existing_answers = {answer.item_key: answer for answer in session.answers.all()}
-        score = sum(answer.score_awarded for answer in existing_answers.values())
-        max_score = self.get_max_score(activity.config_json)
-        runtime_state = dict(session.runtime_state)
-        action = payload.get("action")
-
-        if action == "spin_wheel":
-            available_items = [item for item in items if item["id"] not in existing_answers]
-            if not available_items:
-                return TemplateEvaluation(
-                    score=score,
-                    max_score=max_score,
-                    is_complete=True,
-                    runtime_state=runtime_state,
-                )
-            chosen_item = random.choice(available_items)
-            runtime_state["active_item"] = chosen_item["id"]
-            return TemplateEvaluation(
-                score=score,
-                max_score=max_score,
-                is_complete=False,
-                runtime_state=runtime_state,
+        answers = {answer.item_key: answer for answer in session.answers.all()}
+        spin = self.pick_sector(config, set(answers), str(session.runtime_state.get("active_item", "")))
+        if spin is None:
+            return TemplateEvaluation(is_complete=True, response={"spin": None})
+        state = dict(session.runtime_state)
+        if spin["repeat"]:
+            # With repeats allowed the wheel may stop on a played sector: show the saved answer, spin again.
+            state["active_item"] = ""
+            spin["previous"] = self.build_answer_feedback(
+                config, self.get_item(config, spin["item_key"]), answers[spin["item_key"]]
             )
+        else:
+            state["active_item"] = spin["item_key"]
+        state["last_spin"] = {"item_key": spin["item_key"], "repeat": spin["repeat"]}
+        return TemplateEvaluation(runtime_state=state, response={"spin": spin})
 
-        if action == "answer_wheel":
-            item_key = runtime_state.get("active_item") or payload.get("item_key", "")
-            selected_choice = str(payload.get("answer", "")).strip()
-            if item_key not in items_by_id:
-                raise ValidationError("Сначала раскрутите колесо.")
-            if item_key in existing_answers:
-                return TemplateEvaluation(
-                    score=score,
-                    max_score=max_score,
-                    is_complete=len(existing_answers) >= len(items),
-                    runtime_state=runtime_state,
-                )
-
-            item = items_by_id[item_key]
-            is_correct = selected_choice == correct_option(item)["text"]
-            score_awarded = get_question_score(config, item) if is_correct else 0
-            runtime_state["active_item"] = ""
-            answered_total = len(existing_answers) + 1
-            return TemplateEvaluation(
-                score=score + score_awarded,
-                max_score=max_score,
-                is_complete=answered_total >= len(items),
-                runtime_state=runtime_state,
-                answers=[
-                    {
-                        "item_key": item_key,
-                        "prompt": item["prompt"],
-                        "submitted_value": {
-                            "choice": selected_choice,
-                            "correct_option": correct_option(item)["text"],
-                        },
-                        "is_correct": is_correct,
-                        "score_awarded": score_awarded,
-                    }
-                ],
-            )
-
-        if action == "finish":
-            return TemplateEvaluation(
-                score=score,
-                max_score=max_score,
-                is_complete=True,
-                runtime_state=runtime_state,
-            )
-
-        raise ValidationError("Неизвестное действие для шаблона 'Колесо фортуны'.")
+    def evaluate_preview_action(self, activity: Any, payload: Any) -> dict[str, Any]:
+        action = str(payload.get("action", "")).strip()
+        if action not in {"spin", "spin_wheel"}:
+            return super().evaluate_preview_action(activity, payload)
+        # The preview saves nothing: the browser sends what it has answered and which sector is open.
+        answered = set(payload.getlist("answered")) if hasattr(payload, "getlist") else set()
+        spin = self.pick_sector(activity.config_json, answered, str(payload.get("active_item", "")))
+        return {"action": action, "spin": spin}

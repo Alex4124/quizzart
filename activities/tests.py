@@ -569,7 +569,7 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(runtime["boxes"][0]["number"], 1)
         self.assertEqual(runtime["boxes"][1]["number"], 2)
         self.assertEqual(len(runtime["boxes"]), 2)
-        self.assertEqual(runtime["total_boxes"], 2)
+        self.assertEqual(runtime["total_count"], 2)
 
     def test_choose_a_box_preview_renders_gift_cover_and_inline_panels(self):
         activity = Activity.objects.create(
@@ -599,10 +599,12 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "box-gift.png")
         self.assertContains(response, "data-box-cover")
-        self.assertContains(response, "data-preview-open-box")
-        self.assertContains(response, "data-preview-box-panel")
-        self.assertContains(response, "data-preview-box-result")
-        self.assertContains(response, "data-box-question-panel")
+        # The preview uses the student's markup: one open form and one answer form per box.
+        self.assertContains(response, "data-box-open-form", count=1)
+        self.assertContains(response, "data-box-question-panel", count=1)
+        self.assertContains(response, "data-preview-complete")
+        self.assertNotContains(response, "data-preview-open-box")
+        self.assertNotContains(response, "data-correct-option")
         self.assertNotContains(response, "правой колонке")
 
     def test_wheel_preview_renders_circle_controls_and_questions(self):
@@ -704,9 +706,14 @@ class ActivityEditorTests(TestCase):
             [choice["text"] for choice in matching_runtime["answer_bank"]],
             ["Guido", "Dennis"],
         )
-        self.assertCountEqual(matching_runtime["choices"], ["Guido", "Dennis"])
         self.assertTrue(matching_runtime["reveal_correct_answer"])
-        self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "matching-choice-1")
+        # The right card stays on the server until the row is answered.
+        self.assertNotIn("correct_choice_id", matching_runtime["rows"][0])
+        definition = registry.get("matching")
+        config = matching_activity.config_json
+        item = definition.get_item(config, "item-1")
+        feedback = definition.build_answer_feedback(config, item, definition.check_answer(config, item, "Dennis"))
+        self.assertEqual(feedback["correct_choice_id"], "matching-choice-1")
 
     def test_matching_runtime_deduplicates_answers_case_insensitively(self):
         matching_activity = Activity(
@@ -746,8 +753,15 @@ class ActivityEditorTests(TestCase):
                 {"id": "matching-choice-2", "text": "Неверно"},
             ],
         )
+        definition = registry.get("matching")
+        config = matching_activity.config_json
         self.assertEqual(
-            [row["correct_choice_id"] for row in runtime["rows"]],
+            [
+                definition.build_answer_feedback(config, item, definition.check_answer(config, item, "Неверно"))[
+                    "correct_choice_id"
+                ]
+                for item in definition.get_items(config)
+            ],
             ["matching-choice-1", "matching-choice-1"],
         )
 
@@ -787,7 +801,6 @@ class ActivityEditorTests(TestCase):
             [choice["text"] for choice in runtime["answer_bank"]],
             ["Верно", "Неверно"],
         )
-        self.assertNotIn("Лишний вариант", runtime["choices"])
 
     def test_cards_runtime_is_deterministic_and_uses_card_collection(self):
         activity = Activity(
@@ -890,7 +903,8 @@ class ActivityEditorTests(TestCase):
         self.assertContains(categorize_response, "data-categorize-board")
         self.assertContains(categorize_response, "data-categorize-card")
         self.assertContains(categorize_response, "data-categorize-card-inner")
-        self.assertContains(categorize_response, "data-categorize-choice")
+        self.assertContains(categorize_response, "data-categorize-open")
+        self.assertContains(categorize_response, "data-answer-form")
         self.assertContains(categorize_response, "cards-orange.png")
         self.assertContains(categorize_response, "cards-violet.png")
         self.assertContains(categorize_response, 'data-card-theme="orange"', html=False)
@@ -1065,3 +1079,108 @@ class EditorFixesTests(TestCase):
         response = self.client.get(reverse("activities:preview", kwargs={"pk": activity.pk}))
 
         self.assertEqual(response.status_code, 404)
+
+
+class StableQuestionIdTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teacher-ids", password="pass12345")
+        self.client.force_login(self.user)
+
+    @staticmethod
+    def _item(prompt, item_id=None):
+        item = {
+            "prompt": prompt,
+            "points": 10,
+            "options": [{"text": f"{prompt} yes", "is_correct": True}, {"text": f"{prompt} no", "is_correct": False}],
+        }
+        if item_id is not None:
+            item["id"] = item_id
+        return item
+
+    def _save(self, items, activity=None):
+        url = reverse("activities:edit", args=[activity.pk]) if activity else reverse("activities:create")
+        return self.client.post(
+            url,
+            {
+                "title": "Ids",
+                "template_key": "quiz",
+                "items_json": json.dumps(items, ensure_ascii=False),
+                "action": "save_draft",
+            },
+        )
+
+    def _ids(self):
+        return [item["id"] for item in Activity.objects.get(owner=self.user).config_json["items"]]
+
+    def test_new_questions_get_random_ids_and_derived_option_ids(self):
+        self._save([self._item("One"), self._item("Two")])
+
+        ids = self._ids()
+        self.assertTrue(all(item_id.startswith("q-") and len(item_id) == 14 for item_id in ids))
+        self.assertEqual(len(set(ids)), 2)
+        options = Activity.objects.get().config_json["items"][0]["options"]
+        self.assertEqual([option["id"] for option in options], [f"{ids[0]}-option-1", f"{ids[0]}-option-2"])
+
+    def test_editor_carries_ids_and_reordering_keeps_them(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        first, second = self._ids()
+
+        response = self.client.get(reverse("activities:edit", args=[activity.pk]))
+        self.assertContains(response, first)
+        self._save([self._item("Two edited", second), self._item("One", first), self._item("Three")], activity)
+
+        ids = self._ids()
+        self.assertEqual(ids[:2], [second, first])
+        self.assertNotIn(ids[2], {first, second})
+
+    def test_legacy_positional_ids_survive_an_edit(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Legacy",
+            template_key="quiz",
+            config_json={"items": [{**self._item("One"), "id": "item-1"}, {**self._item("Two"), "id": "item-2"}]},
+        )
+
+        self._save([self._item("One", "item-1"), self._item("Two", "item-2")], activity)
+
+        self.assertEqual(self._ids(), ["item-1", "item-2"])
+
+    def test_old_editor_without_ids_reuses_ids_by_wording(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        first, second = self._ids()
+
+        self._save([self._item("Two"), self._item("New"), self._item("One")], activity)
+
+        ids = self._ids()
+        self.assertEqual((ids[0], ids[2]), (second, first))
+        self.assertNotIn(ids[1], {first, second})
+
+    def test_invalid_and_duplicate_ids_are_replaced(self):
+        self._save([self._item("One", 'bad"id'), self._item("Two", "same"), self._item("Three", "same")])
+
+        ids = self._ids()
+        self.assertTrue(ids[0].startswith("q-"))
+        self.assertEqual(ids[1], "same")
+        self.assertNotEqual(ids[2], "same")
+
+    def test_template_switch_and_duplicate_keep_ids(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        ids = self._ids()
+
+        response = self.client.post(
+            reverse("activities:edit", args=[activity.pk]),
+            {
+                "title": "Ids",
+                "template_key": "matching",
+                "items_json": json.dumps([self._item("One", ids[0]), self._item("Two", ids[1])]),
+                "action": "switch_template",
+            },
+        )
+        self.assertContains(response, ids[0])
+
+        self.client.post(reverse("activities:duplicate", args=[activity.pk]))
+        copy = Activity.objects.exclude(pk=activity.pk).get()
+        self.assertEqual([item["id"] for item in copy.config_json["items"]], ids)

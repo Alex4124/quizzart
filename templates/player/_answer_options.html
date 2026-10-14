@@ -1,0 +1,22 @@
+{% comment %}
+    Answer options for one item, as submit buttons of the enclosing answer form: they work with a click, with
+    the keyboard and without JavaScript. An answered item is rendered from its saved feedback, which holds the
+    correct option only when the activity allows revealing it.
+    Context: item (an entry of build_item_states), optional list_class.
+{% endcomment %}
+<div class="option-list{% if list_class %} {{ list_class }}{% endif %}" role="group" aria-label="Варианты ответа">
+    {% for option in item.options %}
+        <button
+            class="option-row{% if item.feedback %}{% if option == item.feedback.submitted %} is-selected{% if item.feedback.is_correct is True %} is-correct{% elif item.feedback.is_correct is False %} is-wrong{% endif %}{% endif %}{% if item.feedback.correct_option and option == item.feedback.correct_option %} is-correct{% endif %}{% endif %}"
+            type="submit"
+            name="answer"
+            value="{{ option }}"
+            {% if item.is_answered %}disabled aria-pressed="{% if option == item.feedback.submitted %}true{% else %}false{% endif %}"{% endif %}
+        >
+            <span>{{ option }}</span>
+        </button>
+    {% endfor %}
+</div>
+<p class="muted question-feedback" data-question-feedback aria-live="polite"{% if not item.feedback %} hidden{% endif %}>
+    {% if item.feedback %}{% include "player/_feedback_text.html" with feedback=item.feedback %}{% endif %}
+</p>

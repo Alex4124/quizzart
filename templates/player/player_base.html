@@ -132,3 +132,9 @@
         </div>
     </section>
 {% endblock %}
+
+{% block scripts %}
+    {{ block.super }}
+    <script src="{% static 'js/player/core.js' %}?v={{ asset_version }}"></script>
+    {% block player_script %}{% endblock %}
+{% endblock %}

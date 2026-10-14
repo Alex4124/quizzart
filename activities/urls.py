@@ -11,5 +11,6 @@ urlpatterns = [
     path("<int:pk>/edit/", views.edit_activity, name="edit"),
     path("<int:pk>/delete/", views.delete_activity, name="delete"),
     path("<int:pk>/preview/", views.preview_activity, name="preview"),
+    path("<int:pk>/preview/action/", views.preview_action, name="preview_action"),
     path("<int:pk>/duplicate/", views.duplicate_activity_view, name="duplicate"),
 ]

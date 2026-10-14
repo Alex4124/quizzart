@@ -4,16 +4,11 @@ import random
 from typing import Any
 
 from django import forms
-from django.core.exceptions import ValidationError
 
-from interactive_templates.base import BaseTemplateDefinition, TemplateEvaluation, TemplateMetadata
+from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    correct_option,
-    get_question_bank_max_score,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -46,7 +41,7 @@ def _sample_items() -> list[dict[str, Any]]:
     ]
 
 
-class CategorizeDefinition(BaseTemplateDefinition):
+class CategorizeDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="categorize",
         title="Карточки",
@@ -57,6 +52,7 @@ class CategorizeDefinition(BaseTemplateDefinition):
     player_template_name = "player/categorize.html"
     preview_template_name = "player/categorize.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
+    legacy_bulk_actions = {"submit_categorize": "question_{key}"}
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -85,6 +81,7 @@ class CategorizeDefinition(BaseTemplateDefinition):
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
                 default_points=DEFAULT_QUESTION_POINTS,
+                previous_items=cleaned_data.get("previous_items"),
             ),
         }
 
@@ -95,89 +92,24 @@ class CategorizeDefinition(BaseTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answer_map = {}
-        if session:
-            answer_map = {answer.item_key: answer for answer in session.answers.all()}
-
-        seed_base = "preview" if preview else str(session.token) if session else "categorize"
-        cards = []
-        for item in items:
-            answer = answer_map.get(item["id"])
-            selected_value = ""
-            if answer:
-                selected_value = answer.submitted_value.get("choice", answer.submitted_value.get("answer", ""))
-            cards.append(
-                {
-                    "id": item["id"],
-                    "prompt": item["prompt"],
-                    "options": [
-                        {
-                            "id": option["id"],
-                            "text": option["text"],
-                            "is_correct": option["is_correct"],
-                        }
-                        for option in item.get("options", [])
-                    ],
-                    "selected": selected_value,
-                    "is_answered": bool(answer),
-                    "correct_option": correct_option(item)["text"],
-                    "points": get_question_score(config, item),
-                }
-            )
-
-        if activity.config_json.get("shuffle", False):
+        # No answer key here: answered cards carry only the feedback the reveal setting allows.
+        cards = self.build_item_states(activity, session, preview=preview)
+        if config.get("shuffle", False):
+            # Seeded per run, so a reload keeps the cards where the student saw them.
+            seed_base = "preview" if preview else str(session.token) if session else "categorize"
             random.Random(seed_base).shuffle(cards)
+        for position, card in enumerate(cards, start=1):
+            card["number"] = position
 
         return {
             "cards": cards,
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "answered_count": sum(1 for card in cards if card["is_answered"]),
+            "total_count": len(cards),
+            "reveal_correct_answer": self.reveals_correct_option(config),
             "scoring_enabled": is_scoring_enabled(config),
             "max_score": self.get_max_score(config),
-            "review_items": build_review_items(items, answer_map, config=config),
         }
 
-    def get_max_score(self, config: dict[str, Any]) -> int:
-        return get_question_bank_max_score(config)
-
-    def evaluate_submission(
-        self,
-        activity: Any,
-        session: Any,
-        payload: dict[str, Any],
-    ) -> TemplateEvaluation:
-        if payload.get("action") != "submit_categorize":
-            raise ValidationError("Неизвестное действие для шаблона 'Карточки'.")
-
-        config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers = []
-        score = 0
-        for item in items:
-            question_field = f"question_{item['id']}"
-            legacy_field = f"category_{item['id']}"
-            choice = str(payload.get(question_field, payload.get(legacy_field, ""))).strip()
-            is_correct = choice == correct_option(item)["text"]
-            awarded_points = get_question_score(config, item) if is_correct else 0
-            if is_correct:
-                score += awarded_points
-            answers.append(
-                {
-                    "item_key": item["id"],
-                    "prompt": item["prompt"],
-                    "submitted_value": {
-                        "choice": choice,
-                        "correct_option": correct_option(item)["text"],
-                    },
-                    "is_correct": is_correct,
-                    "score_awarded": awarded_points,
-                }
-            )
-
-        return TemplateEvaluation(
-            score=score,
-            max_score=self.get_max_score(activity.config_json),
-            is_complete=True,
-            answers=answers,
-            runtime_state={},
-        )
+    def reveals_correctness(self, config: dict[str, Any]) -> bool:
+        # With the reveal setting off, cards only say «Ответ сохранён» until the results page.
+        return bool(config.get("reveal_correct_answer", True))

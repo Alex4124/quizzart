@@ -92,9 +92,10 @@ Open:
   - validator
   - runtime data builder
   - result calculator / submission evaluator
-- `choose_a_box` supports incremental box answering.
-- `quiz` supports single-answer quiz submission and end-of-run scoring.
-- `wheel_of_fortune`, `matching`, and `categorize` reuse the same question bank and adapt it into their own runtime layouts.
+- Answers are checked on the server one at a time; player pages never contain the answer key, and a reload continues the run where it stopped (see `AGENTS.md`, "Template system contract").
+- `choose_a_box` saves opened boxes and allows finishing early.
+- `wheel_of_fortune` lets the server pick the sector; `no_repeat` decides whether answered sectors can come up again.
+- `quiz`, `matching`, `categorize` and `snake` reuse the same question bank and adapt it into their own runtime layouts.
 - `matching` deduplicates answer cards case-insensitively, allows reuse, and can show either all options or correct options only.
 
 ## Tests
