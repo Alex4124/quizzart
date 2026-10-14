@@ -1065,3 +1065,108 @@ class EditorFixesTests(TestCase):
         response = self.client.get(reverse("activities:preview", kwargs={"pk": activity.pk}))
 
         self.assertEqual(response.status_code, 404)
+
+
+class StableQuestionIdTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="teacher-ids", password="pass12345")
+        self.client.force_login(self.user)
+
+    @staticmethod
+    def _item(prompt, item_id=None):
+        item = {
+            "prompt": prompt,
+            "points": 10,
+            "options": [{"text": f"{prompt} yes", "is_correct": True}, {"text": f"{prompt} no", "is_correct": False}],
+        }
+        if item_id is not None:
+            item["id"] = item_id
+        return item
+
+    def _save(self, items, activity=None):
+        url = reverse("activities:edit", args=[activity.pk]) if activity else reverse("activities:create")
+        return self.client.post(
+            url,
+            {
+                "title": "Ids",
+                "template_key": "quiz",
+                "items_json": json.dumps(items, ensure_ascii=False),
+                "action": "save_draft",
+            },
+        )
+
+    def _ids(self):
+        return [item["id"] for item in Activity.objects.get(owner=self.user).config_json["items"]]
+
+    def test_new_questions_get_random_ids_and_derived_option_ids(self):
+        self._save([self._item("One"), self._item("Two")])
+
+        ids = self._ids()
+        self.assertTrue(all(item_id.startswith("q-") and len(item_id) == 14 for item_id in ids))
+        self.assertEqual(len(set(ids)), 2)
+        options = Activity.objects.get().config_json["items"][0]["options"]
+        self.assertEqual([option["id"] for option in options], [f"{ids[0]}-option-1", f"{ids[0]}-option-2"])
+
+    def test_editor_carries_ids_and_reordering_keeps_them(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        first, second = self._ids()
+
+        response = self.client.get(reverse("activities:edit", args=[activity.pk]))
+        self.assertContains(response, first)
+        self._save([self._item("Two edited", second), self._item("One", first), self._item("Three")], activity)
+
+        ids = self._ids()
+        self.assertEqual(ids[:2], [second, first])
+        self.assertNotIn(ids[2], {first, second})
+
+    def test_legacy_positional_ids_survive_an_edit(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Legacy",
+            template_key="quiz",
+            config_json={"items": [{**self._item("One"), "id": "item-1"}, {**self._item("Two"), "id": "item-2"}]},
+        )
+
+        self._save([self._item("One", "item-1"), self._item("Two", "item-2")], activity)
+
+        self.assertEqual(self._ids(), ["item-1", "item-2"])
+
+    def test_old_editor_without_ids_reuses_ids_by_wording(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        first, second = self._ids()
+
+        self._save([self._item("Two"), self._item("New"), self._item("One")], activity)
+
+        ids = self._ids()
+        self.assertEqual((ids[0], ids[2]), (second, first))
+        self.assertNotIn(ids[1], {first, second})
+
+    def test_invalid_and_duplicate_ids_are_replaced(self):
+        self._save([self._item("One", 'bad"id'), self._item("Two", "same"), self._item("Three", "same")])
+
+        ids = self._ids()
+        self.assertTrue(ids[0].startswith("q-"))
+        self.assertEqual(ids[1], "same")
+        self.assertNotEqual(ids[2], "same")
+
+    def test_template_switch_and_duplicate_keep_ids(self):
+        self._save([self._item("One"), self._item("Two")])
+        activity = Activity.objects.get()
+        ids = self._ids()
+
+        response = self.client.post(
+            reverse("activities:edit", args=[activity.pk]),
+            {
+                "title": "Ids",
+                "template_key": "matching",
+                "items_json": json.dumps([self._item("One", ids[0]), self._item("Two", ids[1])]),
+                "action": "switch_template",
+            },
+        )
+        self.assertContains(response, ids[0])
+
+        self.client.post(reverse("activities:duplicate", args=[activity.pk]))
+        copy = Activity.objects.exclude(pk=activity.pk).get()
+        self.assertEqual([item["id"] for item in copy.config_json["items"]], ids)

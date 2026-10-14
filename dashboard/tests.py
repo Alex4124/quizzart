@@ -653,3 +653,55 @@ class DashboardAnalyticsViewTests(TestCase):
 
         self.assertContains(response, 'class="teacher-analytics-chart__point"', count=15)
         self.assertEqual(axis_labels, ["1", "2", "4", "6", "8", "10", "12", "14"])
+
+
+class AnalyticsQuestionIdTests(TestCase):
+    # Reuse the analytics fixtures without re-running every inherited test.
+    setUp = DashboardAnalyticsViewTests.setUp
+    _question_bank = DashboardAnalyticsViewTests._question_bank
+    _create_activity = DashboardAnalyticsViewTests._create_activity
+    _create_completed_session = DashboardAnalyticsViewTests._create_completed_session
+
+    def test_edited_wording_keeps_one_row_per_question(self):
+        activity = self._create_activity()
+        session = self._create_completed_session(
+            activity=activity,
+            participant_name="Old wording",
+            score=0,
+            max_score=6,
+            started_at=timezone.now() - timedelta(hours=2),
+            duration_minutes=3,
+        )
+        ActivityAnswer.objects.create(session=session, item_key="item-1", prompt="Question 1 (old)", is_correct=False)
+        newer = self._create_completed_session(
+            activity=activity,
+            participant_name="New wording",
+            score=2,
+            max_score=6,
+            started_at=timezone.now() - timedelta(hours=1),
+            duration_minutes=3,
+        )
+        ActivityAnswer.objects.create(session=newer, item_key="item-1", prompt="Question 1", is_correct=False)
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        weakest = response.context["weakest_items"]
+        self.assertEqual(len(weakest), 1)
+        self.assertEqual(weakest[0]["prompt"], "Question 1")
+        self.assertEqual(weakest[0]["incorrect_answers"], 2)
+
+    def test_answers_of_a_deleted_question_are_labelled(self):
+        activity = self._create_activity()
+        session = self._create_completed_session(
+            activity=activity,
+            participant_name="Deleted",
+            score=0,
+            max_score=6,
+            started_at=timezone.now() - timedelta(hours=1),
+            duration_minutes=3,
+        )
+        ActivityAnswer.objects.create(session=session, item_key="item-9", prompt="Gone question", is_correct=False)
+
+        response = self.client.get(reverse("dashboard:analytics", args=[activity.pk]))
+
+        self.assertEqual(response.context["weakest_items"][0]["prompt"], "Gone question (вопрос удалён)")

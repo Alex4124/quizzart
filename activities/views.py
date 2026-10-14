@@ -184,7 +184,10 @@ def _activity_editor(request, activity: Activity | None = None):
         if action == "switch_template":
             config_form = _switch_config_form(definition, request.POST, activity)
         else:
-            config_form = definition.get_editor_form(request.POST)
+            config_form = definition.get_editor_form(
+                request.POST,
+                previous_config=activity.config_json if activity else None,
+            )
             if activity_form.is_valid() and config_form.is_valid():
                 try:
                     candidate_config = definition.build_config(config_form.cleaned_data)

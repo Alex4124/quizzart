@@ -104,6 +104,7 @@ class WheelOfFortuneDefinition(BaseTemplateDefinition):
                 cleaned_data.get("items_json"),
                 cleaned_data.get("items_text", ""),
                 default_points=DEFAULT_QUESTION_POINTS,
+                previous_items=cleaned_data.get("previous_items"),
             ),
         }
 

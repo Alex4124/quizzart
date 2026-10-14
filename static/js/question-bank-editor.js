@@ -16,6 +16,7 @@
                 return [];
             }
             return parsed.map((item) => ({
+                id: typeof item?.id === "string" ? item.id : "",
                 prompt: typeof item?.prompt === "string" ? item.prompt : "",
                 points: parsePoints(item?.points, defaultPoints),
                 options: Array.isArray(item?.options)
@@ -57,7 +58,9 @@
             }
 
             function createEmptyQuestion() {
+                // The server assigns ids to new questions on save.
                 return {
+                    id: "",
                     prompt: "",
                     points: defaultPoints,
                     options: [
@@ -73,6 +76,7 @@
 
             function serializeItems() {
                 const items = Array.from(questionList.querySelectorAll("[data-question-card]")).map((questionCard) => ({
+                    id: questionCard.dataset.itemId || "",
                     prompt: questionCard.querySelector("[data-question-prompt]")?.value || "",
                     points: parsePoints(questionCard.querySelector("[data-question-points]")?.value, defaultPoints),
                     options: Array.from(questionCard.querySelectorAll("[data-answer-card]")).map((answerCard) => ({
@@ -167,6 +171,7 @@
 
             function appendQuestion(questionData, focusPrompt) {
                 const normalizedQuestion = {
+                    id: typeof questionData?.id === "string" ? questionData.id : "",
                     prompt: questionData?.prompt || "",
                     points: parsePoints(questionData?.points, defaultPoints),
                     options: Array.isArray(questionData?.options) && questionData.options.length
@@ -197,6 +202,7 @@
                     return;
                 }
 
+                questionCard.dataset.itemId = normalizedQuestion.id;
                 promptInput.value = normalizedQuestion.prompt;
                 pointsInput.value = String(normalizedQuestion.points);
 
