@@ -474,7 +474,8 @@ class PublicPlayTests(TestCase):
         self.assertEqual(launch_response.status_code, 200)
         self.assertContains(launch_response, "box-gift.png")
         self.assertContains(launch_response, "data-box-cover")
-        self.assertContains(launch_response, "data-box-answer-target")
+        self.assertContains(launch_response, 'value="open_box"')
+        self.assertNotContains(launch_response, "data-box-answer-target")
         self.assertNotContains(launch_response, "правой колонке")
 
         opened_response = self.client.post(
@@ -486,7 +487,8 @@ class PublicPlayTests(TestCase):
         self.assertEqual(opened_response.status_code, 200)
         self.assertContains(opened_response, "data-box-question-panel")
         self.assertContains(opened_response, "Water formula")
-        self.assertContains(opened_response, 'name="answer_item-1"')
+        self.assertContains(opened_response, 'data-state="opened"')
+        self.assertContains(opened_response, 'name="answer"', count=2)
         self.assertNotContains(opened_response, "правой колонке")
 
     def test_student_can_launch_all_registered_templates(self):

@@ -472,6 +472,8 @@ body.player-page {
 
 .player-page button.option-row {
     justify-content: flex-start;
+    /* Without an explicit colour a disabled button turns grey after the answer. */
+    color: inherit;
 }
 
 /* An answered item keeps its options visible but inert. */
@@ -897,6 +899,22 @@ body.player-page {
     opacity: 0.46;
 }
 
+/* The spin form only carries action=spin for the no-JS post: its buttons stay items of the controls row. */
+.player-page .wheel-spin-form {
+    display: contents;
+}
+
+.player-page .wheel-controls [hidden] {
+    display: none !important;
+}
+
+/* Errors and the "already played" notice, on their own line under the buttons. */
+.player-page .wheel-notice {
+    order: 1;
+    flex-basis: 100%;
+    padding: 0 1rem;
+}
+
 .player-page .wheel-question-stack {
     display: grid;
     gap: 1rem;
@@ -1055,13 +1073,9 @@ body.player-page {
     filter: drop-shadow(0 18px 32px rgba(116, 64, 193, 0.16));
 }
 
-.player-page .box-card__cover-copy,
-.player-page .box-card__result {
+.player-page .box-card__cover-copy {
     display: grid;
     gap: 0.55rem;
-}
-
-.player-page .box-card__cover-copy {
     text-align: center;
 }
 
@@ -1081,6 +1095,10 @@ body.player-page {
     justify-content: center;
 }
 
+.player-page .box-card__open-form .question-feedback {
+    text-align: center;
+}
+
 .player-page .box-card__prompt {
     margin: 0;
     font-size: 1.08rem;
@@ -1089,20 +1107,22 @@ body.player-page {
     color: var(--player-ink);
 }
 
-.player-page .box-card__surface--question,
-.player-page .box-card__surface--result {
+.player-page .box-card__surface--question {
     align-content: start;
     min-height: 100%;
 }
 
-.player-page .box-card__surface--question .stack-form,
-.player-page .box-card__surface--result {
+.player-page .box-card__surface--question .stack-form {
     height: 100%;
 }
 
-.player-page .box-card__surface--result {
-    align-content: start;
-    justify-items: start;
+/* Answered boxes stay on the board, so their locked options keep readable text. */
+.player-page .box-card button.option-row:disabled {
+    color: var(--player-muted);
+}
+
+.player-page .box-card button.option-row:disabled:is(.is-selected, .is-correct) {
+    color: var(--player-ink);
 }
 
 .player-page .box-card-answering {
@@ -1111,6 +1131,8 @@ body.player-page {
 
 .player-page .box-card-opening {
     pointer-events: none;
+    /* The card's flip (boxFlip) ends with the lid animation, when the question takes the cover's place. */
+    animation-duration: 0.28s;
 }
 
 .player-page .box-card-opening [data-box-cover] {
@@ -1127,12 +1149,11 @@ body.player-page {
         linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 245, 255, 0.96));
 }
 
-.player-page .box-card-opened [data-box-question-panel],
-.player-page .box-card-answered [data-preview-box-result] {
+.player-page .box-card-opened [data-box-question-panel] {
     animation: questionPop 0.3s ease both;
 }
 
-.player-layout--choose-a-box [data-box-finish-trigger] {
+.player-page .box-finish {
     margin-top: 10px;
 }
 
@@ -1282,11 +1303,23 @@ body.player-page {
 }
 
 .player-page .cards-card__face--back {
-    padding: 1.5rem;
-    align-content: start;
-    gap: 1rem;
+    padding: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
     transform: rotateY(180deg);
     z-index: 1;
+}
+
+/* The card keeps its size (the art and its number depend on it): a long question or many options scroll here. */
+.player-page .cards-card__body {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    min-height: 0;
+    padding: 1.5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
 }
 
 .player-page .cards-card__face--back-orange {
@@ -1339,28 +1372,44 @@ body.player-page {
     gap: 0.85rem;
 }
 
-.player-page .cards-card__choice {
+.player-page .cards-card__answers .option-row {
     justify-content: flex-start;
     min-height: 3.5rem;
     border-radius: 1.1rem;
 }
 
-.player-page .cards-card--orange .cards-card__choice {
+.player-page .cards-card--orange .cards-card__answers .option-row {
     border-color: rgba(235, 163, 62, 0.16);
 }
 
-.player-page .cards-card--violet .cards-card__choice {
+.player-page .cards-card--violet .cards-card__answers .option-row {
     border-color: rgba(126, 76, 221, 0.16);
 }
 
-.player-page .cards-card--orange .cards-card__choice.is-selected,
-.player-page .cards-card--orange .cards-card__choice.is-correct {
-    background: rgba(255, 191, 109, 0.14);
+.player-page .cards-card--orange .cards-card__answers .option-row.is-selected {
+    border-color: rgba(214, 132, 28, 0.5);
+    background: rgba(255, 191, 109, 0.2);
 }
 
-.player-page .cards-card--violet .cards-card__choice.is-selected,
-.player-page .cards-card--violet .cards-card__choice.is-correct {
-    background: rgba(166, 111, 255, 0.14);
+.player-page .cards-card--violet .cards-card__answers .option-row.is-selected {
+    border-color: rgba(126, 76, 221, 0.46);
+    background: rgba(166, 111, 255, 0.16);
+}
+
+/* Right and wrong read the same on both card colours. */
+.player-page .cards-card .cards-card__answers .option-row.is-correct {
+    border-color: rgba(41, 139, 88, 0.5);
+    background: rgba(41, 139, 88, 0.14);
+}
+
+.player-page .cards-card .cards-card__answers .option-row.is-wrong {
+    border-color: rgba(190, 77, 72, 0.46);
+    background: rgba(190, 77, 72, 0.12);
+}
+
+.player-page .cards-card__face--front:focus-visible {
+    outline: 3px solid rgba(120, 54, 217, 0.6);
+    outline-offset: 4px;
 }
 
 .player-page .matching-bank {
@@ -1398,6 +1447,11 @@ body.player-page {
     animation: matchingCardExit 300ms ease both;
 }
 
+.player-page .matching-card__content {
+    display: grid;
+    gap: 1rem;
+}
+
 .player-page .matching-dock-shell {
     display: grid;
     gap: 0.7rem;
@@ -1410,11 +1464,11 @@ body.player-page {
     border-radius: 1.75rem;
     background: linear-gradient(180deg, rgba(244, 240, 255, 0.9), rgba(255, 255, 255, 0.94));
     display: grid;
+    gap: 0.6rem;
     align-items: center;
     transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
-.player-page .matching-dock.matching-dock-staging,
 .player-page .matching-dock.matching-dock-filled {
     border-style: solid;
     border-color: rgba(120, 54, 217, 0.56);
@@ -1450,16 +1504,9 @@ body.player-page {
     flex: 0 0 auto;
 }
 
-.matching-choice-source-hidden {
-    opacity: 0;
-}
-
-.matching-choice-clone {
-    position: fixed;
-    z-index: 40;
-    margin: 0;
-    pointer-events: none;
-    transition: transform 520ms ease, opacity 520ms ease;
+/* The bank cards submit the current row's form from outside it. */
+.player-shell-checking [data-matching-choice] {
+    cursor: progress;
 }
 
 @keyframes matchingCardEnter {
@@ -1953,6 +2000,26 @@ body.player-page {
 
 .player-page .snake-question-card .option-row {
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+/* Each question card holds its answer form; the form keeps the card's spacing. */
+.player-page .snake-question-card__form {
+    display: grid;
+    gap: inherit;
+}
+
+.player-page .snake-question-card-final:focus {
+    outline: none;
+}
+
+/* Focus comes back to the board after an answer, so the arrow keys steer again. */
+.player-page .snake-playfield:focus {
+    outline: none;
+}
+
+.player-page .snake-playfield:focus-visible {
+    outline: 3px solid rgba(120, 54, 217, 0.32);
+    outline-offset: -3px;
 }
 
 .player-page .snake-dpad {

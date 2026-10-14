@@ -4,19 +4,19 @@
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block player_layout_attrs %}
-    data-snake-player
-    data-preview="{{ preview|yesno:'1,0' }}"
-    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
-    data-initial-score="{{ session.score|default:0 }}"
-{% endblock %}
-
 {% block player_board %}
     {% if player_error %}
         <div class="message">{{ player_error }}</div>
     {% endif %}
 
-    <section class="card snake-shell">
+    <section
+        class="card snake-shell"
+        data-player-root
+        data-snake-player
+        data-preview="{{ preview|yesno:'1,0' }}"
+        data-action-url="{{ runtime.action_url }}"
+        data-total-count="{{ runtime.total_count }}"
+    >
         <div class="player-panel__identity snake-shell__heading">
             <span class="snake-shell__icon" aria-hidden="true">
                 <svg viewBox="0 0 48 48" role="presentation">
@@ -43,7 +43,7 @@
         </div>
 
         <div class="snake-board" data-snake-board>
-            <div class="snake-playfield" data-snake-playfield>
+            <div class="snake-playfield" data-snake-playfield tabindex="-1" role="group" aria-label="Игровое поле: управляйте змейкой стрелками">
                 <div class="snake-arena-glow" aria-hidden="true"></div>
                 <div class="snake-grid" aria-hidden="true"></div>
                 <div class="snake-decor" aria-hidden="true">
@@ -63,7 +63,7 @@
                 <div class="snake-hud" aria-live="polite">
                     <span class="snake-hud__item">
                         <span class="snake-hud__dot snake-hud__dot--apple" aria-hidden="true"></span>
-                        Собрано <strong data-snake-progress>{{ player_shell.answered_count }}</strong>/{{ runtime.apples|length }}
+                        Собрано <strong data-snake-progress>{{ runtime.answered_count }}</strong>/{{ runtime.total_count }}
                     </span>
                     <span class="snake-hud__item">
                         Осталось <strong data-snake-remaining>{{ player_shell.remaining_count }}</strong>
@@ -88,7 +88,7 @@
                         data-item-id="{{ apple.id }}"
                         data-x="{{ apple.x_percent|unlocalize }}"
                         data-y="{{ apple.y_percent|unlocalize }}"
-                        data-points="{{ apple.points }}"
+                        {% if apple.is_answered %}data-eaten="1" hidden{% endif %}
                         style="left: {{ apple.x_percent|unlocalize }}%; top: {{ apple.y_percent|unlocalize }}%; --snake-apple-index: {{ forloop.counter0 }};"
                     >
                         <span class="snake-apple-leaf" aria-hidden="true"></span>
@@ -102,36 +102,36 @@
                             class="card snake-question-card"
                             data-snake-question-card
                             data-item-id="{{ apple.id }}"
-                            data-correct-option="{{ apple.correct_option }}"
-                            data-points="{{ apple.points }}"
+                            data-state="{% if apple.is_answered %}answered{% else %}open{% endif %}"
+                            role="dialog"
+                            aria-labelledby="snake-question-{{ forloop.counter }}"
                             hidden
                         >
-                            <p class="player-panel__eyebrow">Яблоко {{ apple.number }} из {{ runtime.apples|length }}</p>
-                            <h2>{{ apple.prompt }}</h2>
-                            {% if player_shell.scoring_enabled %}<p class="muted">{{ apple.points }} балл.</p>{% endif %}
-                            <div class="option-list">
-                                {% for option in apple.options %}
-                                    <label class="option-row">
-                                        <input type="radio" name="snake_choice_{{ apple.id }}" value="{{ option }}">
-                                        <span>{{ option }}</span>
-                                    </label>
-                                {% endfor %}
-                            </div>
-                            <p class="muted question-feedback" data-question-feedback hidden></p>
+                            <form method="post" action="{{ runtime.action_url }}" class="snake-question-card__form" data-answer-form>
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="answer">
+                                <input type="hidden" name="item_key" value="{{ apple.id }}">
+                                <p class="player-panel__eyebrow">Яблоко {{ apple.number }} из {{ runtime.total_count }}</p>
+                                <h2 id="snake-question-{{ forloop.counter }}">{{ apple.prompt }}</h2>
+                                {% if player_shell.scoring_enabled %}<p class="muted">{{ apple.points }} балл.</p>{% endif %}
+                                {% include "player/_answer_options.html" with item=apple %}
+                            </form>
                         </article>
                     {% endfor %}
 
-                    <article class="card snake-question-card snake-question-card-final" data-snake-submit-state hidden>
-                        <p class="player-panel__eyebrow">Финиш</p>
-                        <h2>Все яблоки собраны</h2>
-                        <p class="muted">Подсчитываем результат и сохраняем прохождение.</p>
-                    </article>
-
-                    <article class="card snake-question-card snake-question-card-final" data-snake-preview-complete hidden>
-                        <p class="player-panel__eyebrow">Предпросмотр завершён</p>
-                        <h2>Змейка прошла весь маршрут</h2>
-                        <p class="muted">Обновите страницу, чтобы снова протестировать шаблон.</p>
-                    </article>
+                    {% if preview %}
+                        <article class="card snake-question-card snake-question-card-final" data-preview-complete tabindex="-1" hidden>
+                            <p class="player-panel__eyebrow">Предпросмотр завершён</p>
+                            <h2>Змейка прошла весь маршрут</h2>
+                            <p class="muted">Обновите страницу, чтобы снова протестировать шаблон.</p>
+                        </article>
+                    {% else %}
+                        <article class="card snake-question-card snake-question-card-final" data-snake-finish tabindex="-1" hidden>
+                            <p class="player-panel__eyebrow">Финиш</p>
+                            <h2>Все яблоки собраны</h2>
+                            <p class="muted">Ответы сохранены. Открываем результаты.</p>
+                        </article>
+                    {% endif %}
                 </div>
             </div>
 
@@ -150,16 +150,6 @@
                 </button>
             </div>
         </div>
-
-        <form class="snake-submit-form" data-snake-submit-form method="post">
-            {% csrf_token %}
-            {% if not preview %}
-                <input type="hidden" name="action" value="submit_snake">
-            {% endif %}
-            {% for apple in runtime.apples %}
-                <input type="hidden" name="question_{{ apple.id }}" value="{{ apple.selected_option }}" data-answer-target="{{ apple.id }}">
-            {% endfor %}
-        </form>
     </section>
 {% endblock %}
 
@@ -172,7 +162,7 @@
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Змейка</h3>
-    <p>Все ответы собираются прямо по ходу движения, а финальный submit отправляется автоматически после последнего яблока.</p>
+    <p>Каждый ответ проверяется сразу, как только змейка съест яблоко, а после последнего яблока откроются результаты.</p>
 {% endblock %}
 
 {% block player_script %}

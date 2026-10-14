@@ -8,10 +8,6 @@ from interactive_templates.base import QuestionBankTemplateDefinition, TemplateE
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    choice_texts,
-    correct_option,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -42,6 +38,12 @@ def _sample_items() -> list[dict[str, Any]]:
         }
         for index in range(1, 7)
     ]
+
+
+def _box_state(box: dict[str, Any], opened_keys: set[str]) -> str:
+    if box["is_answered"]:
+        return "answered"
+    return "opened" if box["id"] in opened_keys else "unopened"
 
 
 class ChooseABoxDefinition(QuestionBankTemplateDefinition):
@@ -95,46 +97,22 @@ class ChooseABoxDefinition(QuestionBankTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers_by_key = {}
-        opened_keys = set()
-        if session:
-            answers_by_key = {answer.item_key: answer for answer in session.answers.all()}
-            opened_keys = set(session.runtime_state.get("opened", []))
-
-        boxes = []
-        for index, item in enumerate(items, start=1):
-            answer = answers_by_key.get(item["id"])
-            if answer:
-                state = "answered"
-            elif item["id"] in opened_keys:
-                state = "opened"
-            else:
-                state = "preview" if preview else "unopened"
-            boxes.append(
-                {
-                    "id": item["id"],
-                    "number": index,
-                    "prompt": item["prompt"],
-                    "options": choice_texts(item),
-                    "points": get_question_score(config, item),
-                    "state": state,
-                    "submitted_answer": answer.submitted_value.get("choice", "") if answer else "",
-                    "expected_answer": correct_option(item)["text"],
-                    "is_correct": answer.is_correct if answer else None,
-                }
-            )
-
+        # Opened boxes are kept on the server, so a reload shows the same board; the preview opens them in the page.
+        opened_keys = set((session.runtime_state or {}).get("opened", [])) if session else set()
+        boxes = [
+            {**box, "state": _box_state(box, opened_keys)}
+            for box in self.build_item_states(activity, session, preview=preview)
+        ]
+        answered_count = sum(1 for box in boxes if box["is_answered"])
         return {
             "boxes": boxes,
-            "no_repeat": config.get("no_repeat", False),
-            "reveal_correct_answer": config.get("reveal_correct_answer", True),
+            "answered_count": answered_count,
+            "total_count": len(boxes),
+            "reveal_correct_answer": self.reveals_correct_option(config),
             "scoring_enabled": is_scoring_enabled(config),
-            "answered_count": len(answers_by_key),
-            "total_boxes": len(items),
             "max_score": self.get_max_score(config),
-            "show_finish": not preview and (answers_by_key or opened_keys),
-            "review_items": build_review_items(items, answers_by_key, config=config),
+            # Finishing early makes sense once something is answered; the preview has nothing to finish.
+            "show_finish": not preview and answered_count > 0,
         }
 
     @staticmethod

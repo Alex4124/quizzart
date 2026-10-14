@@ -9,9 +9,6 @@ from interactive_templates.base import QuestionBankTemplateDefinition, TemplateM
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    correct_option,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -95,46 +92,22 @@ class CategorizeDefinition(QuestionBankTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answer_map = {}
-        if session:
-            answer_map = {answer.item_key: answer for answer in session.answers.all()}
-
-        seed_base = "preview" if preview else str(session.token) if session else "categorize"
-        cards = []
-        for item in items:
-            answer = answer_map.get(item["id"])
-            selected_value = ""
-            if answer:
-                selected_value = answer.submitted_value.get("choice", answer.submitted_value.get("answer", ""))
-            cards.append(
-                {
-                    "id": item["id"],
-                    "prompt": item["prompt"],
-                    "options": [
-                        {
-                            "id": option["id"],
-                            "text": option["text"],
-                            "is_correct": option["is_correct"],
-                        }
-                        for option in item.get("options", [])
-                    ],
-                    "selected": selected_value,
-                    "is_answered": bool(answer),
-                    "correct_option": correct_option(item)["text"],
-                    "points": get_question_score(config, item),
-                }
-            )
-
-        if activity.config_json.get("shuffle", False):
+        # No answer key here: answered cards carry only the feedback the reveal setting allows.
+        cards = self.build_item_states(activity, session, preview=preview)
+        if config.get("shuffle", False):
+            # Seeded per run, so a reload keeps the cards where the student saw them.
+            seed_base = "preview" if preview else str(session.token) if session else "categorize"
             random.Random(seed_base).shuffle(cards)
+        for position, card in enumerate(cards, start=1):
+            card["number"] = position
 
         return {
             "cards": cards,
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "answered_count": sum(1 for card in cards if card["is_answered"]),
+            "total_count": len(cards),
+            "reveal_correct_answer": self.reveals_correct_option(config),
             "scoring_enabled": is_scoring_enabled(config),
             "max_score": self.get_max_score(config),
-            "review_items": build_review_items(items, answer_map, config=config),
         }
 
     def reveals_correctness(self, config: dict[str, Any]) -> bool:

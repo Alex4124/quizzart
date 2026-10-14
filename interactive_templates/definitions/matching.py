@@ -9,9 +9,6 @@ from interactive_templates.base import QuestionBankTemplateDefinition, TemplateM
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    correct_option,
-    get_question_score,
     is_scoring_enabled,
     normalize_answer,
     normalize_question_bank,
@@ -33,6 +30,16 @@ class MatchingEditorForm(QuestionBankEditorForm):
         label="Показывать только правильные ответы",
         help_text="В общий банк попадут только варианты, отмеченные правильными хотя бы для одного вопроса.",
     )
+
+
+def _dock_card(answer_bank: list[dict[str, Any]], text: str) -> dict[str, Any]:
+    """A card placed into a row: its text and its number in the bank, if the bank still has it."""
+    wanted = normalize_answer(text)
+    number = next(
+        (number for number, card in enumerate(answer_bank, start=1) if normalize_answer(card["text"]) == wanted),
+        None,
+    )
+    return {"text": text, "number": number}
 
 
 def _sample_items() -> list[dict[str, Any]]:
@@ -142,56 +149,33 @@ class MatchingDefinition(QuestionBankTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answer_map = {}
-        if session:
-            answer_map = {answer.item_key: answer for answer in session.answers.all()}
-
-        answer_bank_by_key: dict[str, dict[str, Any]] = {}
-        correct_answers_only = config.get("correct_answers_only", False)
-        for item in items:
-            for option in item["options"]:
-                if correct_answers_only and not option.get("is_correct", False):
-                    continue
-                normalized_text = normalize_answer(option["text"])
-                if not normalized_text or normalized_text in answer_bank_by_key:
-                    continue
-                answer_bank_by_key[normalized_text] = {
-                    "id": f"matching-choice-{len(answer_bank_by_key) + 1}",
-                    "text": option["text"],
-                }
-        answer_bank = list(answer_bank_by_key.values())
+        rows = self.build_item_states(activity, session, preview=preview, shuffle_options=False)
+        answer_bank = self.answer_bank(config)
         seed_base = "preview" if preview else str(session.token) if session else "matching"
         if config.get("shuffle", False):
             random.Random(seed_base).shuffle(answer_bank)
 
-        rows = []
-        for item in items:
-            answer = answer_map.get(item["id"])
-            correct_answer = correct_option(item)
-            # Legacy pair configs may hold a blank right side that never reaches the bank.
-            bank_choice = answer_bank_by_key.get(
-                normalize_answer(correct_answer["text"]),
-                {"id": "", "text": correct_answer["text"]},
-            )
-            rows.append(
-                {
-                    "id": item["id"],
-                    "prompt": item["prompt"],
-                    "selected": answer.submitted_value.get("choice", "") if answer else "",
-                    "correct_choice_id": bank_choice["id"],
-                    "correct_choice_text": bank_choice["text"],
-                    "correct_option": bank_choice["text"],
-                    "points": get_question_score(config, item),
-                }
+        for row in rows:
+            # Every row picks from the shared bank, so a row needs no copy of it.
+            del row["options"]
+            # An answered row shows the card it got and, after a wrong pick, the right one (from its feedback).
+            feedback = row["feedback"]
+            row["placed_card"] = _dock_card(answer_bank, feedback["submitted"]) if feedback else None
+            row["right_card"] = (
+                _dock_card(answer_bank, feedback["correct_option"])
+                if feedback and feedback["is_correct"] is False and feedback["correct_option"]
+                else None
             )
 
+        current = next((row for row in rows if not row["is_answered"]), None)
         return {
             "rows": rows,
             "answer_bank": answer_bank,
-            "choices": [choice["text"] for choice in answer_bank],
-            "reveal_correct_answer": True,
+            # The first unanswered row: a reload continues where the student stopped.
+            "current_item_id": current["id"] if current else "",
+            "answered_count": sum(1 for row in rows if row["is_answered"]),
+            "total_count": len(rows),
+            "reveal_correct_answer": self.reveals_correct_option(config),
             "scoring_enabled": is_scoring_enabled(config),
             "max_score": self.get_max_score(config),
-            "review_items": build_review_items(items, answer_map, config=config),
         }

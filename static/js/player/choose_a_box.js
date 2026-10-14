@@ -1,200 +1,128 @@
 (() => {
-    const { nativeSubmit, markSelectedOption, preserveSubmittedValue, revealChoiceState, enhanceAnswerForm, submitFormAsJson } = window.QuizzartPlayer;
+    const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst, isPreview } = window.QuizzartPlayer;
+
+    // The lid animation (playerBoxCoverCollapse in player.css); the server stores the open box meanwhile.
+    const OPEN_ANIMATION_MS = 280;
+    const STATES = ["unopened", "opened", "answered"];
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 
     function initBoxPlayers() {
         document.querySelectorAll("[data-box-player]").forEach((root) => {
-            const preview = root.dataset.preview === "1";
-            const revealCorrect = root.dataset.revealCorrect === "1";
-            const answeredCountTarget = root.querySelector("[data-box-answered-count]");
-            const finishForm = root.querySelector("[data-box-finish-form]");
-            const finishTrigger = root.querySelector("[data-box-finish-trigger]");
-            const answerTargets = new Map();
-            let answeredCount = Number.parseInt(root.dataset.answeredCount || "0", 10) || 0;
-            const totalBoxes = Number.parseInt(root.dataset.totalBoxes || "0", 10) || 0;
+            const preview = isPreview(root);
+            const cards = Array.from(root.querySelectorAll("[data-box-card]"));
+            const finishForm = root.querySelector("[data-box-finish]");
 
-            if (finishForm) {
-                finishForm.querySelectorAll("[data-box-answer-target]").forEach((input) => {
-                    answerTargets.set(input.dataset.boxAnswerTarget || "", input);
-                });
+            function setState(card, state) {
+                card.dataset.state = state;
+                STATES.forEach((name) => card.classList.toggle(`box-card-${name}`, name === state));
             }
 
-            function syncAnsweredCount(nextValue) {
-                answeredCount = nextValue;
-                if (answeredCountTarget) {
-                    answeredCountTarget.textContent = String(answeredCount);
+            // The entrance animation keeps a card at opacity 0 until it runs: a state animation replacing it
+            // (opening, answering) would hide the card, and dropping one would replay the entrance.
+            function settle(card) {
+                card.classList.remove("reveal-ready");
+            }
+
+            // After an answer the keyboard goes on to the next closed box, or to a box opened but not answered yet.
+            function nextBoxControl(card) {
+                const after = cards.slice(cards.indexOf(card) + 1).concat(cards.slice(0, cards.indexOf(card)));
+                const closed = after.find((candidate) => candidate.dataset.state === "unopened");
+                if (closed) {
+                    return closed.querySelector("[data-box-open-form] button");
                 }
-                root.dataset.answeredCount = String(answeredCount);
+                const opened = after.find((candidate) => candidate.dataset.state === "opened");
+                return opened?.querySelector("[data-answer-form] button:not([disabled])") || null;
             }
 
-            function revealFinishControls() {
+            function focusIfStillHere(card, target) {
+                const active = document.activeElement;
+                if (target && (!active || active === document.body || card.contains(active))) {
+                    target.focus({ preventScroll: true });
+                    target.closest("[data-box-card]")?.scrollIntoView({
+                        block: "nearest",
+                        behavior: reducedMotion?.matches ? "auto" : "smooth",
+                    });
+                }
+            }
+
+            async function openBox(card, form) {
+                const cover = card.querySelector("[data-box-cover]");
+                const panel = card.querySelector("[data-box-question-panel]");
+                if (!cover || !panel || card.dataset.state !== "unopened" || card.dataset.opening === "1") {
+                    return;
+                }
+                card.dataset.opening = "1";
+                settle(card);
+                card.classList.add("box-card-opening");
+
+                // The teacher's preview saves nothing: its boxes open in the page only.
+                const [saved] = await Promise.all([
+                    preview ? Promise.resolve(true) : submitAction(form, { root }),
+                    wait(OPEN_ANIMATION_MS),
+                ]);
+                card.classList.remove("box-card-opening");
+                delete card.dataset.opening;
+                if (!saved) {
+                    // The error is shown under the button (or the page is already leaving); the box stays closed.
+                    return;
+                }
+
+                setState(card, "opened");
+                cover.hidden = true;
+                panel.hidden = false;
+                focusFirst(panel);
+            }
+
+            async function answerBox(card, form, chosen) {
+                if (card.dataset.state === "answered") {
+                    return;
+                }
+                const payload = await submitAction(form, { root, answer: chosen.value });
+                if (!payload?.feedback) {
+                    return;
+                }
+
+                settle(card);
+                setState(card, "answered");
+                card.classList.add("box-card-answering");
+                window.setTimeout(() => card.classList.remove("box-card-answering"), 320);
+                const delay = applyChoiceFeedback(
+                    Array.from(form.querySelectorAll("button[name='answer']")),
+                    // A repeated answer gets the saved one back: only that one is marked.
+                    payload.already_answered ? null : chosen,
+                    payload.feedback,
+                    form.querySelector("[data-question-feedback]"),
+                );
+                // Finishing early becomes possible after the first answer (the preview has no finish form).
                 if (finishForm) {
                     finishForm.hidden = false;
                 }
-                if (finishTrigger) {
-                    finishTrigger.hidden = false;
-                }
-            }
 
-            function submitFinishForm() {
-                if (!finishForm || finishForm.dataset.submitting === "1") {
+                if (finishIfComplete(payload, root, delay)) {
                     return;
                 }
-
-                finishForm.dataset.submitting = "1";
-                root.classList.add("player-shell-checking");
-                nativeSubmit.call(finishForm);
+                await wait(delay);
+                focusIfStillHere(card, nextBoxControl(card));
             }
 
-            function openStudentBox(card) {
-                const cover = card?.querySelector("[data-box-cover]");
-                const panel = card?.querySelector("[data-box-question-panel]");
-                const openForm = card?.querySelector("[data-box-open-form]");
-                if (!card || !cover || !panel) {
-                    return;
-                }
+            cards.forEach((card) => {
+                const openForm = card.querySelector("[data-box-open-form]");
+                const answerForm = card.querySelector("[data-answer-form]");
 
-                card.classList.remove("box-card-answered", "box-card-answering");
-                card.classList.add("box-card-opening");
-
-                window.setTimeout(() => {
-                    card.classList.remove("box-card-opening");
-                    card.classList.add("box-card-opened");
-                    cover.hidden = true;
-                    panel.hidden = false;
-                    if (openForm) {
-                        openForm.hidden = true;
-                    }
-                }, 280);
-            }
-
-            function finalizeStudentBox(form, selectedInput) {
-                const card = form.closest("[data-box-card]");
-                const questionPanel = card?.querySelector("[data-box-question-panel]");
-                const resultPanel = card?.querySelector("[data-box-result-panel]");
-                const answerTarget = resultPanel?.querySelector("[data-box-selected-answer]");
-                const chip = resultPanel?.querySelector("[data-box-result-chip]");
-                if (!card || !questionPanel || !resultPanel || !chip) {
-                    return;
-                }
-
-                const itemId = form.dataset.itemId || "";
-                const selectedValue = selectedInput?.value || "";
-                const isCorrect = selectedValue === (form.dataset.correctOption || "");
-                const wasAlreadyAnswered = form.dataset.answered === "1";
-                const hiddenAnswerTarget = answerTargets.get(itemId);
-
-                if (answerTarget) {
-                    answerTarget.textContent = selectedValue || "\u041d\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430";
-                }
-                if (hiddenAnswerTarget) {
-                    hiddenAnswerTarget.value = selectedValue;
-                }
-
-                chip.textContent = isCorrect ? "\u0412\u0435\u0440\u043d\u043e" : "\u041d\u0435\u0432\u0435\u0440\u043d\u043e";
-                chip.classList.toggle("status-chip-published", isCorrect);
-                chip.classList.toggle("status-chip-draft", !isCorrect);
-
-                questionPanel.hidden = true;
-                resultPanel.hidden = false;
-                card.classList.remove("box-card-opened", "box-card-answering");
-                card.classList.add("box-card-answered");
-                form.dataset.answered = "1";
-
-                if (!wasAlreadyAnswered) {
-                    syncAnsweredCount(answeredCount + 1);
-                }
-
-                revealFinishControls();
-
-                if (totalBoxes && answeredCount >= totalBoxes) {
-                    window.setTimeout(() => submitFinishForm(), 360);
-                }
-            }
-
-            if (preview) {
-                root.querySelectorAll("[data-preview-open-box]").forEach((button) => {
-                    button.addEventListener("click", () => {
-                        const card = button.closest("[data-box-card]");
-                        const cover = card?.querySelector("[data-box-cover]");
-                        const panel = card?.querySelector("[data-preview-box-panel]");
-                        if (!card || !panel || card.dataset.previewOpened === "1" || card.dataset.previewAnswered === "1") {
-                            return;
-                        }
-
-                        card.dataset.previewOpened = "1";
-                        card.classList.add("box-card-opening");
-
-                        window.setTimeout(() => {
-                            card.classList.remove("box-card-opening");
-                            card.classList.add("box-card-opened");
-                            if (cover) {
-                                cover.hidden = true;
-                            }
-                            panel.hidden = false;
-                            button.hidden = true;
-                        }, 280);
-                    });
+                openForm?.addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    openBox(card, openForm);
                 });
-            }
 
-            root.querySelectorAll("[data-box-open-form]").forEach((form) => {
-                form.addEventListener("submit", (event) => {
-                    if (preview) {
+                answerForm?.addEventListener("submit", (event) => {
+                    const chosen = event.submitter;
+                    if (!chosen || chosen.name !== "answer") {
                         return;
                     }
-
                     event.preventDefault();
-                    openStudentBox(form.closest("[data-box-card]"));
+                    answerBox(card, answerForm, chosen);
                 });
             });
-
-            root.querySelectorAll("[data-answer-form]").forEach((form) => {
-                const isPreviewForm = form.dataset.preview === "1";
-                if (preview !== isPreviewForm) {
-                    return;
-                }
-
-                enhanceAnswerForm(form, revealCorrect, (input) => {
-                    if (isPreviewForm) {
-                        const card = form.closest("[data-box-card]");
-                        const questionPanel = card?.querySelector("[data-preview-box-panel]");
-                        const resultPanel = card?.querySelector("[data-preview-box-result]");
-                        const answerTarget = resultPanel?.querySelector("[data-preview-selected-answer]");
-                        const chip = resultPanel?.querySelector("[data-preview-result-chip]");
-                        if (!card || !questionPanel || !resultPanel || !chip) {
-                            return;
-                        }
-
-                        const selectedValue = input?.value || "";
-                        const isCorrect = selectedValue === (form.dataset.correctOption || "");
-                        if (answerTarget) {
-                            answerTarget.textContent = selectedValue || "-";
-                        }
-                        chip.textContent = isCorrect ? "\u0412\u0435\u0440\u043d\u043e" : "\u041d\u0435\u0432\u0435\u0440\u043d\u043e";
-                        chip.classList.toggle("status-chip-published", isCorrect);
-                        chip.classList.toggle("status-chip-draft", !isCorrect);
-                        questionPanel.hidden = true;
-                        resultPanel.hidden = false;
-                        card.classList.remove("box-card-opened");
-                        card.classList.add("box-card-answered");
-                        card.dataset.previewAnswered = "1";
-                        return;
-                    }
-
-                    const card = form.closest("[data-box-card]");
-                    if (card) {
-                        card.classList.add("box-card-answering");
-                    }
-                    finalizeStudentBox(form, input);
-                });
-            });
-
-            if (finishTrigger) {
-                finishTrigger.addEventListener("submit", (event) => {
-                    event.preventDefault();
-                    submitFinishForm();
-                });
-            }
         });
     }
 

@@ -1,184 +1,116 @@
 (() => {
-    const { nativeSubmit, markSelectedOption, preserveSubmittedValue, revealChoiceState, enhanceAnswerForm, submitFormAsJson } = window.QuizzartPlayer;
+    const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst } = window.QuizzartPlayer;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 
     function initCategorizePlayers() {
         document.querySelectorAll("[data-categorize-player]").forEach((root) => {
-            const preview = root.dataset.preview === "1";
-            const revealCorrect = root.dataset.revealCorrect === "1";
-            const form = root.querySelector("[data-categorize-form]");
             const board = root.querySelector("[data-categorize-board]");
-            const submitState = root.querySelector("[data-categorize-submit-state]");
-            const completeMessage = root.querySelector("[data-preview-complete]");
             const cards = Array.from(root.querySelectorAll("[data-categorize-card]"));
-            let activeCard = null;
-            let isSubmitting = false;
-
-            if (!form || !board || !cards.length) {
+            if (!board || !cards.length) {
                 return;
             }
+            // One card is open at a time; the others wait until it is answered.
+            let activeCard = null;
 
-            function applyChoiceState(card, buttons, selectedButton, feedback) {
-                const correctOption = card.dataset.correctOption || "";
-                const isCorrectAnswer = selectedButton.dataset.choiceValue === correctOption;
+            const stateOf = (card) => card.dataset.state || "closed";
+            const openerOf = (card) => card.querySelector("[data-categorize-open]");
+            const backOf = (card) => card.querySelector("[data-categorize-back]");
 
-                buttons.forEach((button) => {
-                    const isSelected = button === selectedButton;
-                    const isCorrect = button.dataset.choiceValue === correctOption;
-                    button.classList.toggle("is-selected", isSelected);
-                    button.classList.toggle("is-correct", revealCorrect && isCorrect);
-                    button.classList.toggle("is-wrong", revealCorrect && isSelected && !isCorrect);
-                    button.disabled = true;
-                });
-
-                if (feedback) {
-                    if (!revealCorrect) {
-                        feedback.textContent = "Ответ сохранён.";
-                    } else if (isCorrectAnswer) {
-                        feedback.textContent = "Верно. Карточка засчитана.";
-                    } else {
-                        feedback.textContent = `Неверно. Правильный ответ: ${correctOption}`;
-                    }
-                    feedback.hidden = false;
+            function setBadge(card, text) {
+                const badge = card.querySelector("[data-categorize-badge]");
+                if (badge) {
+                    badge.textContent = text;
                 }
-
-                return revealCorrect ? 980 : 220;
             }
 
-            function updateBoardState() {
+            // The face turned away from the student is inert: it takes no clicks, no focus and is not read out.
+            function renderBoard() {
                 board.classList.toggle("cards-board-has-active", Boolean(activeCard));
                 cards.forEach((card) => {
-                    const state = card.dataset.state || "closed";
-                    const isActive = card === activeCard;
-                    const isAnswered = state === "answered";
-                    const isOpen = state === "open";
-                    const isBlocked = Boolean(activeCard) && !isActive && !isAnswered;
-
+                    const state = stateOf(card);
+                    const isBlocked = Boolean(activeCard) && card !== activeCard && state === "closed";
                     card.classList.toggle("cards-card-closed", state === "closed");
-                    card.classList.toggle("cards-card-open", isOpen);
-                    card.classList.toggle("cards-card-answered", isAnswered);
+                    card.classList.toggle("cards-card-open", state === "open");
+                    card.classList.toggle("cards-card-answered", state === "answered");
                     card.classList.toggle("cards-card-blocked", isBlocked);
 
-                    card.querySelectorAll("[data-categorize-choice]").forEach((button) => {
-                        if (isAnswered) {
-                            return;
-                        }
-                        button.disabled = !isActive;
-                    });
-                });
-            }
-
-            function finishFlow() {
-                if (isSubmitting) {
-                    return;
-                }
-                isSubmitting = true;
-                activeCard = null;
-                updateBoardState();
-                if (preview) {
-                    if (completeMessage) {
-                        completeMessage.hidden = false;
+                    const opener = openerOf(card);
+                    if (opener) {
+                        opener.inert = state !== "closed";
+                        opener.disabled = state !== "closed" || isBlocked;
                     }
-                    return;
-                }
-                if (submitState) {
-                    submitState.hidden = false;
-                }
-                root.classList.add("player-shell-checking");
-                window.setTimeout(() => nativeSubmit.call(form), 320);
+                    const back = backOf(card);
+                    if (back) {
+                        back.inert = state === "closed";
+                    }
+                });
             }
 
             function openCard(card) {
-                if (isSubmitting || activeCard || (card.dataset.state || "closed") !== "closed") {
+                if (activeCard || stateOf(card) !== "closed") {
                     return;
                 }
                 activeCard = card;
                 card.dataset.state = "open";
-                delete card.dataset.locked;
-                const badge = card.querySelector("[data-categorize-badge]");
-                if (badge) {
-                    badge.textContent = "Открыта";
+                setBadge(card, "Открыта");
+                renderBoard();
+                focusFirst(backOf(card));
+            }
+
+            // After an answer the keyboard goes on to the next closed card, wrapping round the board.
+            function focusNextCard(card) {
+                const start = cards.indexOf(card);
+                const ordered = cards.slice(start + 1).concat(cards.slice(0, start));
+                const next = ordered.find((candidate) => stateOf(candidate) === "closed");
+                if (next) {
+                    openerOf(next)?.focus();
                 }
-                const feedback = card.querySelector("[data-question-feedback]");
-                if (feedback) {
-                    feedback.hidden = true;
-                    feedback.textContent = "";
-                }
-                updateBoardState();
             }
 
             cards.forEach((card) => {
-                card.addEventListener("click", (event) => {
-                    if (event.target.closest("[data-categorize-choice]")) {
+                openerOf(card)?.addEventListener("click", () => openCard(card));
+
+                const form = card.querySelector("[data-answer-form]");
+                if (!form) {
+                    return;
+                }
+                const options = Array.from(form.querySelectorAll("button[name='answer']"));
+
+                form.addEventListener("submit", async (event) => {
+                    const chosen = event.submitter;
+                    if (!chosen || chosen.name !== "answer") {
                         return;
                     }
-                    openCard(card);
-                });
-
-                const buttons = Array.from(card.querySelectorAll("[data-categorize-choice]"));
-                const feedback = card.querySelector("[data-question-feedback]");
-
-                buttons.forEach((button) => {
-                    button.addEventListener("click", (event) => {
-                        event.stopPropagation();
-                        if (
-                            isSubmitting ||
-                            activeCard !== card ||
-                            card.dataset.locked === "1" ||
-                            (card.dataset.state || "closed") !== "open"
-                        ) {
-                            return;
-                        }
-
-                        card.dataset.locked = "1";
-                        const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(card.dataset.itemId)}"]`);
-                        if (hiddenInput) {
-                            hiddenInput.value = button.dataset.choiceValue || "";
-                        }
-
-                        const delay = applyChoiceState(card, buttons, button, feedback);
-
-                        window.setTimeout(() => {
-                            card.dataset.state = "answered";
-                            card.dataset.answered = "1";
-                            const badge = card.querySelector("[data-categorize-badge]");
-                            if (badge) {
-                                badge.textContent = "Отвечено";
-                            }
-                            activeCard = null;
-                            updateBoardState();
-
-                            const allAnswered = cards.every(
-                                (candidate) => (candidate.dataset.state || "closed") === "answered",
-                            );
-                            if (allAnswered) {
-                                finishFlow();
-                            }
-                        }, delay);
-                    });
-                });
-            });
-
-            cards.forEach((card) => {
-                if ((card.dataset.state || "closed") === "answered") {
-                    const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(card.dataset.itemId)}"]`);
-                    const selectedValue = hiddenInput ? hiddenInput.value : "";
-                    const buttons = Array.from(card.querySelectorAll("[data-categorize-choice]"));
-                    const selectedButton = buttons.find((button) => button.dataset.choiceValue === selectedValue);
-                    if (selectedButton) {
-                        applyChoiceState(card, buttons, selectedButton, card.querySelector("[data-question-feedback]"));
-                    } else {
-                        buttons.forEach((button) => {
-                            button.disabled = true;
-                        });
+                    event.preventDefault();
+                    if (activeCard !== card || stateOf(card) !== "open") {
+                        return;
                     }
-                }
+
+                    const payload = await submitAction(form, { root, answer: chosen.value });
+                    if (!payload?.feedback) {
+                        return;
+                    }
+
+                    // A card answered earlier (another tab, a double click) shows the answer the server kept.
+                    const saved = options.find((option) => option.value === payload.feedback.submitted) || chosen;
+                    const feedback = form.querySelector("[data-question-feedback]");
+                    card.dataset.state = "answered";
+                    setBadge(card, "Отвечено");
+                    const delay = applyChoiceFeedback(options, saved, payload.feedback, feedback);
+                    // A long card scrolls inside: the note under the options may be out of sight.
+                    feedback?.scrollIntoView({ block: "nearest", behavior: reducedMotion?.matches ? "auto" : "smooth" });
+                    await wait(delay);
+
+                    activeCard = null;
+                    renderBoard();
+                    if (finishIfComplete(payload, root)) {
+                        return;
+                    }
+                    focusNextCard(card);
+                });
             });
 
-            if (cards.every((card) => (card.dataset.state || "closed") === "answered")) {
-                finishFlow();
-                return;
-            }
-            updateBoardState();
+            renderBoard();
         });
     }
 

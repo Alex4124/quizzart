@@ -569,7 +569,7 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(runtime["boxes"][0]["number"], 1)
         self.assertEqual(runtime["boxes"][1]["number"], 2)
         self.assertEqual(len(runtime["boxes"]), 2)
-        self.assertEqual(runtime["total_boxes"], 2)
+        self.assertEqual(runtime["total_count"], 2)
 
     def test_choose_a_box_preview_renders_gift_cover_and_inline_panels(self):
         activity = Activity.objects.create(
@@ -599,10 +599,12 @@ class ActivityEditorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "box-gift.png")
         self.assertContains(response, "data-box-cover")
-        self.assertContains(response, "data-preview-open-box")
-        self.assertContains(response, "data-preview-box-panel")
-        self.assertContains(response, "data-preview-box-result")
-        self.assertContains(response, "data-box-question-panel")
+        # The preview uses the student's markup: one open form and one answer form per box.
+        self.assertContains(response, "data-box-open-form", count=1)
+        self.assertContains(response, "data-box-question-panel", count=1)
+        self.assertContains(response, "data-preview-complete")
+        self.assertNotContains(response, "data-preview-open-box")
+        self.assertNotContains(response, "data-correct-option")
         self.assertNotContains(response, "правой колонке")
 
     def test_wheel_preview_renders_circle_controls_and_questions(self):
@@ -704,9 +706,14 @@ class ActivityEditorTests(TestCase):
             [choice["text"] for choice in matching_runtime["answer_bank"]],
             ["Guido", "Dennis"],
         )
-        self.assertCountEqual(matching_runtime["choices"], ["Guido", "Dennis"])
         self.assertTrue(matching_runtime["reveal_correct_answer"])
-        self.assertEqual(matching_runtime["rows"][0]["correct_choice_id"], "matching-choice-1")
+        # The right card stays on the server until the row is answered.
+        self.assertNotIn("correct_choice_id", matching_runtime["rows"][0])
+        definition = registry.get("matching")
+        config = matching_activity.config_json
+        item = definition.get_item(config, "item-1")
+        feedback = definition.build_answer_feedback(config, item, definition.check_answer(config, item, "Dennis"))
+        self.assertEqual(feedback["correct_choice_id"], "matching-choice-1")
 
     def test_matching_runtime_deduplicates_answers_case_insensitively(self):
         matching_activity = Activity(
@@ -746,8 +753,15 @@ class ActivityEditorTests(TestCase):
                 {"id": "matching-choice-2", "text": "Неверно"},
             ],
         )
+        definition = registry.get("matching")
+        config = matching_activity.config_json
         self.assertEqual(
-            [row["correct_choice_id"] for row in runtime["rows"]],
+            [
+                definition.build_answer_feedback(config, item, definition.check_answer(config, item, "Неверно"))[
+                    "correct_choice_id"
+                ]
+                for item in definition.get_items(config)
+            ],
             ["matching-choice-1", "matching-choice-1"],
         )
 
@@ -787,7 +801,6 @@ class ActivityEditorTests(TestCase):
             [choice["text"] for choice in runtime["answer_bank"]],
             ["Верно", "Неверно"],
         )
-        self.assertNotIn("Лишний вариант", runtime["choices"])
 
     def test_cards_runtime_is_deterministic_and_uses_card_collection(self):
         activity = Activity(
@@ -890,7 +903,8 @@ class ActivityEditorTests(TestCase):
         self.assertContains(categorize_response, "data-categorize-board")
         self.assertContains(categorize_response, "data-categorize-card")
         self.assertContains(categorize_response, "data-categorize-card-inner")
-        self.assertContains(categorize_response, "data-categorize-choice")
+        self.assertContains(categorize_response, "data-categorize-open")
+        self.assertContains(categorize_response, "data-answer-form")
         self.assertContains(categorize_response, "cards-orange.png")
         self.assertContains(categorize_response, "cards-violet.png")
         self.assertContains(categorize_response, 'data-card-theme="orange"', html=False)

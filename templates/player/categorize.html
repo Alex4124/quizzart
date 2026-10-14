@@ -3,22 +3,31 @@
 
 {% block title %}{{ activity.title }}{% endblock %}
 
-{% block player_layout_attrs %}
-    data-categorize-player
-    data-preview="{{ preview|yesno:'1,0' }}"
-    data-reveal-correct="{{ runtime.reveal_correct_answer|yesno:'1,0' }}"
+{% block extra_head %}
+    {{ block.super }}
+    <noscript>
+        <style>
+            /* Without JavaScript every card lies open: each answer is an ordinary form submit. */
+            .player-page .cards-card-closed .cards-card__inner {
+                transform: rotateY(180deg);
+            }
+
+            .player-page .cards-card__face--front {
+                display: none;
+            }
+        </style>
+    </noscript>
 {% endblock %}
 
 {% block player_board %}
-    <form method="post" class="stack-form cards-flow" data-categorize-form>
-        {% csrf_token %}
-        {% if not preview %}
-            <input type="hidden" name="action" value="submit_categorize">
-        {% endif %}
-        {% for card in runtime.cards %}
-            <input type="hidden" name="question_{{ card.id }}" value="{{ card.selected }}" data-answer-target="{{ card.id }}">
-        {% endfor %}
-
+    <div
+        class="stack-form cards-flow"
+        data-player-root
+        data-categorize-player
+        data-preview="{{ preview|yesno:'1,0' }}"
+        data-action-url="{{ runtime.action_url }}"
+        data-total-count="{{ runtime.total_count }}"
+    >
         <div class="cards-board" data-categorize-board>
             {% for card in runtime.cards %}
                 {% cycle 'orange' 'violet' as card_theme silent %}
@@ -27,77 +36,77 @@
                     data-categorize-card
                     data-item-id="{{ card.id }}"
                     data-state="{% if card.is_answered %}answered{% else %}closed{% endif %}"
-                    data-answered="{% if card.is_answered %}1{% else %}0{% endif %}"
-                    data-correct-option="{{ card.correct_option }}"
                     data-card-theme="{{ card_theme }}"
                     data-reveal-stagger
+                    aria-label="Карточка {{ card.number }}"
                 >
                     <div class="cards-card__inner" data-categorize-card-inner>
-                        <div class="cards-card__face cards-card__face--front cards-card__face--front-{{ card_theme }}">
+                        <button
+                            class="cards-card__face cards-card__face--front cards-card__face--front-{{ card_theme }}"
+                            type="button"
+                            data-categorize-open
+                            {% if card.is_answered %}disabled{% endif %}
+                        >
                             <img
                                 class="cards-card__art"
                                 src="{% static 'img/cards-'|add:card_theme|add:'.png' %}"
                                 alt=""
                                 aria-hidden="true"
                             >
-                            <div class="cards-card__front-overlay">
-                                <span class="cards-card__number cards-card__number--{{ card_theme }}">Карточка {{ forloop.counter }}</span>
-                                <strong class="cards-card__front-sr">Нажмите, чтобы открыть</strong>
-                                <p class="cards-card__front-sr">Вопрос скрыт до переворота карточки.</p>
-                            </div>
-                        </div>
+                            <span class="cards-card__front-overlay">
+                                <span class="cards-card__number cards-card__number--{{ card_theme }}">Карточка {{ card.number }}</span><span class="cards-card__front-sr">: нажмите, чтобы открыть вопрос</span>
+                            </span>
+                        </button>
 
-                        <div class="cards-card__face cards-card__face--back cards-card__face--back-{{ card_theme }}">
-                            <div class="cards-card__head">
-                                <span class="cards-card__badge cards-card__badge--{{ card_theme }}" data-categorize-badge>
-                                    {% if card.is_answered %}Отвечено{% else %}Открыта{% endif %}
-                                </span>
-                                {% if player_shell.scoring_enabled %}
-                                    <span class="cards-card__points cards-card__points--{{ card_theme }}">{{ card.points }} балл.</span>
-                                {% endif %}
+                        <form
+                            method="post"
+                            action="{{ runtime.action_url }}"
+                            class="cards-card__face cards-card__face--back cards-card__face--back-{{ card_theme }}"
+                            data-categorize-back
+                            data-answer-form
+                        >
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="answer">
+                            <input type="hidden" name="item_key" value="{{ card.id }}">
+                            <div class="cards-card__body">
+                                <div class="cards-card__head">
+                                    <span class="cards-card__badge cards-card__badge--{{ card_theme }}" data-categorize-badge>
+                                        {% if card.is_answered %}Отвечено{% else %}Открыта{% endif %}
+                                    </span>
+                                    {% if player_shell.scoring_enabled %}
+                                        <span class="cards-card__points cards-card__points--{{ card_theme }}">{{ card.points }} балл.</span>
+                                    {% endif %}
+                                </div>
+                                <h2>{{ card.prompt }}</h2>
+                                {% include "player/_answer_options.html" with item=card list_class="cards-card__answers" %}
                             </div>
-                            <h2>{{ card.prompt }}</h2>
-                            <div class="cards-card__answers">
-                                {% for option in card.options %}
-                                    <button
-                                        class="option-row cards-card__choice {% if card.selected == option.text %}is-selected{% endif %}"
-                                        type="button"
-                                        data-categorize-choice
-                                        data-choice-value="{{ option.text }}"
-                                        {% if card.is_answered %}disabled{% endif %}
-                                    >
-                                        <span>{{ option.text }}</span>
-                                    </button>
-                                {% endfor %}
-                            </div>
-                            <p class="muted question-feedback" data-question-feedback hidden></p>
-                        </div>
+                        </form>
                     </div>
                 </article>
             {% endfor %}
         </div>
 
-        <div class="message cards-complete-message" data-preview-complete hidden>
-            Предпросмотр завершён. Обновите страницу, чтобы снова открыть карточки.
-        </div>
-        {% if not preview %}
-            <div class="message cards-complete-message" data-categorize-submit-state hidden>
-                Сохраняем ответы и открываем экран результата...
+        {% if preview %}
+            <div class="message cards-complete-message" data-preview-complete hidden>
+                Предпросмотр завершён. Обновите страницу, чтобы снова открыть карточки.
             </div>
         {% endif %}
-    </form>
+    </div>
 {% endblock %}
 
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Карточки</p>
     <h2>Открывайте карточки по одной</h2>
     <p>На поле лежат перевёрнутые карточки. Откройте карточку, выберите ответ и переходите к следующей.</p>
+    {% if not runtime.reveal_correct_answer %}
+        <p>Верные ответы вы увидите после последней карточки.</p>
+    {% endif %}
 {% endblock %}
 
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">Сценарий</p>
     <h3>Интерактивные карточки</h3>
-    <p>После ответа карточка остаётся на поле, остаётся открытой и становится более тусклой, чтобы прогресс был виден сразу.</p>
+    <p>Отвеченная карточка остаётся на поле открытой и становится тусклее, поэтому прогресс виден сразу.</p>
 {% endblock %}
 
 {% block player_script %}

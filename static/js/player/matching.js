@@ -1,171 +1,128 @@
 (() => {
-    const { nativeSubmit, markSelectedOption, preserveSubmittedValue, revealChoiceState, enhanceAnswerForm, submitFormAsJson } = window.QuizzartPlayer;
+    const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst } = window.QuizzartPlayer;
 
     function initMatchingPlayers() {
         document.querySelectorAll("[data-matching-player]").forEach((root) => {
-            const preview = root.dataset.preview === "1";
-            const form = root.querySelector("form.matching-flow");
-            const submitButton = root.querySelector("[data-matching-submit]");
-            const completeMessage = root.querySelector("[data-preview-complete]");
             const questions = Array.from(root.querySelectorAll("[data-matching-question]"));
-            const choiceButtons = Array.from(root.querySelectorAll("[data-matching-choice]"));
-            let currentIndex = 0;
-
-            if (!form || !questions.length || !choiceButtons.length) {
+            const bank = root.querySelector("[data-matching-bank]");
+            const cards = Array.from(root.querySelectorAll("[data-matching-choice]"));
+            if (!questions.length || !bank || !cards.length) {
                 return;
             }
 
-            if (submitButton) {
-                submitButton.hidden = true;
-            }
-
-            function syncChoiceStates() {
-                choiceButtons.forEach((button) => {
-                    button.classList.remove("is-selected", "is-correct", "is-wrong", "matching-choice-correct");
-                    button.hidden = false;
-                    button.disabled = false;
+            // The bank is shared by every row: its cards submit the form of the row on screen.
+            function attachBank(question) {
+                const form = question.querySelector("[data-answer-form]");
+                const prompt = question.querySelector("h2[id]");
+                cards.forEach((card) => {
+                    card.classList.remove("is-selected", "is-correct", "is-wrong");
+                    card.removeAttribute("aria-pressed");
+                    card.setAttribute("form", form.id);
+                    if (prompt) {
+                        card.setAttribute("aria-describedby", prompt.id);
+                    }
+                    card.disabled = false;
                 });
             }
 
-            function resetQuestion(question) {
-                if (!question) {
-                    return;
+            // On a phone the bank runs far below the row: bring the next prompt back from under the sticky topbar.
+            function revealQuestion(question) {
+                const topbar = document.querySelector(".player-topbar");
+                const visibleTop = topbar ? topbar.getBoundingClientRect().bottom : 0;
+                const offset = question.getBoundingClientRect().top - visibleTop - 12;
+                if (offset < 0) {
+                    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                    window.scrollBy({ top: offset, behavior: reduceMotion ? "auto" : "smooth" });
                 }
+            }
 
-                delete question.dataset.locked;
+            function showQuestion(question) {
+                questions.forEach((candidate) => {
+                    const isCurrent = candidate === question;
+                    candidate.hidden = !isCurrent;
+                    candidate.classList.toggle("matching-card-current", isCurrent);
+                    candidate.classList.remove("matching-card-enter", "matching-card-exit");
+                });
+                attachBank(question);
+                window.requestAnimationFrame(() => question.classList.add("matching-card-enter"));
+                focusFirst(bank);
+                revealQuestion(question);
+            }
+
+            // A copy of a bank card for the row's dock. The server names cards by their exact bank text
+            // (feedback.correct_option is the card's text even when the row's answer differs in case).
+            function dockCard(text, state) {
+                const source = cards.find((card) => card.value === text);
+                const element = document.createElement("span");
+                element.className = `option-row matching-choice matching-dock-card ${state}`;
+                if (source) {
+                    source.childNodes.forEach((node) => element.appendChild(node.cloneNode(true)));
+                } else {
+                    const label = document.createElement("span");
+                    label.textContent = text;
+                    element.appendChild(label);
+                }
+                return element;
+            }
+
+            function fillDock(question, feedback) {
                 const dock = question.querySelector("[data-matching-dock]");
-                const dockPlaceholder = question.querySelector("[data-matching-dock-placeholder]");
-                const dockedCard = question.querySelector("[data-matching-docked-card]");
-                const feedback = question.querySelector("[data-question-feedback]");
-
-                if (dock) {
-                    dock.hidden = false;
-                    dock.classList.remove("matching-dock-staging", "matching-dock-filled");
-                }
-                if (dockPlaceholder) {
-                    dockPlaceholder.hidden = false;
-                }
-                if (dockedCard) {
-                    dockedCard.hidden = true;
-                    dockedCard.textContent = "";
-                    dockedCard.className = "matching-dock-card";
-                }
-                if (feedback) {
-                    feedback.hidden = true;
-                    feedback.textContent = "";
-                }
-            }
-
-            function attachChoiceToDock(question, sourceButton, choiceText) {
-                const dock = question?.querySelector("[data-matching-dock]");
-                const dockPlaceholder = question?.querySelector("[data-matching-dock-placeholder]");
-                const dockedCard = question?.querySelector("[data-matching-docked-card]");
-                if (!dock || !dockedCard || !sourceButton) {
-                    return 0;
-                }
-
-                dock.hidden = false;
-                if (dockPlaceholder) {
-                    dockPlaceholder.hidden = true;
-                }
-                dockedCard.className = "matching-dock-card option-row matching-choice matching-choice-docked";
-                dockedCard.hidden = false;
-                dockedCard.innerHTML = sourceButton.innerHTML;
-                dockedCard.dataset.choiceValue = choiceText;
-                dock.classList.add("matching-dock-filled");
-
-                return 0;
-            }
-
-            function showQuestion(index) {
-                currentIndex = index;
-                questions.forEach((question, questionIndex) => {
-                    const isCurrent = questionIndex === index;
-                    question.hidden = !isCurrent;
-                    question.classList.toggle("matching-card-current", isCurrent);
-                    question.classList.remove("matching-card-enter", "matching-card-exit");
-                    if (isCurrent) {
-                        resetQuestion(question);
-                        window.requestAnimationFrame(() => question.classList.add("matching-card-enter"));
-                    }
-                });
-                syncChoiceStates();
-            }
-
-            function finishFlow() {
-                if (preview) {
-                    if (completeMessage) {
-                        completeMessage.hidden = false;
-                    }
+                if (!dock) {
                     return;
                 }
-                nativeSubmit.call(form);
+                const verdict = feedback.is_correct === true ? "is-correct" : feedback.is_correct === false ? "is-wrong" : "";
+                const placed = [dockCard(feedback.submitted, `is-selected ${verdict}`)];
+                if (feedback.is_correct === false && feedback.correct_option) {
+                    placed.push(dockCard(feedback.correct_option, "is-correct"));
+                }
+                dock.replaceChildren(...placed);
+                dock.classList.add("matching-dock-filled");
             }
 
-            choiceButtons.forEach((button) => {
-                button.addEventListener("click", () => {
-                    const question = questions[currentIndex];
-                    const feedback = question?.querySelector("[data-question-feedback]");
-                    if (!question || question.dataset.locked === "1") {
+            questions.forEach((question) => {
+                const form = question.querySelector("[data-answer-form]");
+                if (!form) {
+                    return;
+                }
+
+                form.addEventListener("submit", async (event) => {
+                    const chosen = event.submitter;
+                    if (!chosen || chosen.name !== "answer") {
+                        return;
+                    }
+                    event.preventDefault();
+                    if (question.dataset.state === "answered") {
                         return;
                     }
 
-                    question.dataset.locked = "1";
-                    choiceButtons.forEach((candidate) => {
-                        candidate.disabled = true;
-                    });
-
-                    const hiddenInput = form.querySelector(`[data-answer-target="${CSS.escape(question.dataset.itemId)}"]`);
-                    const selectedValue = button.dataset.choiceValue || "";
-                    if (hiddenInput) {
-                        hiddenInput.value = selectedValue;
+                    const payload = await submitAction(form, { root, answer: chosen.value });
+                    if (!payload?.feedback) {
+                        return;
                     }
 
-                    const correctOption = question.dataset.correctOption || "";
-                    const correctChoiceId = question.dataset.correctChoiceId || "";
-                    const correctButton =
-                        choiceButtons.find((candidate) => candidate.dataset.choiceId === correctChoiceId) ||
-                        choiceButtons.find((candidate) => candidate.dataset.choiceValue === correctOption);
-                    const isCorrectAnswer =
-                        button.dataset.choiceId === correctChoiceId || selectedValue === correctOption;
-
-                    button.classList.add("is-selected");
-                    button.classList.toggle("is-correct", isCorrectAnswer);
-                    button.classList.toggle("is-wrong", !isCorrectAnswer);
-
-                    if (feedback) {
-                        feedback.textContent = isCorrectAnswer
-                            ? "Верно. Карточка ответа присоединена."
-                            : `Неверно. Правильная карточка: ${correctOption}`;
-                        feedback.hidden = false;
-                    }
-
-                    const dockSource = isCorrectAnswer ? button : correctButton;
-                    const movementDuration = attachChoiceToDock(
-                        question,
-                        dockSource,
-                        correctOption,
+                    question.dataset.state = "answered";
+                    const delay = applyChoiceFeedback(
+                        cards,
+                        chosen,
+                        payload.feedback,
+                        form.querySelector("[data-question-feedback]"),
                     );
-                    const exitDelay = isCorrectAnswer ? 520 : 760;
+                    fillDock(question, payload.feedback);
+                    // The last row stays on screen with its feedback until the results open.
+                    if (finishIfComplete(payload, root, delay)) {
+                        return;
+                    }
+                    await wait(Math.max(120, delay - 300));
+                    question.classList.remove("matching-card-enter");
+                    question.classList.add("matching-card-exit");
+                    await wait(300);
 
-                    window.setTimeout(() => {
-                        button.classList.remove("is-selected", "is-correct", "is-wrong");
-                        syncChoiceStates();
-                        question.classList.remove("matching-card-enter");
-                        question.classList.add("matching-card-exit");
-                    }, Math.max(220, movementDuration + 80));
-
-                    window.setTimeout(() => {
-                        if (currentIndex < questions.length - 1) {
-                            showQuestion(currentIndex + 1);
-                            return;
-                        }
-                        finishFlow();
-                    }, exitDelay);
+                    const next = questions.find((candidate) => candidate.dataset.state !== "answered");
+                    if (next) {
+                        showQuestion(next);
+                    }
                 });
             });
-
-            showQuestion(0);
         });
     }
 

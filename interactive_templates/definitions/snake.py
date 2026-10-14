@@ -10,10 +10,6 @@ from interactive_templates.base import QuestionBankTemplateDefinition, TemplateM
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    choice_texts,
-    correct_option,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -143,39 +139,19 @@ class SnakeDefinition(QuestionBankTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answer_map = {}
-        if session:
-            answer_map = {answer.item_key: answer for answer in session.answers.all()}
-
+        questions = self.build_item_states(activity, session, preview=preview)
         seed_base = "preview" if preview else str(session.token) if session else "snake"
-        positions = _build_apple_positions(len(items), seed_base)
-        apples = []
-        for index, item in enumerate(items, start=1):
-            answer = answer_map.get(item["id"])
-            shuffled_options = list(choice_texts(item))
-            random.Random(f"{seed_base}-item-{index}").shuffle(shuffled_options)
-            apples.append(
-                {
-                    "id": item["id"],
-                    "number": index,
-                    "prompt": item["prompt"],
-                    "options": shuffled_options,
-                    "correct_option": correct_option(item)["text"],
-                    "selected_option": answer.submitted_value.get("choice", "") if answer else "",
-                    "is_correct": answer.is_correct if answer else None,
-                    "points": get_question_score(config, item),
-                    "x_percent": positions[index - 1][0],
-                    "y_percent": positions[index - 1][1],
-                }
-            )
-
+        positions = _build_apple_positions(len(questions), seed_base)
+        # An answered apple is already eaten: a reload keeps the snake's length and only the rest stay on the board.
+        apples = [
+            {**question, "x_percent": x_percent, "y_percent": y_percent}
+            for question, (x_percent, y_percent) in zip(questions, positions)
+        ]
         return {
             "apples": apples,
-            "answered_count": len(answer_map),
-            "total_items": len(items),
-            "max_score": self.get_max_score(activity.config_json),
-            "reveal_correct_answer": activity.config_json.get("reveal_correct_answer", True),
+            "answered_count": sum(1 for apple in apples if apple["is_answered"]),
+            "total_count": len(apples),
+            "reveal_correct_answer": self.reveals_correct_option(config),
             "scoring_enabled": is_scoring_enabled(config),
-            "review_items": build_review_items(items, answer_map, config=config),
+            "max_score": self.get_max_score(config),
         }

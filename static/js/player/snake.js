@@ -1,5 +1,5 @@
 (() => {
-    const { nativeSubmit, markSelectedOption, preserveSubmittedValue, revealChoiceState, enhanceAnswerForm, submitFormAsJson } = window.QuizzartPlayer;
+    const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst, isPreview } = window.QuizzartPlayer;
 
     function initSnakePlayers() {
         const directionVectors = {
@@ -16,16 +16,13 @@
         };
 
         document.querySelectorAll("[data-snake-player]").forEach((root) => {
-            const preview = root.dataset.preview === "1";
-            const revealCorrect = root.dataset.revealCorrect === "1";
+            const preview = isPreview(root);
             const board = root.querySelector("[data-snake-board]");
             const playfield = root.querySelector("[data-snake-playfield]");
             const head = root.querySelector("[data-snake-head]");
             const segmentHost = root.querySelector("[data-snake-segments]");
             const questionLayer = root.querySelector("[data-snake-question-layer]");
-            const submitForm = root.querySelector("[data-snake-submit-form]");
-            const submitState = root.querySelector("[data-snake-submit-state]");
-            const completeMessage = root.querySelector("[data-snake-preview-complete]");
+            const finishCard = root.querySelector(preview ? "[data-preview-complete]" : "[data-snake-finish]");
             const progressValue = root.querySelector("[data-snake-progress]");
             const remainingValue = root.querySelector("[data-snake-remaining]");
             const scoreValue = root.querySelector("[data-snake-score]");
@@ -39,7 +36,6 @@
                 !head ||
                 !segmentHost ||
                 !questionLayer ||
-                !submitForm ||
                 !appleElements.length ||
                 !questionCards.length
             ) {
@@ -56,17 +52,12 @@
                 questionMap.set(card.dataset.itemId || "", card);
             });
 
-            const answerTargets = new Map();
-            submitForm.querySelectorAll("[data-answer-target]").forEach((input) => {
-                answerTargets.set(input.dataset.answerTarget || "", input);
-            });
-
             let frameId = null;
             let boardRect = null;
             let paused = false;
             let completed = false;
-            let answeredCount = 0;
-            let localScore = Number.parseInt(root.dataset.initialScore || "0", 10) || 0;
+            // Apples answered before a reload are rendered eaten: the snake keeps the length it had.
+            let answeredCount = appleElements.filter((apple) => apple.dataset.eaten === "1").length;
             let activeItemId = "";
             let lastTimestamp = 0;
             let headPoint = { x: 0, y: 0 };
@@ -75,7 +66,6 @@
             const bodyPoints = [];
             const segments = [];
             const baseSegmentCount = 5;
-            const totalItems = appleElements.length;
             const headRadius = 20;
             const segmentRadius = 14;
             const beaconRadius = 22;
@@ -196,17 +186,17 @@
                     segment.className = "snake-segment";
                     segmentHost.appendChild(segment);
                     segments.push(segment);
+                    // Each new segment goes one step behind the tail. Stacking several on the tail point (a reload
+                    // with saved answers adds them all at once) folded the chain back over itself.
                     const anchorPoint = !bodyPoints.length
                         ? {
                             x: headPoint.x - heading.x * headSegmentDistance,
                             y: headPoint.y - heading.y * headSegmentDistance,
                         }
-                        : segments.length > baseSegmentCount
-                            ? bodyPoints[bodyPoints.length - 1]
-                            : {
-                                x: bodyPoints[bodyPoints.length - 1].x - heading.x * segmentDistance,
-                                y: bodyPoints[bodyPoints.length - 1].y - heading.y * segmentDistance,
-                            };
+                        : {
+                            x: bodyPoints[bodyPoints.length - 1].x - heading.x * segmentDistance,
+                            y: bodyPoints[bodyPoints.length - 1].y - heading.y * segmentDistance,
+                        };
                     bodyPoints.push({ x: anchorPoint.x, y: anchorPoint.y });
                 }
             }
@@ -235,15 +225,18 @@
                 });
             }
 
-            function updateHud() {
+            // The HUD shows what the server counted, so a reload and a second tab agree with it.
+            function updateHud(payload) {
+                const total = Number(payload.total_count) || appleElements.length;
+                const answered = Math.min(Number(payload.answered_count) || 0, total);
                 if (progressValue) {
-                    progressValue.textContent = String(answeredCount);
+                    progressValue.textContent = String(answered);
                 }
                 if (remainingValue) {
-                    remainingValue.textContent = String(Math.max(totalItems - answeredCount, 0));
+                    remainingValue.textContent = String(Math.max(total - answered, 0));
                 }
-                if (scoreValue) {
-                    scoreValue.textContent = String(localScore);
+                if (scoreValue && "score" in payload) {
+                    scoreValue.textContent = payload.score === null ? "—" : String(payload.score);
                 }
             }
 
@@ -256,84 +249,47 @@
                     card.hidden = true;
                     card.classList.remove("snake-question-card-live");
                 });
-                if (submitState) {
-                    submitState.hidden = true;
-                }
-                if (completeMessage) {
-                    completeMessage.hidden = true;
-                }
                 updateDirectionControls();
             }
 
-            function finishRun() {
+            function eatApple(itemId) {
+                const apple = appleMap.get(itemId);
+                if (!apple || apple.dataset.eaten === "1") {
+                    return;
+                }
+                apple.dataset.eaten = "1";
+                apple.classList.remove("snake-apple-bite");
+                apple.classList.add("snake-apple-eaten");
+                answeredCount += 1;
+                syncSegments();
+            }
+
+            function finishRun(payload) {
                 completed = true;
                 paused = true;
+                activeItemId = "";
                 root.classList.add("snake-player-paused");
                 questionLayer.hidden = false;
                 questionCards.forEach((card) => {
                     card.hidden = true;
                     card.classList.remove("snake-question-card-live");
                 });
-
-                if (preview) {
-                    if (completeMessage) {
-                        completeMessage.hidden = false;
-                    }
-                    updateDirectionControls();
-                    return;
-                }
-
-                if (submitState) {
-                    submitState.hidden = false;
+                if (finishCard) {
+                    finishCard.hidden = false;
+                    finishCard.classList.add("snake-question-card-live");
+                    finishCard.focus({ preventScroll: true });
                 }
                 updateDirectionControls();
-                root.classList.add("player-shell-checking");
-                window.setTimeout(() => nativeSubmit.call(submitForm), 360);
-            }
-
-            function handleAnswer(card, input) {
-                const itemId = card.dataset.itemId || "";
-                const apple = appleMap.get(itemId);
-                const correctOption = card.dataset.correctOption || "";
-                const points = Number.parseInt(card.dataset.points || "0", 10) || 0;
-                const delay = revealChoiceState(card, input, revealCorrect);
-
-                if (input.value === correctOption) {
-                    localScore += points;
-                }
-
-                const hiddenInput = answerTargets.get(itemId);
-                if (hiddenInput) {
-                    hiddenInput.value = input.value;
-                }
-
-                if (apple) {
-                    apple.classList.add("snake-apple-bite");
-                }
-
-                window.setTimeout(() => {
-                    answeredCount += 1;
-                    syncSegments();
-                    updateHud();
-
-                    if (apple) {
-                        apple.dataset.eaten = "1";
-                        apple.classList.remove("snake-apple-bite");
-                        apple.classList.add("snake-apple-eaten");
-                    }
-
-                    hideQuestionLayer();
-
-                    if (answeredCount >= totalItems) {
-                        finishRun();
-                    }
-                }, delay + 180);
+                // Students go to their results, the teacher's preview keeps the note on the board.
+                finishIfComplete(payload, root, 360);
             }
 
             function showQuestion(itemId) {
                 const card = questionMap.get(itemId);
-                if (!card) {
+                if (!card || card.dataset.state === "answered") {
                     paused = false;
+                    root.classList.remove("snake-player-paused");
+                    updateDirectionControls();
                     return;
                 }
 
@@ -345,24 +301,8 @@
                     candidate.hidden = !isCurrent;
                     candidate.classList.toggle("snake-question-card-live", isCurrent);
                 });
-                if (submitState) {
-                    submitState.hidden = true;
-                }
-                if (completeMessage) {
-                    completeMessage.hidden = true;
-                }
-
-                const feedback = card.querySelector("[data-question-feedback]");
-                if (feedback) {
-                    feedback.hidden = true;
-                    feedback.textContent = "";
-                }
-
-                card.querySelectorAll("input[type='radio']").forEach((input) => {
-                    input.checked = false;
-                });
-                delete card.dataset.locked;
                 updateDirectionControls();
+                focusFirst(card);
             }
 
             function consumeApple(apple) {
@@ -391,14 +331,49 @@
                 });
             }
 
+            async function answerQuestion(card, form, options, chosen) {
+                const itemId = card.dataset.itemId || "";
+                const payload = await submitAction(form, { root, answer: chosen.value });
+                if (!payload?.feedback) {
+                    // The card stays open: an error is shown in it, or the page is already posting without fetch.
+                    return;
+                }
+
+                card.dataset.state = "answered";
+                updateHud(payload);
+                const delay = applyChoiceFeedback(options, chosen, payload.feedback, form.querySelector("[data-question-feedback]"));
+                await wait(delay);
+                eatApple(itemId);
+
+                if (payload.is_complete) {
+                    finishRun(payload);
+                    return;
+                }
+                hideQuestionLayer();
+                if (!appleElements.some((apple) => apple.dataset.eaten !== "1")) {
+                    // The activity gained a question after this page was opened: the server shows the rest.
+                    window.location.reload();
+                    return;
+                }
+                playfield.focus({ preventScroll: true });
+            }
+
             function handleDirectionKeydown(event) {
                 const directionName = directionKeys[event.key];
-                if (!directionName) {
+                if (!directionName || event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
+                // While a question is open the arrows belong to the page, not to the snake.
+                if (paused || completed) {
                     return;
                 }
 
                 const target = event.target;
-                if (target instanceof HTMLElement && target.closest("input, textarea, select, button")) {
+                if (
+                    target instanceof HTMLElement &&
+                    target.closest("input, textarea, select, button, [contenteditable='true']") &&
+                    !target.closest("[data-snake-direction]")
+                ) {
                     return;
                 }
 
@@ -459,16 +434,22 @@
             }
 
             questionCards.forEach((card) => {
-                card.querySelectorAll("input[type='radio']").forEach((input) => {
-                    input.addEventListener("change", () => {
-                        if (card.dataset.locked === "1") {
-                            return;
-                        }
+                const form = card.querySelector("[data-answer-form]");
+                if (!form) {
+                    return;
+                }
+                const options = Array.from(form.querySelectorAll("button[name='answer']"));
 
-                        card.dataset.locked = "1";
-                        markSelectedOption(input);
-                        handleAnswer(card, input);
-                    });
+                form.addEventListener("submit", (event) => {
+                    const chosen = event.submitter;
+                    if (!chosen || chosen.name !== "answer") {
+                        return;
+                    }
+                    event.preventDefault();
+                    if (completed || card.dataset.state === "answered" || card.dataset.itemId !== activeItemId) {
+                        return;
+                    }
+                    answerQuestion(card, form, options, chosen);
                 });
             });
 
@@ -487,7 +468,6 @@
 
             updateBoardRect(true);
             syncSegments();
-            updateHud();
             updateDirectionControls();
             renderSnake();
             frameId = window.requestAnimationFrame(tick);

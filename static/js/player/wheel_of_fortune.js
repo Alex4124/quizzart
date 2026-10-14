@@ -1,286 +1,167 @@
 (() => {
-    const { nativeSubmit, markSelectedOption, preserveSubmittedValue, revealChoiceState, enhanceAnswerForm, submitFormAsJson } = window.QuizzartPlayer;
+    const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst, isPreview, previewAnsweredKeys } =
+        window.QuizzartPlayer;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+
+    // The pointer sits on the left of the wheel, which is the 180deg stopping angle.
+    const POINTER_ANGLE = 180;
+    // Degrees per millisecond while the wheel spins freely (2.5 turns a second).
+    const FREE_SPIN_SPEED = 0.9;
+    const LANDING_DURATION = 1800;
+    const QUESTION_EXIT_DELAY = 260;
+    const REPEAT_NOTICE = "Этот вопрос уже был — крутите ещё раз.";
+
+    // Spotlight title and text for each state. Same wording as the play page renders without JavaScript.
+    const SPOTLIGHT = {
+        idle: [
+            "Крутите колесо, чтобы получить вопрос",
+            "Каждый сектор открывает отдельный вопрос и сохраняет результат после ответа.",
+        ],
+        spinning: ["Колесо крутится", "Нажмите «Остановить», и колесо выберет вопрос."],
+        landing: ["Колесо выбирает вопрос", "Ещё мгновение — и вопрос откроется."],
+        question: ["Колесо выбрало вопрос", "Выберите один вариант ответа: изменить его потом не получится."],
+        repeat: ["Этот вопрос уже был", "Ниже — ваш прошлый ответ. Крутите колесо ещё раз."],
+        done: ["Все вопросы пройдены", "На каждый сектор уже есть ответ."],
+    };
 
     function initWheelPlayers() {
         document.querySelectorAll("[data-wheel-player]").forEach((root) => {
-            const preview = root.dataset.preview === "1";
-            const revealCorrect = root.dataset.revealCorrect === "1";
-            const noRepeat = root.dataset.noRepeat === "1";
-            const playerShell = root.closest(".student-player") || root;
             const disc = root.querySelector("[data-wheel-disc]");
+            const spinForm = root.querySelector("[data-wheel-spin-form]");
             const startButton = root.querySelector("[data-wheel-start]");
             const stopButton = root.querySelector("[data-wheel-stop]");
-            const completeMessage = root.querySelector("[data-wheel-preview-complete]");
-            const sectors = Array.from(root.querySelectorAll("[data-wheel-sector]"));
-            const questions = Array.from(root.querySelectorAll("[data-wheel-question]"));
+            const notice = root.querySelector("[data-wheel-notice]");
+            const finishForm = root.querySelector("[data-wheel-finish]");
             const questionStack = root.querySelector(".wheel-question-stack");
             const spotlightTitle = root.querySelector("[data-wheel-spotlight-title]");
             const spotlightText = root.querySelector("[data-wheel-spotlight-text]");
-            const summaryScore = playerShell.querySelector('[data-player-summary-value="score"]');
-            const summaryProgress = playerShell.querySelector('[data-player-summary-value="progress"]');
-            const factsAnswered = playerShell.querySelector('[data-player-fact-value="answered"]');
-            const factsRemaining = playerShell.querySelector('[data-player-fact-value="remaining"]');
-            const progressHeading = playerShell.querySelector("[data-player-progress-heading]");
-            const progressRing = playerShell.querySelector("[data-player-progress-ring]");
-            const progressRingLabel = playerShell.querySelector("[data-player-progress-ring-label]");
-            const progressBarFill = playerShell.querySelector("[data-player-progress-bar-fill]");
-            const progressSegments = Array.from(playerShell.querySelectorAll("[data-player-progress-segment]"));
+            const sectors = Array.from(root.querySelectorAll("[data-wheel-sector]"));
+            const questions = new Map(
+                Array.from(root.querySelectorAll("[data-wheel-question]")).map((card) => [card.dataset.itemId || "", card]),
+            );
 
-            if (!disc || !startButton || !stopButton || !sectors.length) {
+            if (!disc || !spinForm || !startButton || !stopButton || !sectors.length) {
                 return;
             }
 
+            const preview = isPreview(root);
+            // idle | spinning | landing | question
+            let state = "idle";
             let rotation = 0;
-            let spinning = false;
-            let activeItemId = root.dataset.activeItem || "";
-            let spinTimer = null;
-            let currentScore = Number.parseInt(summaryScore?.textContent || "0", 10) || 0;
-            let questionStackMinHeight = questionStack?.getBoundingClientRect().height || 0;
-            const wheelQuestionExitDelay = 260;
-            const answeredItems = new Set(
-                sectors
-                    .filter((sector) => sector.dataset.answered === "1")
-                    .map((sector) => sector.dataset.itemId || ""),
-            );
-            const scrollStateKey = `quizzart-wheel-scroll:${window.location.pathname}`;
+            let freeSpinFrame = 0;
+            let activeItemId = "";
+            // The card on screen: the open question, or an answered one the wheel stopped on again.
+            let shownCard = null;
+            // The server's reply to the current spin; it is usually there before «Остановить» is pressed.
+            let spinReply = null;
+            let questionStackMinHeight = 0;
 
-            function rememberScrollPosition() {
-                try {
-                    window.sessionStorage.setItem(scrollStateKey, String(window.scrollY));
-                } catch (error) {
-                    // Ignore sessionStorage failures and keep the flow working.
-                }
+            function sectorOf(itemId) {
+                return sectors.find((sector) => sector.dataset.itemId === itemId) || null;
             }
 
-            function clearRememberedScrollPosition() {
-                try {
-                    window.sessionStorage.removeItem(scrollStateKey);
-                } catch (error) {
-                    // Ignore sessionStorage failures and keep the flow working.
-                }
-            }
-
-            function restoreRememberedScrollPosition() {
-                try {
-                    const rawValue = window.sessionStorage.getItem(scrollStateKey);
-                    if (!rawValue) {
-                        return;
-                    }
-
-                    const savedScrollY = Number.parseInt(rawValue, 10);
-                    window.sessionStorage.removeItem(scrollStateKey);
-                    if (Number.isNaN(savedScrollY)) {
-                        return;
-                    }
-
-                    window.requestAnimationFrame(() => {
-                        window.scrollTo({ top: savedScrollY, behavior: "auto" });
-                        window.requestAnimationFrame(() => {
-                            window.scrollTo({ top: savedScrollY, behavior: "auto" });
-                        });
-                    });
-                } catch (error) {
-                    // Ignore sessionStorage failures and keep the flow working.
-                }
+            function hasUnanswered() {
+                return sectors.some((sector) => sector.dataset.answered !== "1");
             }
 
             function updateQuestionStackHeight() {
                 if (!questionStack) {
                     return;
                 }
-
+                // The sidebar never shrinks back, so the page does not jump when a card closes.
                 window.requestAnimationFrame(() => {
-                    const currentHeight = questionStack.getBoundingClientRect().height;
-                    questionStackMinHeight = Math.max(questionStackMinHeight, currentHeight);
+                    questionStackMinHeight = Math.max(questionStackMinHeight, questionStack.getBoundingClientRect().height);
                     if (questionStackMinHeight > 0) {
                         questionStack.style.minHeight = `${Math.ceil(questionStackMinHeight)}px`;
                     }
                 });
             }
 
-            function resetWheelQuestionAnimation(question) {
-                if (!question) {
-                    return;
+            function setState(next, spotlight = next) {
+                state = next;
+                root.dataset.wheelState = next;
+                startButton.disabled = next !== "idle" || !hasUnanswered();
+                stopButton.disabled = next !== "spinning";
+                const [title, text] = SPOTLIGHT[spotlight] || SPOTLIGHT.idle;
+                if (spotlightTitle) {
+                    spotlightTitle.textContent = title;
                 }
-
-                question.classList.remove("wheel-question-card-enter", "wheel-question-card-exit");
+                if (spotlightText) {
+                    spotlightText.textContent = text;
+                }
+                updateQuestionStackHeight();
             }
 
-            function animateWheelQuestionIn(question) {
-                if (!question) {
+            function showNotice(message, { error = false } = {}) {
+                if (!notice) {
                     return;
                 }
-
-                resetWheelQuestionAnimation(question);
-                question.hidden = false;
-                window.requestAnimationFrame(() => {
-                    question.classList.add("wheel-question-card-enter");
-                });
+                notice.classList.toggle("is-error", error);
+                notice.textContent = message;
+                notice.hidden = !message;
             }
 
-            function animateWheelQuestionOut(question) {
-                if (!question || question.hidden) {
-                    return Promise.resolve();
+            function markActive(itemId) {
+                sectors.forEach((sector) => sector.classList.toggle("wheel-sector-active", sector.dataset.itemId === itemId));
+            }
+
+            function markAnswered(itemId) {
+                const sector = sectorOf(itemId);
+                if (sector) {
+                    sector.dataset.answered = "1";
+                    sector.classList.add("wheel-sector-answered");
+                    sector.classList.remove("wheel-sector-active");
                 }
-
-                resetWheelQuestionAnimation(question);
-                question.classList.add("wheel-question-card-exit");
-
-                return new Promise((resolve) => {
-                    window.setTimeout(() => {
-                        question.hidden = true;
-                        question.classList.remove("wheel-question-card-exit");
-                        resolve();
-                    }, wheelQuestionExitDelay);
-                });
             }
 
-            function preserveViewport(anchor, previousScrollY, previousTop) {
-                if (!anchor) {
+            // Scrolls as little as needed to show the element (on a phone the question opens under the wheel),
+            // clear of the sticky top bar. alignEnd keeps the element at the bottom, with the wheel above it.
+            function bringIntoView(element, { alignEnd = false } = {}) {
+                if (!element) {
                     return;
                 }
-
-                const restore = () => {
-                    const nextTop = anchor.getBoundingClientRect().top;
-                    const nextScrollY = previousScrollY + (nextTop - previousTop);
-                    window.scrollTo({ top: nextScrollY, behavior: "auto" });
-                };
-
-                window.requestAnimationFrame(() => {
-                    restore();
-                    window.requestAnimationFrame(restore);
-                });
-            }
-
-            function syncHud() {
-                const totalItems = sectors.length;
-                const answeredCount = answeredItems.size;
-                const remainingCount = Math.max(totalItems - answeredCount, 0);
-                const progressPercent = totalItems ? Math.round((answeredCount / totalItems) * 100) : 0;
-                const filledSegments = Math.max(0, Math.min(progressSegments.length, Math.round(progressPercent / 20)));
-
-                if (summaryScore) {
-                    summaryScore.textContent = String(currentScore);
-                }
-                if (summaryProgress) {
-                    summaryProgress.textContent = `${progressPercent}%`;
-                }
-                if (factsAnswered) {
-                    factsAnswered.textContent = totalItems ? `${answeredCount} из ${totalItems}` : "0";
-                }
-                if (factsRemaining) {
-                    factsRemaining.textContent = String(remainingCount);
-                }
-                if (progressHeading) {
-                    progressHeading.textContent = `${progressPercent}% готово`;
-                }
-                if (progressRing) {
-                    progressRing.style.setProperty("--progress", String(progressPercent));
-                }
-                if (progressRingLabel) {
-                    progressRingLabel.textContent = `${progressPercent}%`;
-                }
-                if (progressBarFill) {
-                    progressBarFill.style.width = `${progressPercent}%`;
-                }
-                progressSegments.forEach((segment, index) => {
-                    segment.classList.toggle("is-filled", index < filledSegments);
-                });
-            }
-
-            function syncSpotlight() {
-                if (!spotlightTitle || !spotlightText) {
+                const rect = element.getBoundingClientRect();
+                const top = (document.querySelector(".player-topbar")?.getBoundingClientRect().bottom || 0) + 12;
+                const bottom = window.innerHeight - 12;
+                if (rect.top >= top && rect.bottom <= bottom) {
                     return;
                 }
-
-                if (activeItemId) {
-                    spotlightTitle.textContent = "Готовы к новому испытанию?";
-                    spotlightText.textContent = "Выберите верный вариант ответа после остановки колеса.";
-                    return;
-                }
-
-                spotlightTitle.textContent = "Крутите колесо, чтобы получить вопрос";
-                spotlightText.textContent = "Каждый сектор открывает отдельный вопрос и сохраняет результат после ответа.";
+                const fits = rect.height <= bottom - top;
+                const delta = alignEnd || (fits && rect.top >= top) ? rect.bottom - bottom : rect.top - top;
+                window.scrollBy({ top: delta, behavior: reducedMotion?.matches ? "auto" : "smooth" });
             }
 
-            const questionMap = new Map();
-            questions.forEach((question) => {
-                questionMap.set(question.dataset.itemId || "", question);
-                const form = question.querySelector("[data-answer-form]");
-                if (!form) {
-                    return;
-                }
-
-                if (!preview) {
-                    form.addEventListener("submit", (event) => {
-                        event.preventDefault();
-                    });
-                }
-
-                enhanceAnswerForm(form, revealCorrect, async () => {
-                    const itemId = question.dataset.itemId || "";
-                    if (preview) {
-                        answeredItems.add(itemId);
-                        const sector = sectors.find((candidate) => candidate.dataset.itemId === itemId);
-                        if (sector) {
-                            sector.dataset.answered = "1";
-                            sector.classList.add("wheel-sector-answered");
-                            sector.classList.remove("wheel-sector-active");
-                        }
-                        await animateWheelQuestionOut(question);
-                        activeItemId = "";
-                        syncHud();
-                        syncSpotlight();
-                        updateQuestionStackHeight();
-                        updateControlState();
-                        if (!getAvailableSectors().length && completeMessage) {
-                            completeMessage.hidden = false;
-                        }
-                        return;
-                    }
-
-                    const preservedScrollY = window.scrollY;
-                    const preservedAnchor = root.closest(".student-player__layout") || root;
-                    const preservedAnchorTop = preservedAnchor.getBoundingClientRect().top;
-                    const activeElement = document.activeElement;
-                    if (activeElement instanceof HTMLElement) {
-                        activeElement.blur();
-                    }
-
-                    try {
-                        rememberScrollPosition();
-                        playerShell.classList.add("player-shell-checking");
-                        const payload = await submitFormAsJson(form);
-                        currentScore = Number.parseInt(String(payload.score ?? currentScore), 10) || 0;
-                        answeredItems.add(itemId);
-
-                        const sector = sectors.find((candidate) => candidate.dataset.itemId === itemId);
-                        if (sector) {
-                            sector.dataset.answered = "1";
-                            sector.classList.add("wheel-sector-answered");
-                            sector.classList.remove("wheel-sector-active");
-                        }
-
-                        await animateWheelQuestionOut(question);
-                        activeItemId = "";
-                        syncHud();
-                        syncSpotlight();
-                        updateQuestionStackHeight();
-                        updateControlState();
-                        preserveViewport(preservedAnchor, preservedScrollY, preservedAnchorTop);
-
-                        if (payload.is_complete && payload.redirect_url) {
-                            window.location.assign(payload.redirect_url);
-                            return;
-                        }
-                        clearRememberedScrollPosition();
-                    } catch (error) {
-                        nativeSubmit.call(form);
-                    } finally {
-                        playerShell.classList.remove("player-shell-checking");
+            function showCard(card) {
+                questions.forEach((candidate) => {
+                    if (candidate !== card) {
+                        candidate.hidden = true;
+                        candidate.classList.remove("wheel-question-card-enter", "wheel-question-card-exit");
                     }
                 });
-            });
+                shownCard = card;
+                card.classList.remove("wheel-question-card-enter", "wheel-question-card-exit");
+                card.hidden = false;
+                window.requestAnimationFrame(() => card.classList.add("wheel-question-card-enter"));
+                updateQuestionStackHeight();
+            }
+
+            async function hideShownCard() {
+                const card = shownCard;
+                shownCard = null;
+                if (!card || card.hidden) {
+                    return;
+                }
+                card.classList.remove("wheel-question-card-enter");
+                card.classList.add("wheel-question-card-exit");
+                await wait(QUESTION_EXIT_DELAY);
+                // The wheel may have stopped on this card again in the meantime.
+                if (shownCard !== card) {
+                    card.hidden = true;
+                }
+                card.classList.remove("wheel-question-card-exit");
+            }
+
+            // ---- The wheel ------------------------------------------------------------------------
 
             function applyRotation(value) {
                 disc.style.transform = `rotate(${value}deg)`;
@@ -311,114 +192,237 @@
                 disc.style.setProperty("--wheel-label-lines", String(labelLines));
 
                 sectors.forEach((sector, sectorIndex) => {
-                    const centerAngle = -90 + sectorIndex * sectorSizeDegrees;
-                    const labelRotation = 180;
-
-                    sector.style.setProperty("--wheel-sector-center-angle", `${centerAngle.toFixed(3)}deg`);
-                    sector.style.setProperty("--wheel-label-rotation", `${labelRotation.toFixed(3)}deg`);
+                    sector.style.setProperty("--wheel-sector-center-angle", `${(-90 + sectorIndex * sectorSizeDegrees).toFixed(3)}deg`);
+                    sector.style.setProperty("--wheel-label-rotation", "180deg");
                 });
             }
 
-            function getAvailableSectors() {
-                return sectors.filter((sector) => !noRepeat || !answeredItems.has(sector.dataset.itemId || ""));
+            // The rotation that puts the sector under the pointer after at least `turns` full turns.
+            function rotationFor(sector, turns) {
+                const sectorSize = 360 / sectors.length;
+                const sectorCenterAngle = -90 + sectors.indexOf(sector) * sectorSize;
+                const targetAngle = POINTER_ANGLE - sectorCenterAngle;
+                const normalizedRotation = ((rotation % 360) + 360) % 360;
+                const delta = (((targetAngle - normalizedRotation) % 360) + 360) % 360;
+                return rotation + turns * 360 + delta;
             }
 
-            function showQuestion(itemId) {
+            function startFreeSpin() {
+                disc.classList.add("wheel-disc-live");
+                disc.style.transition = "none";
+                let last = performance.now();
+                const step = (now) => {
+                    rotation += (now - last) * FREE_SPIN_SPEED;
+                    last = now;
+                    applyRotation(rotation);
+                    freeSpinFrame = window.requestAnimationFrame(step);
+                };
+                freeSpinFrame = window.requestAnimationFrame(step);
+            }
+
+            function stopFreeSpin() {
+                window.cancelAnimationFrame(freeSpinFrame);
+                freeSpinFrame = 0;
+                disc.classList.remove("wheel-disc-live");
+            }
+
+            function turnTo(sector) {
+                stopFreeSpin();
+                disc.style.transition = "none";
+                rotation = rotationFor(sector, 0);
+                applyRotation(rotation);
+            }
+
+            async function slowDownOnto(sector) {
+                window.cancelAnimationFrame(freeSpinFrame);
+                freeSpinFrame = 0;
+                if (reducedMotion?.matches) {
+                    turnTo(sector);
+                    return;
+                }
+                const target = rotationFor(sector, 2);
+                // The curve starts at the free spin's speed, so the wheel does not jerk when it begins to slow down.
+                const startSlope = Math.min(3, (FREE_SPIN_SPEED * LANDING_DURATION) / Math.max(target - rotation, 1));
+                disc.style.transition = `transform ${LANDING_DURATION}ms cubic-bezier(0.25, ${(0.25 * startSlope).toFixed(3)}, 0.2, 1)`;
+                rotation = target;
+                applyRotation(rotation);
+                await wait(LANDING_DURATION);
+                disc.classList.remove("wheel-disc-live");
+            }
+
+            // ---- Spinning -------------------------------------------------------------------------
+
+            function backToIdle() {
+                stopFreeSpin();
+                setState("idle", hasUnanswered() ? "idle" : "done");
+                bringIntoView(startButton.closest(".wheel-controls"), { alignEnd: true });
+                startButton.focus({ preventScroll: true });
+            }
+
+            function openQuestion(itemId, { focus = true } = {}) {
+                const card = questions.get(itemId);
                 activeItemId = itemId;
-                questions.forEach((question) => {
-                    const isCurrent = question.dataset.itemId === itemId;
-                    if (isCurrent) {
-                        animateWheelQuestionIn(question);
-                        return;
-                    }
-
-                    resetWheelQuestionAnimation(question);
-                    question.hidden = true;
-                });
-                sectors.forEach((sector) => {
-                    sector.classList.toggle("wheel-sector-active", sector.dataset.itemId === itemId);
-                });
-                syncSpotlight();
-                updateQuestionStackHeight();
-                updateControlState();
+                markActive(itemId);
+                showNotice("");
+                showCard(card);
+                setState("question");
+                if (focus) {
+                    bringIntoView(card);
+                    focusFirst(card);
+                }
             }
 
-            function updateControlState() {
-                const hasAvailable = getAvailableSectors().length > 0;
-                const hasActive = Boolean(activeItemId);
-                startButton.disabled = spinning || hasActive || !hasAvailable;
-                stopButton.disabled = !spinning;
+            function showRepeat(spin, card) {
+                if (spin.previous) {
+                    // The saved answer, in case it was given in another tab.
+                    applyChoiceFeedback(
+                        Array.from(card.querySelectorAll("button[name='answer']")),
+                        null,
+                        spin.previous,
+                        card.querySelector("[data-question-feedback]"),
+                    );
+                }
+                markActive("");
+                showCard(card);
+                showNotice(REPEAT_NOTICE);
+                setState("idle", "repeat");
+                startButton.focus({ preventScroll: true });
+            }
+
+            async function land() {
+                const payload = await spinReply;
+                spinReply = null;
+                if (state !== "landing") {
+                    return;
+                }
+                if (!payload) {
+                    // The error is already shown under the buttons, or the page is being reloaded.
+                    backToIdle();
+                    return;
+                }
+                const spin = payload.spin;
+                if (!spin) {
+                    stopFreeSpin();
+                    finishIfComplete(payload, root);
+                    setState("idle", "done");
+                    return;
+                }
+                const sector = sectorOf(spin.item_key);
+                const card = questions.get(spin.item_key);
+                if (!sector || !card) {
+                    showNotice("Вопросы колеса изменились. Обновите страницу.", { error: true });
+                    backToIdle();
+                    return;
+                }
+                await slowDownOnto(sector);
+                if (spin.repeat) {
+                    showRepeat(spin, card);
+                    return;
+                }
+                openQuestion(spin.item_key);
             }
 
             function startSpin() {
-                if (spinning || activeItemId || !getAvailableSectors().length) {
+                if (state !== "idle" || !hasUnanswered()) {
                     return;
                 }
-
-                spinning = true;
-                disc.classList.add("wheel-disc-live");
-                disc.style.transition = "none";
-                spinTimer = window.setInterval(() => {
-                    rotation += 10;
-                    applyRotation(rotation);
-                }, 16);
-                updateControlState();
+                showNotice("");
+                markActive("");
+                hideShownCard();
+                // The spin goes to the server at once: its reply is usually back before «Остановить» is pressed.
+                spinReply = submitAction(spinForm, {
+                    root,
+                    fields: preview ? { answered: previewAnsweredKeys(root), active_item: activeItemId } : {},
+                });
+                if (reducedMotion?.matches) {
+                    // No free spinning: the wheel turns straight to the sector once the server has picked it.
+                    setState("landing");
+                    land();
+                    return;
+                }
+                const reply = spinReply;
+                setState("spinning");
+                startFreeSpin();
+                stopButton.focus({ preventScroll: true });
+                reply.then((payload) => {
+                    // A failed spin stops the wheel at once instead of waiting for «Остановить».
+                    if (!payload && state === "spinning" && spinReply === reply) {
+                        spinReply = null;
+                        backToIdle();
+                    }
+                });
             }
 
             function stopSpin() {
-                if (!spinning) {
+                if (state !== "spinning") {
                     return;
                 }
-
-                spinning = false;
-                window.clearInterval(spinTimer);
-                const available = getAvailableSectors();
-                if (!available.length) {
-                    updateControlState();
-                    return;
-                }
-
-                const chosen = available[Math.floor(Math.random() * available.length)];
-                const sectorCount = sectors.length;
-                const sectorSize = 360 / sectorCount;
-                const sectorIndex = Number.parseInt(chosen.dataset.sectorIndex || "0", 10);
-                // The player visual uses a left-side pointer, which maps to the 180deg stopping angle.
-                const pointerAngle = 180;
-                const sectorCenterAngle = -90 + sectorIndex * sectorSize;
-                const targetAngle = pointerAngle - sectorCenterAngle;
-                const normalizedRotation = ((rotation % 360) + 360) % 360;
-                const delta = ((targetAngle - normalizedRotation) + 360) % 360;
-
-                rotation += 1440 + delta;
-                disc.style.transition = "transform 1.2s cubic-bezier(0.18, 0.8, 0.2, 1)";
-                applyRotation(rotation);
-
-                window.setTimeout(() => {
-                    disc.classList.remove("wheel-disc-live");
-                    showQuestion(chosen.dataset.itemId || "");
-                }, 1200);
-
-                updateControlState();
+                setState("landing");
+                land();
             }
 
-            startButton.addEventListener("click", startSpin);
+            // ---- Answers ----------------------------------------------------------------------------
+
+            questions.forEach((card, itemId) => {
+                const form = card.querySelector("[data-answer-form]");
+                if (!form) {
+                    return;
+                }
+                const options = Array.from(form.querySelectorAll("button[name='answer']"));
+
+                form.addEventListener("submit", async (event) => {
+                    const chosen = event.submitter;
+                    if (!chosen || chosen.name !== "answer") {
+                        return;
+                    }
+                    event.preventDefault();
+                    if (state !== "question" || activeItemId !== itemId || card.dataset.state === "answered") {
+                        return;
+                    }
+
+                    const payload = await submitAction(form, { root, answer: chosen.value });
+                    if (!payload?.feedback) {
+                        return;
+                    }
+
+                    card.dataset.state = "answered";
+                    activeItemId = "";
+                    markAnswered(itemId);
+                    if (finishForm) {
+                        finishForm.hidden = false;
+                    }
+                    const delay = applyChoiceFeedback(options, chosen, payload.feedback, form.querySelector("[data-question-feedback]"));
+                    bringIntoView(card);
+                    if (finishIfComplete(payload, root, delay)) {
+                        setState("idle", "done");
+                        return;
+                    }
+                    await wait(delay);
+                    await hideShownCard();
+                    backToIdle();
+                });
+            });
+
+            spinForm.addEventListener("submit", (event) => {
+                event.preventDefault();
+                startSpin();
+            });
             stopButton.addEventListener("click", stopSpin);
             layoutWheelLabels();
             window.addEventListener("resize", layoutWheelLabels);
 
-            if (activeItemId) {
-                showQuestion(activeItemId);
+            // A question the wheel stopped on before a reload stays open: the server sent it with the page.
+            const resumedId = root.dataset.activeItem || "";
+            const resumedSector = sectorOf(resumedId);
+            if (resumedSector && questions.has(resumedId) && resumedSector.dataset.answered !== "1") {
+                turnTo(resumedSector);
+                openQuestion(resumedId, { focus: false });
             } else {
-                questions.forEach((question) => {
-                    question.hidden = true;
+                questions.forEach((card) => {
+                    card.hidden = true;
                 });
-                syncHud();
-                syncSpotlight();
-                updateQuestionStackHeight();
-                updateControlState();
+                setState("idle", hasUnanswered() ? "idle" : "done");
             }
-
-            restoreRememberedScrollPosition();
         });
     }
 

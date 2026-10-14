@@ -10,10 +10,6 @@ from interactive_templates.base import QuestionBankTemplateDefinition, TemplateE
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
     DEFAULT_QUESTION_POINTS,
-    build_review_items,
-    choice_texts,
-    correct_option,
-    get_question_score,
     is_scoring_enabled,
     normalize_question_bank,
     question_bank_items_from_payload,
@@ -120,50 +116,35 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
         preview: bool = False,
     ) -> dict[str, Any]:
         config = activity.config_json
-        items = normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
-        answers_by_key = {}
-        active_item_id = ""
-        if session:
-            answers_by_key = {answer.item_key: answer for answer in session.answers.all()}
-            active_item_id = session.runtime_state.get("active_item", "")
-
-        active_item = next((item for item in items if item["id"] == active_item_id), None)
-        sectors = []
-        fills = _wheel_sector_fills(len(items))
-        for index, item in enumerate(items, start=1):
-            sectors.append(
-                {
-                    "id": item["id"],
-                    "label": get_question_score(config, item) if is_scoring_enabled(config) else index,
-                    "prompt": item["prompt"],
-                    "options": choice_texts(item),
-                    "correct_option": correct_option(item)["text"],
-                    "points": get_question_score(config, item),
-                    "is_active": item["id"] == active_item_id,
-                    "is_answered": item["id"] in answers_by_key,
-                    "fill": fills[index - 1],
-                }
-            )
-
-        return {
-            "sectors": sectors,
-            "active_item": {
-                "id": active_item["id"],
-                "prompt": active_item["prompt"],
-                "options": choice_texts(active_item),
-                "correct_option": correct_option(active_item)["text"],
-                "points": get_question_score(config, active_item),
+        scoring_enabled = is_scoring_enabled(config)
+        states = self.build_item_states(activity, session, preview=preview)
+        active_key = str(session.runtime_state.get("active_item", "")) if session else ""
+        # The question the wheel stopped on and the student has not answered yet: a reload shows it again.
+        active_item = next((state for state in states if state["id"] == active_key and not state["is_answered"]), None)
+        fills = _wheel_sector_fills(len(states))
+        sectors = [
+            {
+                **state,
+                "label": state["points"] if scoring_enabled else state["number"],
+                "is_active": active_item is not None and state["id"] == active_item["id"],
+                "fill": fills[index],
             }
-            if active_item
-            else None,
-            "answered_count": len(answers_by_key),
-            "total_items": len(items),
+            for index, state in enumerate(states)
+        ]
+        answered_count = sum(1 for state in states if state["is_answered"])
+        return {
+            # No answer key here: options and, for answered sectors, the feedback the reveal policy allows.
+            "sectors": sectors,
+            "active_item": active_item,
+            "active_item_id": active_item["id"] if active_item else "",
+            "answered_count": answered_count,
+            "total_count": len(states),
+            "remaining_count": len(states) - answered_count,
             "max_score": self.get_max_score(config),
-            "review_items": build_review_items(items, answers_by_key, config=config),
             "preview": preview,
-            "no_repeat": config.get("no_repeat", False),
-            "reveal_correct_answer": config.get("reveal_correct_answer", True),
-            "scoring_enabled": is_scoring_enabled(config),
+            "no_repeat": self.no_repeat(config),
+            "reveal_correct_answer": self.reveals_correct_option(config),
+            "scoring_enabled": scoring_enabled,
         }
 
     def no_repeat(self, config: dict[str, Any]) -> bool:
@@ -172,6 +153,9 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
     def answer_item_key(self, activity: Any, session: Any, payload: Any) -> str:
         active_key = str(session.runtime_state.get("active_item", ""))
         posted_key = str(payload.get("item_key", "")).strip()
+        if posted_key and posted_key != active_key and session.answers.filter(item_key=posted_key).exists():
+            # The same answer posted again (a double click, a retry after a lost reply): the saved answer stands.
+            return posted_key
         if not active_key:
             raise ValidationError("Сначала раскрутите колесо.")
         if posted_key and posted_key != active_key:
@@ -179,6 +163,9 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
         return active_key
 
     def after_answer_state(self, session: Any, item_key: str) -> dict[str, Any] | None:
+        if item_key != session.runtime_state.get("active_item"):
+            # A repeated answer to an earlier sector must not close the question that is open now.
+            return None
         return {**session.runtime_state, "active_item": "", "last_spin": {}}
 
     def pick_sector(self, config: dict[str, Any], answered_keys: set[str], active_key: str) -> dict[str, Any] | None:
