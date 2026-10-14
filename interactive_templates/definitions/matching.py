@@ -128,7 +128,11 @@ class MatchingDefinition(BaseTemplateDefinition):
         for item in items:
             answer = answer_map.get(item["id"])
             correct_answer = correct_option(item)
-            bank_choice = answer_bank_by_key[normalize_answer(correct_answer["text"])]
+            # Legacy pair configs may hold a blank right side that never reaches the bank.
+            bank_choice = answer_bank_by_key.get(
+                normalize_answer(correct_answer["text"]),
+                {"id": "", "text": correct_answer["text"]},
+            )
             rows.append(
                 {
                     "id": item["id"],
