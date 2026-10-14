@@ -333,7 +333,11 @@
         if (answer !== undefined) {
             formData.set("answer", answer);
         }
-        Object.entries(fields).forEach(([name, value]) => formData.set(name, value));
+        // An array value is sent as a repeated field, e.g. answered=a&answered=b for the wheel's preview.
+        Object.entries(fields).forEach(([name, value]) => {
+            formData.delete(name);
+            [].concat(value).forEach((entry) => formData.append(name, entry));
+        });
 
         const feedback = feedbackElementFor(form);
         if (feedback?.classList.contains("is-error")) {
