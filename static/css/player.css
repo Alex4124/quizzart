@@ -194,7 +194,7 @@ body.player-page {
 .snake-shell h2 {
     margin: 0;
     font-family: var(--qz-font-display);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.02em;
 }
 
 .student-player__copy h1 {
