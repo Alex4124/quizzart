@@ -6,6 +6,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
+from django.utils.text import capfirst
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
@@ -15,6 +16,7 @@ from activities.models import Activity
 from activities.services import duplicate_activity, ensure_share_link
 from attempts.presentation import build_player_shell_context
 from interactive_templates.registry import registry
+from interactive_templates.utils import QUESTION_BANK_HELP_TEXT
 
 
 EDITOR_TAB_CHOICES = (
@@ -175,6 +177,8 @@ def _activity_editor(request, activity: Activity | None = None):
         selected_key = registry.default_key()
     definition = registry.get(selected_key)
     action = request.POST.get("action", "save_draft") if request.method == "POST" else ""
+    # Question number (its card's position in the editor) -> what is wrong with it, shown inside that card.
+    question_errors: dict[int, list[str]] = {}
 
     if request.method == "POST":
         activity_form_data = request.POST.copy()
@@ -188,56 +192,64 @@ def _activity_editor(request, activity: Activity | None = None):
                 request.POST,
                 previous_config=activity.config_json if activity else None,
             )
-            if activity_form.is_valid() and config_form.is_valid():
+            # Both forms are checked even when one fails, so a single save shows every problem at once.
+            can_save = activity_form.is_valid()
+            candidate_config = None
+            if config_form.is_valid():
                 try:
                     candidate_config = definition.build_config(config_form.cleaned_data)
                     definition.validate_config(candidate_config)
                 except ValidationError as exc:
                     config_form.add_error(None, exc)
-                else:
-                    candidate = activity_form.save(commit=False)
-                    candidate.owner = request.user
-                    candidate.template_key = selected_key
-                    candidate.config_json = candidate_config
-                    was_published = bool(activity and activity.is_published)
+                    question_errors = getattr(exc, "question_errors", {})
+                    can_save = False
+            else:
+                can_save = False
 
-                    if action == "publish":
-                        if definition.metadata.playable:
-                            candidate.publish()
-                        else:
-                            # template_key is a hidden field, so its own errors would never be rendered.
-                            activity_form.add_error(
-                                None,
-                                "Этот шаблон пока нельзя опубликовать: плеер для учеников ещё не готов.",
-                            )
-                    elif action == "save_changes":
-                        if was_published:
-                            candidate.publish()
-                        else:
-                            candidate.unpublish()
+            if can_save:
+                candidate = activity_form.save(commit=False)
+                candidate.owner = request.user
+                candidate.template_key = selected_key
+                candidate.config_json = candidate_config
+                was_published = bool(activity and activity.is_published)
+
+                if action == "publish":
+                    if definition.metadata.playable:
+                        candidate.publish()
+                    else:
+                        # template_key is a hidden field, so its own errors would never be rendered.
+                        activity_form.add_error(
+                            None,
+                            "Этот шаблон пока нельзя опубликовать: плеер для учеников ещё не готов.",
+                        )
+                elif action == "save_changes":
+                    if was_published:
+                        candidate.publish()
                     else:
                         candidate.unpublish()
+                else:
+                    candidate.unpublish()
 
-                    if not activity_form.errors:
-                        candidate.save()
-                        if candidate.is_published:
-                            ensure_share_link(candidate)
-                            if action == "publish" and was_published:
-                                messages.success(request, "Изменения опубликованного интерактива сохранены.")
-                            elif action == "publish":
-                                messages.success(request, "Интерактив сохранён и опубликован.")
-                            elif action == "save_changes":
-                                messages.success(request, "Изменения сохранены без снятия публикации.")
-                            else:
-                                messages.success(request, "Интерактив сохранён и опубликован.")
+                if not activity_form.errors:
+                    candidate.save()
+                    if candidate.is_published:
+                        ensure_share_link(candidate)
+                        if action == "publish" and was_published:
+                            messages.success(request, "Изменения опубликованного интерактива сохранены.")
+                        elif action == "publish":
+                            messages.success(request, "Интерактив сохранён и опубликован.")
+                        elif action == "save_changes":
+                            messages.success(request, "Изменения сохранены без снятия публикации.")
                         else:
-                            if action == "save_changes":
-                                messages.success(request, "Изменения черновика сохранены.")
-                            elif action == "save_draft" and was_published:
-                                messages.success(request, "Интерактив снят с публикации и сохранён как черновик.")
-                            else:
-                                messages.success(request, "Черновик сохранён.")
-                        return redirect(_edit_url_with_tab(candidate, request.POST.get("active_tab", "")))
+                            messages.success(request, "Интерактив сохранён и опубликован.")
+                    else:
+                        if action == "save_changes":
+                            messages.success(request, "Изменения черновика сохранены.")
+                        elif action == "save_draft" and was_published:
+                            messages.success(request, "Интерактив снят с публикации и сохранён как черновик.")
+                        else:
+                            messages.success(request, "Черновик сохранён.")
+                    return redirect(_edit_url_with_tab(candidate, request.POST.get("active_tab", "")))
     else:
         config = _config_source(definition, activity)
         activity_form = ActivityForm(instance=activity, initial={"template_key": selected_key})
@@ -286,6 +298,13 @@ def _activity_editor(request, activity: Activity | None = None):
             "current_step_key": current_step_key,
             "template_setting_fields": template_setting_fields,
             "template_settings_available": bool(template_setting_fields),
+            "question_errors": {
+                number: [capfirst(message) for message in messages] for number, messages in question_errors.items()
+            },
+            # («Одна строка на вопрос», ": ", «Вопрос | *Правильный ответ | …»): the format part is shown as code.
+            "question_bank_help": QUESTION_BANK_HELP_TEXT.partition(": "),
+            # A page rendered from a POST (errors, template switch) holds changes that are not saved yet.
+            "editor_has_unsaved_post": request.method == "POST",
             "question_bank_has_errors": bool(
                 config_form.non_field_errors()
                 or any(

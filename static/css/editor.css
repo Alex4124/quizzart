@@ -678,6 +678,10 @@
     overflow-wrap: anywhere;
 }
 
+.editor-publish-card__copy {
+    justify-self: start;
+}
+
 .editor-publish-actions {
     display: flex;
     gap: 0.8rem;
@@ -697,20 +701,41 @@
     scrollbar-width: thin;
 }
 
+/* A thumbnail: the preview is drawn at 1280×800 (the desktop layout, not the phone one) and scaled to the card;
+   editor.js sets --preview-scale from the card width. Clicking it opens the full preview. */
 .editor-preview-card__frame {
+    position: relative;
+    display: block;
+    aspect-ratio: 1280 / 800;
     overflow: hidden;
+    border: 1px solid var(--qz-border);
     border-radius: var(--qz-radius-lg);
     background: linear-gradient(180deg, #eceef7, #dfe3f0);
 }
 
 .editor-preview-card__iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: block;
-    width: 100%;
-    height: 238px;
+    width: 1280px;
+    height: 800px;
     border: 0;
     pointer-events: none;
-    transform: scale(0.96);
-    transform-origin: top center;
+    transform: scale(var(--preview-scale, 0.23));
+    transform-origin: 0 0;
+}
+
+.editor-preview-card__open {
+    width: 100%;
+    margin-top: 0.9rem;
+}
+
+.editor-preview-card__open svg {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
 }
 
 .editor-preview-card__placeholder {
@@ -820,12 +845,270 @@
     background: var(--qz-surface-strong);
 }
 
-.editor-workspace-page .question-editor-head strong {
+.question-bank-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.question-editor-title {
+    margin: 0;
     font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.3;
+    border-radius: var(--qz-radius-sm);
+}
+
+/* Reached by script only (undo, paste); the card border already shows where it is. */
+.question-editor-title:focus {
+    outline: none;
+}
+
+.question-editor-title:focus-visible {
+    outline: 2px solid var(--qz-violet);
+    outline-offset: 4px;
+}
+
+.question-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.question-editor-icon-button {
+    width: 2.4rem;
+    padding: 0;
+}
+
+.question-editor-icon-button svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: currentColor;
 }
 
 .editor-workspace-page .answer-correct-toggle {
     color: var(--qz-text);
+    min-height: 2.4rem;
+    cursor: pointer;
+}
+
+.editor-workspace-page .answer-correct-toggle input {
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
+}
+
+/* A question the server sent back: red border, its own messages, red fields until they are fixed. */
+.editor-workspace-page .question-editor-card.is-invalid {
+    border-color: rgba(193, 61, 61, 0.55);
+    box-shadow: 0 0 0 1px rgba(193, 61, 61, 0.35);
+}
+
+.question-editor-errors {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0.75rem 1rem 0.75rem 2.1rem;
+    border: 1px solid rgba(193, 61, 61, 0.24);
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-danger-soft);
+    color: var(--qz-danger);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.editor-workspace-page .question-editor-card [aria-invalid="true"] {
+    border-color: var(--qz-danger);
+}
+
+.editor-workspace-page .question-editor-card [aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px rgba(193, 61, 61, 0.24);
+}
+
+/* ---- «Вставить списком» */
+.editor-dialog {
+    width: min(40rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    padding: 1.35rem;
+    border: 1px solid var(--qz-border);
+    border-radius: var(--qz-radius-xl);
+    background: var(--qz-surface-strong);
+    color: var(--qz-ink);
+    box-shadow: var(--qz-shadow-raised);
+}
+
+.editor-dialog[open] {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.editor-dialog::backdrop {
+    background: rgba(23, 25, 34, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.editor-dialog__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.editor-dialog h2 {
+    margin: 0.15rem 0 0;
+    font-family: var(--qz-font-display);
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.05;
+}
+
+.editor-dialog__close {
+    flex: none;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--qz-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.editor-dialog__close:hover {
+    background: var(--qz-surface-muted);
+    color: var(--qz-ink);
+}
+
+.editor-dialog__hint {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--qz-muted);
+    line-height: 1.55;
+}
+
+.editor-dialog__hint p {
+    margin: 0;
+}
+
+/* The pipes of the format must not read as «I», so the format lines are monospace. */
+.editor-dialog__hint code {
+    padding: 0.1rem 0.4rem;
+    border-radius: 8px;
+    background: var(--qz-violet-soft);
+    color: var(--qz-violet-strong);
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+.editor-dialog textarea {
+    min-height: 11rem;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.editor-dialog textarea[aria-invalid="true"] {
+    border-color: var(--qz-danger);
+}
+
+.editor-dialog__errors {
+    margin: 0;
+}
+
+.editor-dialog__errors p {
+    margin: 0 0 0.35rem;
+    font-weight: 700;
+}
+
+.editor-dialog__errors ul {
+    display: grid;
+    gap: 0.2rem;
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.editor-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+/* ---- Toasts (same look as the dashboard's copy toast) */
+.editor-toast-stack {
+    position: fixed;
+    right: var(--qz-gutter);
+    bottom: var(--qz-gutter);
+    z-index: 60;
+    display: grid;
+    justify-items: end;
+    gap: 0.6rem;
+    width: min(24rem, calc(100vw - 2 * var(--qz-gutter)));
+    pointer-events: none;
+}
+
+.editor-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    max-width: 100%;
+    padding: 0.8rem 0.9rem 0.8rem 1.1rem;
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-ink);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: var(--qz-shadow-raised);
+    opacity: 0;
+    transform: translateY(0.75rem);
+    transition: opacity 180ms ease, transform 180ms ease;
+    pointer-events: auto;
+}
+
+.editor-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.editor-toast.is-error {
+    background: var(--qz-danger);
+}
+
+.editor-toast__text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.editor-toast__action {
+    flex: none;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: var(--qz-radius-pill);
+    background: transparent;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.editor-toast__action:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-toast__action:focus-visible {
+    outline-color: #fff;
+}
+
+.editor-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* ---- Responsive */
@@ -1001,6 +1284,26 @@
 
     .editor-workspace-page .question-editor-card {
         padding: 0.85rem;
+    }
+
+    /* «Добавить вопрос» and «Вставить списком» do not fit side by side: each takes the full row. */
+    .question-bank-actions {
+        width: 100%;
+    }
+
+    .question-bank-actions .button {
+        flex: 1 1 auto;
+    }
+
+    /* The four question actions share one row under the title. */
+    .question-editor-actions {
+        width: 100%;
+        gap: 0.35rem;
+    }
+
+    .question-editor-actions .button:not(.question-editor-icon-button) {
+        flex: 1 1 auto;
+        padding-inline: 0.6rem;
     }
 
     .editor-workspace-page .question-editor-cell {
