@@ -146,6 +146,8 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
     # A legacy bulk submission is rejected unless every item is answered.
     legacy_bulk_requires_all = False
     allows_early_finish = False
+    # What an item is called on the results page: «Вопрос 2», «Коробка 2», «Яблоко 2».
+    review_item_label = "Вопрос"
 
     def get_items(self, config: dict[str, Any]) -> list[dict[str, Any]]:
         return normalize_question_bank(config, default_points=DEFAULT_QUESTION_POINTS)
@@ -259,10 +261,30 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
             )
         return states
 
+    def shows_review(self, config: dict[str, Any]) -> bool:
+        """Whether the results page lists the answers one by one, or only the total."""
+        return True
+
+    def review_items_in_order(self, config: dict[str, Any], session: Any) -> list[dict[str, Any]]:
+        """The items in the order (and so with the numbers) the student saw them during the run."""
+        return self.get_items(config)
+
     def build_results_data(self, activity: Any, session: Any) -> dict[str, Any]:
         config = activity.config_json
+        if not self.shows_review(config):
+            # Only the total: no answers, right or wrong, reach the page.
+            return {"show_review": False, "review_items": []}
         answers_by_key = {answer.item_key: answer for answer in session.answers.all()}
-        return {"review_items": build_review_items(self.get_items(config), answers_by_key, config=config)}
+        return {
+            "show_review": True,
+            "review_items": build_review_items(
+                self.review_items_in_order(config, session),
+                answers_by_key,
+                config=config,
+                reveal_correct=self.reveals_correct_option(config),
+                item_label=self.review_item_label,
+            ),
+        }
 
     def handle_custom_action(self, activity: Any, session: Any, action: str, payload: Any) -> TemplateEvaluation | None:
         return None

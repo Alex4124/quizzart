@@ -66,6 +66,7 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
     editor_question_default_points = DEFAULT_QUESTION_POINTS
     answer_actions = frozenset({"answer", "answer_wheel"})
     allows_early_finish = True
+    review_item_label = "Сектор"
 
     def default_config(self) -> dict[str, Any]:
         return {

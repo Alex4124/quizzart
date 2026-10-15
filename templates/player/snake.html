@@ -96,6 +96,15 @@
                     </div>
                 {% endfor %}
 
+                {% comment %}The snake stands still until the student starts it (snake.js): a click, Enter, Space or an arrow.{% endcomment %}
+                <div class="snake-start" data-snake-start>
+                    <div class="snake-start__card">
+                        <p class="player-panel__eyebrow">{% if runtime.answered_count %}Продолжаем: собрано {{ runtime.answered_count }} из {{ runtime.total_count }}{% else %}Готовы?{% endif %}</p>
+                        <button class="button button-large" type="button" data-snake-start-button>{% if runtime.answered_count %}Продолжить{% else %}Начать{% endif %}</button>
+                        <p class="snake-start__hint">или нажмите любую стрелку</p>
+                    </div>
+                </div>
+
                 <div class="snake-question-layer" data-snake-question-layer hidden>
                     {% for apple in runtime.apples %}
                         <article
@@ -156,7 +165,7 @@
 {% block player_sidebar_spotlight %}
     <p class="player-panel__eyebrow">Управление</p>
     <h2>Меняйте направление стрелками</h2>
-    <p>На компьютере используйте клавиши клавиатуры, а на мобильном экране кнопки под полем. Когда змейка касается яблока, открывается вопрос, а после ответа прогресс сразу обновляется.</p>
+    <p>Змейка поедет после «Начать» или первой стрелки. На компьютере используйте клавиши клавиатуры, а на мобильном экране кнопки под полем. Когда змейка касается яблока, открывается вопрос, а после ответа прогресс сразу обновляется.</p>
 {% endblock %}
 
 {% block player_footer_accent %}

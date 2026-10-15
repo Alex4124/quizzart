@@ -43,6 +43,7 @@ class CategorizeDefinition(QuestionBankTemplateDefinition):
     preview_template_name = "player/categorize.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
     legacy_bulk_actions = {"submit_categorize": "question_{key}"}
+    review_item_label = "Карточка"
 
     def default_config(self) -> dict[str, Any]:
         return {
@@ -99,6 +100,14 @@ class CategorizeDefinition(QuestionBankTemplateDefinition):
             "scoring_enabled": is_scoring_enabled(config),
             "max_score": self.get_max_score(config),
         }
+
+    def review_items_in_order(self, config: dict[str, Any], session: Any) -> list[dict[str, Any]]:
+        # «Карточка 3» on the results page is the card the student saw as number 3: the board's shuffle
+        # (build_runtime_data) depends only on the seed and the number of cards, so it is repeated here.
+        items = self.get_items(config)
+        if config.get("shuffle", False):
+            random.Random(str(session.token)).shuffle(items)
+        return items
 
     def reveals_correctness(self, config: dict[str, Any]) -> bool:
         # With the reveal setting off, cards only say «Ответ сохранён» until the results page.

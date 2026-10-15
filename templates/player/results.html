@@ -3,31 +3,24 @@
 
 {% block title %}Результат · {{ activity.title }}{% endblock %}
 
+{% comment %}
+    The total is the hero's summary (player_shell.summary_cards) and the ring below; this board lists the answers.
+    runtime.review_items comes from build_results_data: a correct option is in it only when the activity reveals
+    correct answers, and only for an item answered wrongly.
+{% endcomment %}
 {% block player_board %}
     <section class="player-results-summary">
-        <article class="card">
-            <p class="player-panel__eyebrow">Результат</p>
-            <h2>{{ activity.title }}</h2>
-            {% if player_shell.scoring_enabled %}
-                <p>Прохождение завершено. Ниже сохранены ваши баллы и разбор ответов.</p>
+        <article class="card player-results-card">
+            <p class="player-panel__eyebrow">Результат сохранён</p>
+            <h2>Прохождение завершено</h2>
+            {% if player_shell.shows_review %}
+                <p data-results-copy="review">
+                    {% if player_shell.scoring_enabled %}Ниже — разбор: ваш ответ на каждое задание и сколько баллов он принёс.{% else %}Ниже — разбор: ваш ответ на каждое задание и верно ли он засчитан.{% endif %}
+                    {% if runtime.reveal_correct_answer %}После неверного ответа показан правильный.{% else %}Правильные ответы в этом интерактиве не показываются.{% endif %}
+                </p>
             {% else %}
-                <p>Прохождение завершено. Ниже сохранено количество правильных ответов и их разбор.</p>
+                <p data-results-copy="total">В этой викторине разбор ответов выключен: доступен только итоговый результат.</p>
             {% endif %}
-
-            <div class="student-player__stats">
-                <article class="student-player__stat student-player__stat--accent">
-                    <span>{% if player_shell.scoring_enabled %}Баллы{% else %}Правильные ответы{% endif %}</span>
-                    <strong>{% if player_shell.scoring_enabled %}{{ session.score }}{% else %}{{ session.score }} из {{ session.max_score }}{% endif %}</strong>
-                </article>
-                <article class="student-player__stat student-player__stat--peach">
-                    <span>{% if player_shell.scoring_enabled %}Максимум{% else %}Всего заданий{% endif %}</span>
-                    <strong>{{ session.max_score }}</strong>
-                </article>
-                <article class="student-player__stat student-player__stat--violet">
-                    <span>Процент</span>
-                    <strong>{{ session.percent_score|floatformat:0 }}%</strong>
-                </article>
-            </div>
 
             {% if activity.is_published %}
                 <form method="post" action="{% url 'attempts:play' session.share_link.slug %}" class="stack-form" data-submit-once>
@@ -37,41 +30,57 @@
             {% endif %}
         </article>
 
-        {% if activity.template_key == "quiz" and not runtime.show_result_at_end %}
-            <article class="card">
-                <p class="muted">Для этой викторины включён режим завершения без подробного разбора ответов.</p>
-            </article>
-        {% else %}
-            <div class="player-review-grid">
+        {% if player_shell.shows_review %}
+            <ol class="player-review-grid" aria-label="Разбор ответов">
                 {% for item in runtime.review_items %}
-                    <article class="card question-card">
-                        <p class="player-panel__eyebrow">Вопрос {{ forloop.counter }}</p>
-                        <h2>{{ item.prompt }}</h2>
-                        <p class="muted">Ваш ответ: {{ item.submitted|default:"Нет ответа" }}</p>
-                        <p class="muted">Правильный ответ: {{ item.correct }}</p>
-                        {% if player_shell.scoring_enabled %}<p class="muted">{{ item.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
-                        <span class="status-chip {% if item.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
-                            {% if item.is_correct %}Верно{% else %}Неверно{% endif %}
-                        </span>
-                    </article>
+                    <li class="card question-card player-review-card player-review-card--{{ item.status }}" data-review-item data-review-status="{{ item.status }}">
+                        <div class="player-review-card__head">
+                            <p class="player-panel__eyebrow">{{ item.label }}</p>
+                            {% if item.status == "correct" %}
+                                <span class="status-chip status-chip-published">Верно</span>
+                            {% elif item.status == "wrong" %}
+                                <span class="status-chip status-chip-draft">Неверно</span>
+                            {% else %}
+                                <span class="status-chip player-review-card__chip--unanswered">Без ответа</span>
+                            {% endif %}
+                        </div>
+                        <h3>{{ item.prompt }}</h3>
+                        {% if item.status == "unanswered" %}
+                            <p class="muted">Вы не ответили на это задание.</p>
+                        {% else %}
+                            <p class="player-review-card__answer">Ваш ответ: {{ item.submitted }}</p>
+                        {% endif %}
+                        {% if item.correct %}
+                            <p class="player-review-card__answer player-review-card__answer--correct">Правильный ответ: {{ item.correct }}</p>
+                        {% endif %}
+                        {% if player_shell.scoring_enabled %}
+                            <p class="muted player-review-card__points">{{ item.points_awarded }} из {{ item.points|ru_count:"балл,балла,баллов" }}</p>
+                        {% endif %}
+                    </li>
                 {% endfor %}
-            </div>
+            </ol>
         {% endif %}
     </section>
 {% endblock %}
 
 {% block player_sidebar_spotlight %}
-    <p class="player-panel__eyebrow">Итог</p>
-    <h2>{{ session.percent_score|floatformat:0 }}% результата</h2>
-    {% if player_shell.scoring_enabled %}
-        <p>Баллы и ответы уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+    <p class="player-panel__eyebrow">Что дальше</p>
+    {% if activity.is_published %}
+        <h2>{{ player_shell.spotlight_title }}</h2>
+        <p>{{ player_shell.spotlight_text }}</p>
     {% else %}
-        <p>Количество правильных ответов и разбор уже сохранены. При желании можно сразу запустить интерактив ещё раз.</p>
+        <h2>Результат сохранён</h2>
+        <p>Учитель закрыл этот интерактив: пройти его ещё раз сейчас нельзя.</p>
     {% endif %}
 {% endblock %}
 
 {% block player_footer_accent %}
     <p class="player-panel__eyebrow">После прохождения</p>
-    <h3>Разберите ответы</h3>
-    <p>Используйте эту страницу как короткий разбор ошибок и сильных ответов по каждому заданию.</p>
+    {% if player_shell.shows_review %}
+        <h3>Повторите ошибки</h3>
+        <p>Задания с пометками «Неверно» и «Без ответа» стоит перечитать перед новой попыткой.</p>
+    {% else %}
+        <h3>Только итог</h3>
+        <p>Разбор ответов для этой викторины выключен. Если что-то осталось непонятным, спросите учителя.</p>
+    {% endif %}
 {% endblock %}

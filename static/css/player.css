@@ -173,6 +173,12 @@ body.player-page {
     align-items: start;
 }
 
+/* The start page has no stat tiles and no progress panel: nothing has happened yet. */
+.student-player__hero--solo,
+.student-player__footer--solo {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .student-player__layout {
     grid-template-columns: minmax(0, 1.15fr) minmax(320px, 380px);
     align-items: start;
@@ -184,6 +190,7 @@ body.player-page {
 .player-launch-card h2,
 .player-results-summary h2,
 .question-card h2,
+.player-review-card h3,
 .snake-shell h2 {
     margin: 0;
     font-family: var(--qz-font-display);
@@ -199,6 +206,7 @@ body.player-page {
 }
 
 .student-player__copy p:last-child,
+.student-player__description,
 .player-panel > p,
 .player-launch-card > p,
 .player-results-summary > p,
@@ -279,6 +287,16 @@ body.player-page {
     text-align: center;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
+}
+
+/* «840 из 2100»: the total on its own line in smaller type, so every value fits a tile of ~110px. */
+.student-player__stat strong small {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.5em;
+    font-weight: 700;
+    color: var(--player-muted);
+    white-space: nowrap;
 }
 
 .student-player__stat--accent strong {
@@ -544,12 +562,94 @@ body.player-page {
     font-size: 0.92rem;
 }
 
+/* What the run is like, under the title of the start page: «6 вопросов», «Максимум 60 баллов», «В конце — …». */
+.player-launch-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.9rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.player-launch-facts li {
+    padding: 0.45rem 0.85rem;
+    border: 1px solid var(--qz-border);
+    border-radius: var(--qz-radius-pill);
+    background: var(--qz-surface-strong);
+    color: var(--qz-text);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.player-launch-facts li:first-child {
+    border-color: var(--qz-violet-line);
+    background: var(--player-violet-soft);
+    color: var(--qz-violet-strong);
+}
+
+.player-launch-card .stack-form {
+    max-width: 36rem;
+}
+
+.player-page .player-launch-card__hint {
+    margin: 0;
+    color: var(--player-muted);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+/* The teacher's preview: one line above the board, so nobody mistakes it for a real run. */
+.player-page .player-preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(242, 138, 68, 0.4);
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-apricot-soft);
+    color: var(--qz-apricot-strong);
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.player-page .player-preview-banner::before {
+    content: "";
+    flex: none;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--qz-apricot);
+    box-shadow: 0 0 0 4px rgba(242, 138, 68, 0.22);
+}
+
 .player-results-summary > .card > .stack-form {
     margin-top: 10px;
 }
 
+.player-page .player-results-card h2 {
+    margin: 0.35rem 0 0.5rem;
+    font-size: 1.75rem;
+    line-height: 1.15;
+}
+
+.player-page .player-results-card > p {
+    margin: 0;
+    color: var(--player-muted);
+    line-height: 1.6;
+}
+
+.player-page .player-results-card .stack-form {
+    justify-items: start;
+}
+
 .player-review-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .player-review-grid .question-card {
@@ -559,15 +659,61 @@ body.player-page {
     height: 100%;
 }
 
-.player-page .player-review-grid .question-card h2 {
-    margin: 0.2rem 0 0.25rem;
-    font-size: 1.35rem;
-    line-height: 1.2;
+/* Right, wrong and not answered read apart by the stripe and the chip, not by colour alone. */
+.player-page .player-review-card--correct {
+    box-shadow: inset 4px 0 0 var(--qz-success), var(--player-shadow);
 }
 
-.player-review-grid .status-chip {
-    justify-self: start;
-    margin-top: 0.35rem;
+.player-page .player-review-card--wrong {
+    box-shadow: inset 4px 0 0 var(--qz-danger), var(--player-shadow);
+}
+
+.player-page .player-review-card--unanswered {
+    border-style: dashed;
+    border-color: var(--qz-border-strong);
+    background: var(--qz-surface-muted);
+    box-shadow: none;
+}
+
+.player-review-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.player-page .player-review-card h3 {
+    margin: 0.1rem 0 0.2rem;
+    font-size: 1.35rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.player-page .player-review-card .status-chip {
+    flex: none;
+    text-transform: none;
+}
+
+.player-page .player-review-card__chip--unanswered {
+    border: 1px solid var(--qz-border-strong);
+    background: var(--qz-surface-strong);
+    color: var(--qz-muted);
+}
+
+.player-page .player-review-card__answer {
+    margin: 0;
+    color: var(--qz-text);
+    font-weight: 600;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.player-page .player-review-card__answer--correct {
+    color: var(--qz-success);
+}
+
+.player-page .player-review-card__points {
+    font-variant-numeric: tabular-nums;
 }
 
 /* ---- Quiz: the stage with its background, one themed card at a time */
@@ -2149,6 +2295,42 @@ body.player-page {
     gap: inherit;
 }
 
+/* «Начать» / «Продолжить» over the still board (snake.js removes it); the HUD stays readable above it. */
+.player-page .snake-start {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    /* Above the snake, which waits in the middle and stays in sight; under the HUD. On a phone: below it. */
+    place-items: start center;
+    padding: 4.5rem 1rem 1rem;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.player-page .snake-start__card {
+    display: grid;
+    justify-items: center;
+    gap: 0.6rem;
+    width: min(340px, 100%);
+    padding: 1.1rem 1.5rem;
+    border: 1px solid rgba(111, 59, 209, 0.14);
+    border-radius: var(--qz-radius-xl);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 22px 50px rgba(42, 28, 82, 0.18);
+    text-align: center;
+}
+
+.player-page .snake-start__hint {
+    margin: 0;
+    color: var(--player-muted);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.player-page .snake-start .button {
+    min-width: 11rem;
+}
+
 .player-page .snake-dpad {
     display: none;
     grid-template-columns: repeat(3, minmax(0, 78px));
@@ -2628,6 +2810,34 @@ body.player-page {
         padding: 1.2rem;
     }
 
+    .player-page .player-results-card .stack-form {
+        justify-items: stretch;
+    }
+
+    /* The start button stays on the first screen of a 360×640 phone: a tighter hero above it. */
+    .student-player__hero--solo .student-player__copy h1 {
+        font-size: 2.1rem;
+    }
+
+    .player-launch-facts {
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+    }
+
+    .player-launch-facts li {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.84rem;
+    }
+
+    .player-page .player-launch-card .stack-form {
+        gap: 0.8rem;
+    }
+
+    .player-page .player-preview-banner {
+        padding: 0.65rem 0.85rem;
+        font-size: 0.92rem;
+    }
+
     .player-page .question-card h2,
     .player-page .matching-card h2 {
         font-size: 1.6rem;
@@ -2809,6 +3019,7 @@ body.player-page {
         margin-left: 0;
     }
 
+    /* The final note stays on the board. */
     .player-page .snake-question-layer {
         padding: 0.75rem;
     }
@@ -2818,6 +3029,48 @@ body.player-page {
         overflow-y: auto;
         padding: 1.15rem;
         border-radius: 1.45rem;
+    }
+
+    /* The 360px board is too small for a question with its options and feedback: while one is open
+       (snake-player-asking, set by snake.js) it covers the whole screen, above the sticky top bar, and the
+       screen scrolls if the card is taller still. The board keeps its size, so the apples stay where they were.
+       The board's own stacking context would keep the layer under the top bar and the stat tiles: it is lifted
+       meanwhile. */
+    .player-page .snake-player-asking .snake-playfield {
+        isolation: auto;
+    }
+
+    .player-page .snake-player-asking .snake-question-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 1rem 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .player-page .snake-player-asking .snake-question-card {
+        /* Auto margins centre the card but never push its top out of reach when it is taller than the screen. */
+        flex: none;
+        max-height: none;
+        margin: auto;
+    }
+
+    .player-page:has(.snake-player-asking) {
+        overflow: hidden;
+    }
+
+    /* The short board has no room above the snake under the HUD: the card goes below it. */
+    .player-page .snake-start {
+        place-items: end center;
+        padding: 0.75rem;
+    }
+
+    .player-page .snake-start__card {
+        gap: 0.45rem;
+        padding: 0.9rem 1rem;
     }
 
     .player-page .snake-question-card h2 {

@@ -59,6 +59,7 @@ class MatchingDefinition(QuestionBankTemplateDefinition):
     preview_template_name = "player/matching.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
     legacy_bulk_actions = {"submit_matching": "match_{key}"}
+    review_item_label = "Пара"
 
     def default_config(self) -> dict[str, Any]:
         return {
