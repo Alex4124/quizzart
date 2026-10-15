@@ -34,6 +34,24 @@ def normalize_answer(value: str) -> str:
     return " ".join(value.lower().strip().split())
 
 
+class QuestionBankErrors(ValidationError):
+    """Every problem of a posted question bank at once.
+
+    `messages` read «Вопрос N: …» for the list above the bank; `question_errors` maps the question number
+    (its card's position in the editor, from 1) to the same messages without that prefix, for the card itself.
+    """
+
+    def __init__(self, question_errors: dict[int, list[str]]):
+        self.question_errors = question_errors
+        super().__init__(
+            [
+                f"Вопрос {number}: {message}"
+                for number, messages in question_errors.items()
+                for message in messages
+            ]
+        )
+
+
 def validate_question_points(points: int, label: str) -> int:
     if not 0 <= points <= MAX_QUESTION_POINTS:
         raise ValidationError(f"{label}: баллы должны быть от 0 до {MAX_QUESTION_POINTS}.")
@@ -198,6 +216,10 @@ def serialize_question_bank_editor(
     return json.dumps(editor_items, ensure_ascii=False)
 
 
+def _without_label(error: ValidationError, label: str) -> list[str]:
+    return [message.removeprefix(f"{label}: ") for message in error.messages]
+
+
 def parse_question_bank_editor_json(
     raw_value: str | list[dict[str, Any]],
     default_points: int = DEFAULT_QUESTION_POINTS,
@@ -215,15 +237,21 @@ def parse_question_bank_editor_json(
     if not isinstance(payload, list):
         raise ValidationError("Банк вопросов должен быть списком.")
 
+    # Every question is checked, so the teacher sees all problems after one save, each tied to its card.
+    problems: dict[int, list[str]] = {}
     items: list[dict[str, Any]] = []
     for row_index, raw_item in enumerate(payload, start=1):
+        label = f"Вопрос {row_index}"
+        found: list[str] = []
         if not isinstance(raw_item, dict):
-            raise ValidationError(f"Вопрос {row_index} передан в неверном формате.")
+            problems[row_index] = ["передан в неверном формате."]
+            continue
 
         prompt = str(raw_item.get("prompt", "")).strip()
         raw_options = raw_item.get("options", [])
         if not isinstance(raw_options, list):
-            raise ValidationError(f"У вопроса {row_index} варианты ответа переданы в неверном формате.")
+            problems[row_index] = ["варианты ответа переданы в неверном формате."]
+            continue
 
         normalized_options: list[dict[str, Any]] = []
         correct_count = 0
@@ -254,21 +282,34 @@ def parse_question_bank_editor_json(
             continue
 
         if not prompt:
-            raise ValidationError(f"Заполните текст вопроса {row_index}.")
+            found.append("заполните текст вопроса.")
 
         if len(normalized_options) < 2:
-            raise ValidationError(f"У вопроса {row_index} должно быть минимум два заполненных ответа.")
+            found.append("должно быть минимум два заполненных ответа.")
 
-        if correct_count != 1:
-            raise ValidationError(f"У вопроса {row_index} должен быть ровно один отмеченный правильный ответ.")
-        validate_unique_options(normalized_options, f"Вопрос {row_index}")
+        # With no filled answer at all the line above already says what to do.
+        if normalized_options and correct_count != 1:
+            found.append("должен быть ровно один отмеченный правильный ответ.")
+
+        try:
+            validate_unique_options(normalized_options, label)
+        except ValidationError as exc:
+            found.extend(_without_label(exc, label))
 
         raw_points = raw_item.get("points", default_points)
         try:
             points = int(str(raw_points).strip() or default_points)
-        except (TypeError, ValueError) as exc:
-            raise ValidationError(f"У вопроса {row_index} баллы должны быть целым числом.") from exc
-        validate_question_points(points, f"Вопрос {row_index}")
+        except (TypeError, ValueError):
+            found.append("баллы должны быть целым числом.")
+        else:
+            try:
+                validate_question_points(points, label)
+            except ValidationError as exc:
+                found.extend(_without_label(exc, label))
+
+        if found:
+            problems[row_index] = found
+            continue
 
         items.append(
             {
@@ -278,6 +319,9 @@ def parse_question_bank_editor_json(
                 "points": points,
             }
         )
+
+    if problems:
+        raise QuestionBankErrors(problems)
 
     if not items:
         raise ValidationError("Добавьте хотя бы один вопрос.")

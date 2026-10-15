@@ -56,11 +56,18 @@
             </div>
         </div>
 
-        <nav class="editor-shell__nav" aria-label="Разделы редактора">
+        {# Tabs, not page links: editor.js switches the panels in place (arrow keys move between tabs). #}
+        {# Without JavaScript every tab is still a link to ?tab=… #}
+        <nav class="editor-shell__nav" aria-label="Разделы редактора" role="tablist" data-editor-tablist>
             {% for tab in editor_tabs %}
                 <a
                     class="editor-shell__nav-link {% if tab.is_active %}is-active{% endif %}"
                     href="{{ tab.href }}"
+                    id="editor-tab-{{ tab.key }}"
+                    role="tab"
+                    aria-controls="tab-{{ tab.key }}"
+                    aria-selected="{% if tab.is_active %}true{% else %}false{% endif %}"
+                    tabindex="{% if tab.is_active %}0{% else %}-1{% endif %}"
                     data-editor-tab-trigger="{{ tab.key }}"
                 >
                     {% if tab.icon == "gear" %}
@@ -146,7 +153,8 @@
         </section>
 
         {# novalidate: required fields can sit on a hidden tab, where the browser blocks the submit without showing why. #}
-        <form method="post" class="editor-form" id="activity-editor-form" data-activity-editor-form data-submit-once novalidate>
+        {# data-unsaved-post: this page came back from a POST (errors, template switch), so nothing on it is saved yet. #}
+        <form method="post" class="editor-form" id="activity-editor-form" data-activity-editor-form data-submit-once novalidate{% if editor_has_unsaved_post %} data-unsaved-post{% endif %}>
             {% csrf_token %}
             {% for field in activity_form.hidden_fields %}{{ field }}{% endfor %}
             {% for field in config_form.hidden_fields %}{{ field }}{% endfor %}
@@ -165,7 +173,7 @@
             </label>
 
             <div class="editor-panels" data-editor-panels>
-                <section class="editor-panel {% if active_tab == 'general' %}is-active{% endif %}" id="tab-general" data-editor-panel="general">
+                <section class="editor-panel {% if active_tab == 'general' %}is-active{% endif %}" id="tab-general" role="tabpanel" aria-labelledby="editor-tab-general" data-editor-panel="general">
                     <div class="editor-panel-card">
                         <div class="editor-panel-card__head">
                             <div>
@@ -206,11 +214,12 @@
                             </div>
                         {% endif %}
 
-                        <div class="editor-template-grid" role="list">
+                        <div class="editor-template-grid">
                             {% for template_card in template_cards %}
                                 <button
                                     class="editor-template-card editor-template-card--{{ template_card.tone }} {% if template_card.is_selected %}is-selected{% endif %}"
                                     type="button"
+                                    aria-pressed="{% if template_card.is_selected %}true{% else %}false{% endif %}"
                                     data-template-card
                                     data-template-key="{{ template_card.key }}"
                                     data-editor-target-tab="general"
@@ -254,7 +263,7 @@
                     </div>
                 </section>
 
-                <section class="editor-panel {% if active_tab == 'content' %}is-active{% endif %}" id="tab-content" data-editor-panel="content">
+                <section class="editor-panel {% if active_tab == 'content' %}is-active{% endif %}" id="tab-content" role="tabpanel" aria-labelledby="editor-tab-content" data-editor-panel="content">
                     <section
                         class="editor-panel-card question-bank-editor"
                         data-question-bank-editor
@@ -265,7 +274,10 @@
                                 <p class="editor-panel-card__eyebrow">Контент / Вопросы</p>
                                 <h2>Банк вопросов</h2>
                             </div>
-                            <button class="button button-secondary" type="button" data-add-question>Добавить вопрос</button>
+                            <div class="question-bank-actions">
+                                <button class="button button-secondary" type="button" data-add-question>Добавить вопрос</button>
+                                <button class="button button-secondary" type="button" data-bulk-open aria-haspopup="dialog">Вставить списком</button>
+                            </div>
                         </div>
                         <p class="editor-panel-card__meta">Каждый вопрос и ответ редактируются прямо в карточках ниже. Отметьте один правильный ответ на вопрос.</p>
 
@@ -276,15 +288,28 @@
                                 {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}
                             </div>
                         {% endif %}
+                        {# Number of the question card -> its own messages; question-bank-editor.js marks those cards. #}
+                        {% if question_errors %}{{ question_errors|json_script:"question-bank-errors" }}{% endif %}
 
                         <div class="question-bank-list" data-question-bank-list></div>
+                        <p class="editor-visually-hidden" role="status" aria-live="polite" data-question-bank-status></p>
 
                         <template data-question-template>
                             <article class="question-editor-card" data-question-card>
                                 <div class="question-editor-head">
-                                    <strong data-question-title></strong>
-                                    <button class="button button-danger button-small" type="button" data-remove-question>Удалить вопрос</button>
+                                    <h3 class="question-editor-title" data-question-title tabindex="-1"></h3>
+                                    <div class="question-editor-actions">
+                                        <button class="button button-secondary button-small question-editor-icon-button" type="button" data-move-question="up">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 20V7.83l-5.59 5.58L4 12l8-8 8 8-1.41 1.41L13 7.83V20h-2Z"></path></svg>
+                                        </button>
+                                        <button class="button button-secondary button-small question-editor-icon-button" type="button" data-move-question="down">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4v12.17l5.59-5.58L20 12l-8 8-8-8 1.41-1.41L11 16.17V4h2Z"></path></svg>
+                                        </button>
+                                        <button class="button button-secondary button-small" type="button" data-duplicate-question>Дублировать</button>
+                                        <button class="button button-danger button-small" type="button" data-remove-question>Удалить</button>
+                                    </div>
                                 </div>
+                                <ul class="question-editor-errors" data-question-errors hidden></ul>
                                 <div class="question-editor-grid">
                                     <label class="question-editor-cell question-editor-cell-wide">
                                         <span class="editor-cell-label">Вопрос</span>
@@ -300,23 +325,54 @@
                             </article>
                         </template>
 
+                        {# The text field and the «Верный ответ» radio have labels of their own; ids and the radio #}
+                        {# group name (one per question) are set by question-bank-editor.js. #}
                         <template data-answer-template>
-                            <label class="question-editor-cell answer-editor-cell" data-answer-card>
-                                <span class="editor-cell-label" data-answer-title></span>
+                            <div class="question-editor-cell answer-editor-cell" data-answer-card>
+                                <label class="editor-cell-label" data-answer-title></label>
                                 <input type="text" data-answer-text placeholder="Введите вариант ответа">
-                                <span class="answer-editor-controls">
-                                    <span class="answer-correct-toggle">
-                                        <input type="checkbox" data-answer-correct>
-                                        <span>Верный ответ</span>
-                                    </span>
+                                <div class="answer-editor-controls">
+                                    <label class="answer-correct-toggle">
+                                        <input type="radio" data-answer-correct>
+                                        <span data-answer-correct-label>Верный ответ</span>
+                                    </label>
                                     <button class="button button-danger button-small" type="button" data-remove-answer>Удалить</button>
-                                </span>
-                            </label>
+                                </div>
+                            </div>
                         </template>
+
+                        <dialog class="editor-dialog" aria-labelledby="bulk-import-title" aria-describedby="bulk-import-hint" data-bulk-dialog>
+                            <div class="editor-dialog__head">
+                                <div>
+                                    <p class="editor-panel-card__eyebrow">Банк вопросов</p>
+                                    <h2 id="bulk-import-title">Вставить списком</h2>
+                                </div>
+                                <button class="editor-dialog__close" type="button" aria-label="Закрыть" data-bulk-cancel>&times;</button>
+                            </div>
+                            <div class="editor-dialog__hint" id="bulk-import-hint">
+                                <p>{{ question_bank_help.0 }}{{ question_bank_help.1 }}<code>{{ question_bank_help.2 }}</code></p>
+                                <p>Правильный ответ отметьте звёздочкой «*». Без баллов вопрос получит {{ template_definition.editor_question_default_points }}.</p>
+                                <p>Например: <code>Столица Франции? | *Париж | Лион | Марсель | 20</code></p>
+                            </div>
+                            <label class="editor-field">
+                                <span>Вопросы, по одному на строку</span>
+                                <textarea rows="8" spellcheck="false" placeholder="Вопрос | *Верный ответ | Неверный | Неверный | баллы" data-bulk-text></textarea>
+                            </label>
+                            <div class="message-stack message-stack--errors editor-dialog__errors" id="bulk-import-errors" role="alert" data-bulk-errors hidden>
+                                <div class="message">
+                                    <p>Исправьте строки — пока они с ошибками, ничего не добавлено:</p>
+                                    <ul data-bulk-error-list></ul>
+                                </div>
+                            </div>
+                            <div class="editor-dialog__actions">
+                                <button class="button" type="button" data-bulk-submit>Добавить</button>
+                                <button class="button button-secondary" type="button" data-bulk-cancel>Отмена</button>
+                            </div>
+                        </dialog>
                     </section>
                 </section>
 
-                <section class="editor-panel {% if active_tab == 'settings' %}is-active{% endif %}" id="tab-settings" data-editor-panel="settings">
+                <section class="editor-panel {% if active_tab == 'settings' %}is-active{% endif %}" id="tab-settings" role="tabpanel" aria-labelledby="editor-tab-settings" data-editor-panel="settings">
                     <section class="editor-panel-card">
                         <div class="editor-panel-card__head">
                             <div>
@@ -342,7 +398,7 @@
                     </section>
                 </section>
 
-                <section class="editor-panel {% if active_tab == 'publish' %}is-active{% endif %}" id="tab-publish" data-editor-panel="publish">
+                <section class="editor-panel {% if active_tab == 'publish' %}is-active{% endif %}" id="tab-publish" role="tabpanel" aria-labelledby="editor-tab-publish" data-editor-panel="publish">
                     <section class="editor-panel-card">
                         <div class="editor-panel-card__head">
                             <div>
@@ -371,6 +427,7 @@
                                 {% if is_published and share_url %}
                                     <a class="editor-publish-card__share" href="{{ share_url }}" target="_blank" rel="noreferrer">{{ share_url }}</a>
                                     <p>Эта ссылка уже ведёт на опубликованный интерактив.</p>
+                                    <button class="button button-secondary button-small editor-publish-card__copy" type="button" data-copy-link="{{ share_url }}">Скопировать ссылку</button>
                                 {% elif share_url %}
                                     <p>Ссылка сохранена, но интерактив сейчас не опубликован. После публикации она снова станет рабочей.</p>
                                 {% else %}
@@ -408,16 +465,25 @@
             </div>
 
             {% if is_saved %}
-                <div class="editor-preview-card__frame">
+                {# A thumbnail: the preview drawn at a desktop size and scaled down to the column. editor.js loads it #}
+                {# once the card is on screen and then freezes its animations. Inert: the link below is the way in. #}
+                <a class="editor-preview-card__frame" href="{{ preview_url }}" target="_blank" rel="noreferrer" tabindex="-1" aria-hidden="true" data-preview-thumb>
                     <iframe
                         class="editor-preview-card__iframe"
-                        src="{{ preview_url }}"
-                        title="Компактный предпросмотр интерактива"
-                        loading="lazy"
+                        data-src="{{ preview_url }}"
+                        title="Уменьшенный предпросмотр интерактива"
+                        width="1280"
+                        height="800"
+                        tabindex="-1"
+                        inert
                     ></iframe>
-                </div>
-                <p class="editor-preview-card__copy">Откройте предпросмотр на весь экран, чтобы пройти интерактив целиком так, как его увидит ученик.</p>
-                <a class="editor-preview-card__link" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть предпросмотр</a>
+                </a>
+                <p class="editor-preview-card__copy">Последняя сохранённая версия. Откройте предпросмотр, чтобы пройти интерактив целиком так, как его увидит ученик.</p>
+                <a class="button button-secondary editor-preview-card__open" href="{{ preview_url }}" target="_blank" rel="noreferrer">
+                    Открыть предпросмотр
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3ZM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+                    <span class="editor-visually-hidden">(в новой вкладке)</span>
+                </a>
             {% else %}
                 <div class="editor-preview-card__placeholder" aria-hidden="true">
                     <span>▶</span>
@@ -455,9 +521,13 @@
                     <a href="{{ quick_actions.analytics_url }}">Открыть аналитику</a>
                     <form method="post" action="{{ quick_actions.duplicate_url }}" class="editor-side-actions__form" data-submit-once>
                         {% csrf_token %}
-                        <button type="submit" class="editor-side-actions__button">Дублировать</button>
+                        {# The copy is made from the saved version: editor.js asks first when this page has unsaved changes. #}
+                        <button type="submit" class="editor-side-actions__button" data-confirm-unsaved="Копия будет сделана из последней сохранённой версии, а несохранённые изменения на этой странице пропадут. Продолжить?">Дублировать</button>
                     </form>
                     {% if share_url %}<a href="{{ share_url }}" target="_blank" rel="noreferrer">Ссылка для учеников</a>{% endif %}
+                    {% if is_published and share_url %}
+                        <button type="button" class="editor-side-actions__button" data-copy-link="{{ share_url }}">Скопировать ссылку</button>
+                    {% endif %}
                 </div>
 
                 <form method="post" action="{{ quick_actions.delete_url }}" class="editor-side-delete" data-submit-once onsubmit="return confirm('Удалить этот интерактив без возможности восстановления?');">
@@ -470,6 +540,15 @@
         </section>
     </aside>
 </section>
+
+{# Toasts: «Вопрос удалён — Отменить» from question-bank-editor.js and «Ссылка скопирована» from app.js. #}
+<div class="editor-toast-stack">
+    <div class="editor-toast" role="status" aria-live="polite" data-bank-toast hidden>
+        <span class="editor-toast__text" data-bank-toast-text></span>
+        <button class="editor-toast__action" type="button" data-bank-toast-undo hidden>Отменить</button>
+    </div>
+    <div class="editor-toast" role="status" aria-live="polite" data-copy-toast hidden></div>
+</div>
 {% endblock %}
 
 {% block scripts %}
