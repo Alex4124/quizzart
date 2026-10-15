@@ -13,6 +13,8 @@ from accounts.services import ensure_user_profile, profile_initials, profile_sho
 from activities.models import Activity, ShareLink
 from attempts.models import ActivityAnswer, ActivitySession
 from interactive_templates.registry import registry
+from interactive_templates.text import count_label as _count_label
+from interactive_templates.text import plural_form
 from interactive_templates.utils import normalize_question_bank
 
 
@@ -45,37 +47,43 @@ LANDING_FEATURES = [
 
 LANDING_TEMPLATE_CARDS = [
     {
-        "eyebrow": "quiz",
+        "key": "quiz",
+        "eyebrow": "Проверка знаний",
         "title": "Викторина",
         "description": "Пошаговая проверка знаний с одним правильным ответом и понятным итоговым экраном.",
         "accent_class": "landing-template-card-violet",
     },
     {
-        "eyebrow": "wheel_of_fortune",
+        "key": "wheel_of_fortune",
+        "eyebrow": "Игра на удачу",
         "title": "Колесо фортуны",
         "description": "Вращаете колесо, получаете случайный вопрос и держите внимание класса в игровом темпе.",
         "accent_class": "landing-template-card-rose",
     },
     {
-        "eyebrow": "choose_a_box",
+        "key": "choose_a_box",
+        "eyebrow": "Сюрприз",
         "title": "Выбери коробку",
         "description": "Открывайте ячейки по одной: внутри вопросы, баллы и эффект сюрприза для каждого хода.",
         "accent_class": "landing-template-card-apricot",
     },
     {
-        "eyebrow": "matching",
+        "key": "matching",
+        "eyebrow": "Пары",
         "title": "Сопоставление",
         "description": "Соединяйте понятия и ответы по одному, чтобы тренировать точность и держать темп урока.",
         "accent_class": "landing-template-card-sky",
     },
     {
-        "eyebrow": "categorize",
+        "key": "categorize",
+        "eyebrow": "Повторение",
         "title": "Карточки",
         "description": "Переворачивайте карточки по одной и повторяйте термины, факты и короткие определения.",
         "accent_class": "landing-template-card-lilac",
     },
     {
-        "eyebrow": "snake",
+        "key": "snake",
+        "eyebrow": "Аркада",
         "title": "Змейка",
         "description": "Двигайтесь по полю, собирайте вопросы и удерживайте вовлечённость через механику игры.",
         "accent_class": "landing-template-card-mint",
@@ -85,16 +93,16 @@ LANDING_TEMPLATE_CARDS = [
 LANDING_SHOWCASES = [
     {
         "eyebrow": "Быстрый старт",
-        "title": "Любимо учителями,",
+        "title": "Удобно учителю:",
         "accent": "быстро собирается под урок.",
         "description": (
-            "Лендинг обещает ровно то, что уже есть в продукте: единый редактор, "
-            "публикация по ссылке и сохранение результатов после прохождения."
+            "Один редактор для всех форматов, публикация по ссылке и результаты каждого ученика "
+            "сразу после прохождения."
         ),
         "bullets": [
             "Единый поток: создать, опубликовать и открыть ученикам по ссылке.",
             "Минимум ручной настройки и переиспользуемый банк вопросов.",
-            "Серверный рендеринг и мобильная подача без лишнего клиентского кода.",
+            "Работает в любом браузере: на компьютере, планшете и телефоне.",
         ],
         "image": "img/landing-teacher-photo.webp",
         "image_alt": "Учитель за ноутбуком на фоне панели с аналитикой.",
@@ -103,7 +111,7 @@ LANDING_SHOWCASES = [
     },
     {
         "eyebrow": "Игровая подача",
-        "title": "Любимо учениками,",
+        "title": "Интересно ученикам:",
         "accent": "движение через игру.",
         "description": (
             "Когда нужно поднять вовлечённость, Quizzart переключается на игровые форматы, "
@@ -140,20 +148,6 @@ def _dashboard_template_title(template_key: str) -> str:
 
 def _dashboard_cover_variant(template_key: str) -> str:
     return DASHBOARD_COVER_VARIANTS.get(template_key, "default")
-
-
-def _count_label(value: int, one: str, few: str, many: str) -> str:
-    remainder_hundred = value % 100
-    remainder_ten = value % 10
-    if 11 <= remainder_hundred <= 14:
-        form = many
-    elif remainder_ten == 1:
-        form = one
-    elif 2 <= remainder_ten <= 4:
-        form = few
-    else:
-        form = many
-    return f"{value} {form}"
 
 
 def _build_activity_card(activity: Activity, request) -> dict:
@@ -272,7 +266,7 @@ def _build_recent_events(activity_cards: list[dict]) -> list[dict]:
             events.append(
                 {
                     "kind": "updated",
-                    "title": "Черновик обновлён",
+                    "title": "Интерактив обновлён" if activity_card["is_published"] else "Черновик обновлён",
                     "body": f"Последние правки по активности «{activity_card['title']}» сохранены в редакторе.",
                     "at": updated_at,
                     "link": activity_card["edit_url"],
@@ -292,7 +286,7 @@ def _participant_label(participant_name: str, participant_user) -> str:
             value for value in (participant_user.first_name, participant_user.last_name) if value
         ).strip()
         return full_name or participant_user.username
-    return "Анонимно"
+    return "Анонимный ученик"
 
 
 def _format_duration(duration: timedelta | None) -> str:
@@ -634,8 +628,9 @@ def home(request):
 
     if query:
         hero_text = (
-            f"По запросу «{query}» найдено {total_activities} активностей. "
-            "Метрики и лента справа отражают только текущую выборку."
+            f"По запросу «{query}» {plural_form(total_activities, 'найдена', 'найдено', 'найдено')} "
+            f"{_count_label(total_activities, 'активность', 'активности', 'активностей')}. "
+            "Цифры и лента событий показывают только найденное."
         )
     elif total_activities:
         hero_text = (
@@ -675,7 +670,7 @@ def home(request):
         {
             "tone": "apricot",
             "label": "Средний результат",
-            "value": f"{average_score:.1f}%",
+            "value": f"{average_score:.1f}%".replace(".", ",") if session_summary["completions"] else "—",
             "note": (
                 _count_label(
                     session_summary["completions"] or 0,

@@ -158,7 +158,7 @@ class ActivityEditorTests(TestCase):
         response = self.client.get(reverse("activities:edit", args=[activity.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Открыть полную симуляцию")
+        self.assertContains(response, "Открыть предпросмотр")
         self.assertContains(response, reverse("dashboard:analytics", args=[activity.pk]))
         self.assertContains(response, reverse("activities:duplicate", args=[activity.pk]))
         self.assertContains(response, reverse("activities:delete", args=[activity.pk]))

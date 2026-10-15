@@ -1,4 +1,5 @@
 {% extends "player/player_base.html" %}
+{% load quizzart_text %}
 
 {% block title %}Результат · {{ activity.title }}{% endblock %}
 
@@ -48,7 +49,7 @@
                         <h2>{{ item.prompt }}</h2>
                         <p class="muted">Ваш ответ: {{ item.submitted|default:"Нет ответа" }}</p>
                         <p class="muted">Правильный ответ: {{ item.correct }}</p>
-                        {% if player_shell.scoring_enabled %}<p class="muted">{{ item.points }} балл.</p>{% endif %}
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ item.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                         <span class="status-chip {% if item.is_correct %}status-chip-published{% else %}status-chip-draft{% endif %}">
                             {% if item.is_correct %}Верно{% else %}Неверно{% endif %}
                         </span>

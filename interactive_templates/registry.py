@@ -24,7 +24,7 @@ class TemplateRegistry:
     def choices(self) -> list[tuple[str, str]]:
         choices: list[tuple[str, str]] = []
         for definition in self.all():
-            suffix = "" if definition.metadata.playable else " (registered, runtime pending)"
+            suffix = "" if definition.metadata.playable else " (скоро)"
             choices.append((definition.metadata.key, f"{definition.metadata.title}{suffix}"))
         return choices
 

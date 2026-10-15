@@ -1,5 +1,5 @@
 {% extends "player/player_base.html" %}
-{% load static %}
+{% load static quizzart_text %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -48,7 +48,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        {% if player_shell.scoring_enabled %}<p class="muted">{{ row.points }} балл.</p>{% endif %}
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ row.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                         <p class="muted question-feedback" data-question-feedback aria-live="polite"{% if not row.feedback %} hidden{% endif %}>
                             {% if row.feedback %}{% include "player/_feedback_text.html" with feedback=row.feedback %}{% endif %}
                         </p>

@@ -1,5 +1,5 @@
 {% extends "player/player_base.html" %}
-{% load static %}
+{% load static quizzart_text %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -88,7 +88,7 @@
                     <input type="hidden" name="action" value="answer">
                     <input type="hidden" name="item_key" value="{{ sector.id }}">
                     <h2 id="wheel-question-{{ forloop.counter }}">{{ sector.prompt }}</h2>
-                    {% if player_shell.scoring_enabled %}<p class="muted">{{ sector.points }} балл.</p>{% endif %}
+                    {% if player_shell.scoring_enabled %}<p class="muted">{{ sector.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                     {% include "player/_answer_options.html" with item=sector %}
                 </form>
             </article>

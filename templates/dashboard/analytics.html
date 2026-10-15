@@ -22,7 +22,7 @@
         <div class="teacher-dashboard-center teacher-dashboard-center--analytics">
             <section class="teacher-analytics-card teacher-analytics-card--hero-prototype">
                 <div class="teacher-analytics-hero-prototype__top">
-                    <span class="teacher-analytics-hero-prototype__eyebrow">Performance insights</span>
+                    <span class="teacher-analytics-hero-prototype__eyebrow">Аналитика интерактива</span>
                     <div class="teacher-analytics-hero-prototype__actions">
                         <span class="teacher-analytics-hero-prototype__chip teacher-analytics-hero-prototype__chip--muted">{{ launches_label }}</span>
                         <span class="teacher-analytics-hero-prototype__chip">Шаблон · {{ activity_template_title }}</span>
@@ -31,15 +31,15 @@
 
                 <div class="teacher-analytics-hero-prototype__content">
                     <div class="teacher-analytics-hero-prototype__copy">
-                        <h1>Аналитика тестов</h1>
+                        <h1>Результаты учеников</h1>
                         <p>
-                            Глубокий анализ прохождений, точности ответов и сильных или сложных вопросов
+                            Прохождения, точность ответов, самые лёгкие и самые трудные вопросы
                             для <span>{{ activity.title }}</span>.
                         </p>
                     </div>
                     <div class="teacher-analytics-hero-prototype__actions teacher-analytics-hero-prototype__actions--buttons">
-                        <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Изменить тест</a>
-                        <a class="button" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Открыть превью</a>
+                        <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Изменить интерактив</a>
+                        <a class="button" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
                     </div>
                 </div>
             </section>
@@ -75,7 +75,7 @@
                     <section class="teacher-analytics-card teacher-analytics-card--chart" id="analytics-success">
                         <div class="teacher-analytics-card__head">
                             <div>
-                                <h2>Зависимость номера задания от количества успешных выполнений</h2>
+                                <h2>Сколько учеников справилось с каждым заданием</h2>
                                 {% if success_chart %}
                                     <p class="teacher-analytics-card__subcopy">
                                         Чем выше линия, тем чаще ученики успешно справлялись с заданием.
@@ -215,7 +215,7 @@
                                     </ul>
                                 {% else %}
                                     <div class="teacher-analytics-card__empty">
-                                        Пока нет ошибок в сохранённых ответах.
+                                        {% if success_chart %}Ошибок пока нет: все сохранённые ответы верные.{% else %}Здесь появятся задания, в которых ученики ошибаются чаще всего.{% endif %}
                                     </div>
                                 {% endif %}
                             </div>
@@ -236,7 +236,7 @@
                                     </ul>
                                 {% else %}
                                     <div class="teacher-analytics-card__empty">
-                                        Пока нет верных ответов в сохранённых прохождениях.
+                                        {% if success_chart %}Верных ответов пока нет.{% else %}Здесь появятся задания, с которыми ученики справляются лучше всего.{% endif %}
                                     </div>
                                 {% endif %}
                             </div>

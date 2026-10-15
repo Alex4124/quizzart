@@ -119,7 +119,7 @@ def _student_profile_summary_cards(profile, completion_percent, filled_fields, t
             "tone": "indigo",
             "label": "Текущий статус",
             "value": status_note,
-            "note": "Вы можете изменить его в форме профиля справа.",
+            "note": "Его можно изменить в форме профиля ниже.",
             "icon": "pulse",
         },
         {

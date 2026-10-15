@@ -1,5 +1,5 @@
 {% extends "player/player_base.html" %}
-{% load static %}
+{% load static quizzart_text %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -28,7 +28,7 @@
                         <input type="hidden" name="item_key" value="{{ question.id }}">
                         <p class="player-panel__eyebrow">Вопрос {{ question.number }} из {{ runtime.total_count }}</p>
                         <h2>{{ question.number }}. {{ question.prompt }}</h2>
-                        {% if player_shell.scoring_enabled %}<p class="muted">{{ question.points }} балл.</p>{% endif %}
+                        {% if player_shell.scoring_enabled %}<p class="muted">{{ question.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                         {% include "player/_answer_options.html" with item=question %}
                     </form>
                 </article>
