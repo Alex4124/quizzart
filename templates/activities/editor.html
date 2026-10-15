@@ -4,22 +4,21 @@
 {% block title %}{% if activity %}Редактирование{% else %}Создание{% endif %} интерактива{% endblock %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/editor.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block body_class %}editor-workspace-page{% endblock %}
 
 {% block site_header %}
-    <header class="editor-header">
+    {# Same family as includes/teacher_header.html (height, logo, spacing). It stays sticky on phones too, #}
+    {# folded into one ~64px row, because the save button lives here. #}
+    <header class="editor-header" data-sticky-header>
         <div class="editor-header__inner">
             <a class="editor-header__back" href="{{ quick_actions.dashboard_url }}">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M14.71 6.29 13.29 4.87 6.17 12l7.12 7.12 1.42-1.41L10 13h8v-2h-8l4.71-4.71Z"></path>
                 </svg>
-                <span>Панель учителя</span>
+                <span class="editor-header__back-label">Панель учителя</span>
             </a>
 
             <a class="editor-header__brand" href="{{ quick_actions.dashboard_url }}">
@@ -27,16 +26,17 @@
             </a>
 
             <div class="editor-header__actions">
+                {# Phones drop this one: «Открыть симуляцию» sits right under the header. #}
                 {% if is_saved %}
-                    <a class="button button-secondary editor-header__ghost" href="{{ preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
+                    <a class="button button-secondary editor-header__preview" href="{{ preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
                 {% else %}
-                    <span class="editor-header__ghost is-disabled" aria-disabled="true">Предпросмотр</span>
+                    <span class="button button-secondary editor-header__preview" aria-disabled="true">Предпросмотр</span>
                 {% endif %}
 
                 {% if is_saved %}
-                    <button class="button editor-header__primary" type="submit" form="activity-editor-form" name="action" value="save_changes">Сохранить изменения</button>
+                    <button class="button editor-header__save" type="submit" form="activity-editor-form" name="action" value="save_changes">Сохранить изменения</button>
                 {% else %}
-                    <button class="button editor-header__primary" type="submit" form="activity-editor-form" name="action" value="save_draft">Сохранить черновик</button>
+                    <button class="button editor-header__save" type="submit" form="activity-editor-form" name="action" value="save_draft">Сохранить черновик</button>
                 {% endif %}
             </div>
         </div>
@@ -49,7 +49,7 @@
 <section class="editor-shell" id="editor-workspace" data-editor-shell data-active-tab="{{ active_tab }}">
     <aside class="editor-shell__sidebar">
         <div class="editor-shell__workspace-card">
-            <div class="editor-shell__workspace-mark">✦</div>
+            <div class="editor-shell__workspace-mark" aria-hidden="true">Q</div>
             <div>
                 <strong>Quizzart Pro</strong>
                 <p>Рабочее пространство учителя</p>
@@ -201,7 +201,7 @@
                         </div>
 
                         {% if activity_form.non_field_errors %}
-                            <div class="message-stack">
+                            <div class="message-stack message-stack--errors" role="alert">
                                 {% for error in activity_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
                             </div>
                         {% endif %}
@@ -270,7 +270,7 @@
                         <p class="editor-panel-card__meta">Каждый вопрос и ответ редактируются прямо в карточках ниже. Отметьте один правильный ответ на вопрос.</p>
 
                         {% if config_form.non_field_errors or config_form.items_json.errors or config_form.items_text.errors %}
-                            <div class="message-stack">
+                            <div class="message-stack message-stack--errors" role="alert">
                                 {% for error in config_form.non_field_errors %}<div class="message">{{ error }}</div>{% endfor %}
                                 {% for error in config_form.items_json.errors %}<div class="message">{{ error }}</div>{% endfor %}
                                 {% for error in config_form.items_text.errors %}<div class="message">{{ error }}</div>{% endfor %}
@@ -283,7 +283,7 @@
                             <article class="question-editor-card" data-question-card>
                                 <div class="question-editor-head">
                                     <strong data-question-title></strong>
-                                    <button class="link-button danger-link" type="button" data-remove-question>Удалить вопрос</button>
+                                    <button class="button button-danger button-small" type="button" data-remove-question>Удалить вопрос</button>
                                 </div>
                                 <div class="question-editor-grid">
                                     <label class="question-editor-cell question-editor-cell-wide">
@@ -309,7 +309,7 @@
                                         <input type="checkbox" data-answer-correct>
                                         <span>Верный ответ</span>
                                     </span>
-                                    <button class="link-button danger-link" type="button" data-remove-answer>Удалить</button>
+                                    <button class="button button-danger button-small" type="button" data-remove-answer>Удалить</button>
                                 </span>
                             </label>
                         </template>

@@ -2,18 +2,16 @@
 {% load static %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/auth.css' %}?v={{ asset_version }}">
 {% endblock %}
 
-{% block body_class %}auth-page {% block auth_page_class %}{% endblock %}{% endblock %}
+{% block body_class %}auth-page{% endblock %}
 
 {% block site_header %}{% endblock %}
 
 {% block main_class %}auth-main{% endblock %}
 
 {% block scripts %}
+    {{ block.super }}
     <script src="{% static 'js/auth.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

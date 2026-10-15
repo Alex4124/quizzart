@@ -472,7 +472,7 @@ class PublicPlayTests(TestCase):
         launch_response = self.client.get(f"/p/{link.slug}/")
 
         self.assertEqual(launch_response.status_code, 200)
-        self.assertContains(launch_response, "box-gift.png")
+        self.assertContains(launch_response, "box-gift.webp")
         self.assertContains(launch_response, "data-box-cover")
         self.assertContains(launch_response, 'value="open_box"')
         self.assertNotContains(launch_response, "data-box-answer-target")

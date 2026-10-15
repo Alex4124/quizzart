@@ -61,6 +61,22 @@ class AuthPageTests(TestCase):
         self.assertContains(response, 'name="password1"', html=False)
         self.assertContains(response, 'name="password2"', html=False)
 
+    def test_register_role_group_is_a_fieldset_with_legend(self):
+        response = self.client.get(reverse("accounts:register"))
+
+        self.assertContains(response, '<fieldset class="auth-field auth-fieldset">', html=False)
+        self.assertContains(response, '<legend class="auth-field__label">Роль</legend>', html=False)
+
+    def test_auth_pages_put_the_form_before_the_showcase(self):
+        for url in (reverse("accounts:login"), reverse("accounts:register")):
+            with self.subTest(url=url):
+                content = self.client.get(url).content.decode()
+                # Phones show the markup order: the form first, the purple showcase below it.
+                self.assertLess(content.index("<form"), content.index("auth-visual-panel"))
+                self.assertIn("js/app.js", content)
+                self.assertIn("js/auth.js", content)
+                self.assertIn('class="button button-large auth-submit-button"', content)
+
     def test_register_creates_student_profile_and_redirects_to_profile(self):
         response = self.client.post(
             reverse("accounts:register"),
@@ -90,6 +106,15 @@ class AuthPageTests(TestCase):
         self.assertContains(response, "Преподаваемый предмет")
         self.assertContains(response, "Изменить логин")
         self.assertContains(response, "Изменить пароль")
+
+    def test_profile_page_does_not_autofocus_the_password_form(self):
+        # Django's PasswordChangeForm autofocuses «Текущий пароль», which scrolled the page to the bottom on load.
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:profile"))
+
+        self.assertContains(response, 'name="old_password"')
+        self.assertNotContains(response, "autofocus")
 
     def test_profile_page_renders_student_fields_and_status_choices(self):
         student = User.objects.create_user(

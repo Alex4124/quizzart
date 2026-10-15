@@ -1,159 +1,115 @@
+/* Activity editor (create + edit). Same family as the teacher workspace (dashboard.css): header height,
+   logo, card radii and sidebar look match; colours, radii and shadows are the app.css tokens.
+   Buttons are the shared .button variants, untouched here. Breakpoints: 1320, 1120, 860, 640. */
 :root {
-    --editor-bg: #f4f5fb;
-    --editor-surface: rgba(255, 255, 255, 0.94);
-    --editor-surface-strong: #ffffff;
-    --editor-border: rgba(111, 126, 160, 0.18);
-    --editor-ink: #171922;
-    --editor-muted: #667089;
-    --editor-violet: #6f3bd1;
-    --editor-violet-strong: #5223b3;
-    --editor-indigo: #3753d8;
-    --editor-apricot: #f28a44;
+    --editor-surface: var(--qz-surface);
+    --editor-border: var(--qz-border);
+    --editor-card-shadow: var(--qz-shadow-card);
+    --editor-apricot-ink: var(--qz-apricot-strong);
+    /* Template identity tones (cards in «Выберите формат урока»), not UI colours. */
+    --editor-sage: #6b8b48;
     --editor-teal: #1f9f8c;
-    --editor-shadow: 0 24px 60px rgba(41, 48, 82, 0.12);
-    --editor-card-shadow: 0 20px 45px rgba(48, 53, 85, 0.08);
+    --editor-width: min(1500px, calc(100% - 1.5rem));
 }
 
 .editor-workspace-page {
-    font-family: Manrope, "Segoe UI", sans-serif;
-    color: var(--editor-ink);
+    font-family: var(--qz-font-body);
+    color: var(--qz-ink);
     background:
         radial-gradient(circle at top left, rgba(111, 59, 209, 0.16), transparent 28%),
         radial-gradient(circle at 85% 14%, rgba(242, 138, 68, 0.1), transparent 20%),
-        linear-gradient(180deg, #fbfcff 0%, var(--editor-bg) 100%);
+        linear-gradient(180deg, #f9faff 0%, var(--qz-bg) 100%);
 }
 
-.editor-workspace-page .button {
-    background: linear-gradient(135deg, var(--editor-violet), #8f2df0);
-    box-shadow: 0 18px 34px rgba(111, 59, 209, 0.2);
-}
-
-.editor-workspace-page .button.button-secondary,
-.editor-workspace-page .link-button {
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--editor-ink);
-    border: 1px solid rgba(111, 126, 160, 0.16);
-    box-shadow: none;
-}
-
-.editor-workspace-page .button.button-danger {
-    background: rgba(193, 61, 61, 0.12);
-    color: #c13d3d;
-    border: 1px solid rgba(193, 61, 61, 0.16);
-    box-shadow: none;
-}
-
-.editor-workspace-page .message-stack {
-    width: min(1540px, calc(100% - 1.5rem));
-    margin: 1rem auto 0;
-}
-
+/* ---- Header */
 .editor-header {
     position: sticky;
     top: 0;
     z-index: 30;
-    border-bottom: 1px solid rgba(111, 126, 160, 0.14);
-    background: rgba(250, 251, 255, 0.9);
+    border-bottom: 1px solid var(--qz-border);
+    background: rgba(250, 251, 255, 0.88);
     backdrop-filter: blur(18px);
 }
 
 .editor-header__inner,
 .editor-workspace-main {
-    width: min(1540px, calc(100% - 1.5rem));
+    width: var(--editor-width);
     margin: 0 auto;
 }
 
+/* back link | logo, centred in the free middle | actions */
 .editor-header__inner {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 0;
+    padding: 0.9rem 0;
 }
 
 .editor-header__back,
 .editor-header__brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.8rem;
+    min-width: 0;
     color: inherit;
     text-decoration: none;
 }
 
 .editor-header__back {
-    color: #55617d;
+    justify-self: start;
+    gap: 0.6rem;
+    min-height: 2.75rem;
+    color: var(--qz-text);
     font-weight: 600;
+    border-radius: var(--qz-radius-pill);
+    transition: color 0.2s ease;
+}
+
+.editor-header__back:hover {
+    color: var(--qz-violet);
 }
 
 .editor-header__brand {
     justify-self: center;
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--editor-indigo);
-    gap: 0;
     line-height: 0;
 }
 
 .editor-header__brand-logo {
     width: var(--site-logo-width);
     height: var(--site-logo-height);
-    max-width: min(100%, var(--site-logo-width));
-}
-
-.editor-header__brand-mark,
-.editor-shell__workspace-mark {
-    display: grid;
-    place-items: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 18px;
-    background: linear-gradient(135deg, var(--editor-violet), #8f55ed);
-    color: #fff;
-    box-shadow: 0 16px 32px rgba(111, 59, 209, 0.22);
+    max-width: 100%;
 }
 
 .editor-header__back svg,
 .editor-shell__nav-link svg,
 .editor-template-card__icon svg,
 .editor-stepper__node svg {
+    flex: none;
     width: 1.2rem;
     height: 1.2rem;
     fill: currentColor;
 }
 
 .editor-header__actions {
+    justify-self: end;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.8rem;
+    gap: 0.85rem;
 }
 
-.editor-header__ghost,
-.editor-header__primary {
-    min-height: 3.1rem;
-    border-radius: 999px;
-    padding-inline: 1.3rem;
+.editor-header__actions .button {
+    white-space: nowrap;
 }
 
-.editor-header__ghost.is-disabled {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 3.1rem;
-    padding-inline: 1.3rem;
-    border: 1px solid rgba(111, 126, 160, 0.14);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.68);
-    color: #94a0b8;
-}
-
+/* ---- Page grid */
 .editor-workspace-main {
-    padding: 1.4rem 0 3rem;
+    padding: 1.5rem 0 2.8rem;
 }
 
 .editor-shell {
     display: grid;
-    grid-template-columns: 270px minmax(0, 1fr) 340px;
+    grid-template-columns: 260px minmax(0, 1fr) 340px;
     gap: 1.5rem;
     align-items: start;
 }
@@ -163,16 +119,17 @@
 .editor-panel-card,
 .editor-aside-card {
     border: 1px solid var(--editor-border);
-    border-radius: 30px;
+    border-radius: var(--qz-radius-xl);
     background: var(--editor-surface);
     box-shadow: var(--editor-card-shadow);
 }
 
 .editor-shell__sidebar {
     position: sticky;
-    top: 5.7rem;
+    top: calc(var(--qz-header-h) + 16px);
     display: grid;
     gap: 1rem;
+    min-width: 0;
 }
 
 .editor-shell__workspace-card {
@@ -184,7 +141,26 @@
 
 .editor-shell__workspace-card strong {
     display: block;
-    font-size: 1.16rem;
+    font-size: 1.15rem;
+}
+
+.editor-shell__workspace-card p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Same mark as the teacher sidebar (dashboard.css .teacher-sidebar__workspace-mark). */
+.editor-shell__workspace-mark {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-gradient);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: var(--qz-shadow-button);
 }
 
 .editor-shell__workspace-card p,
@@ -196,7 +172,7 @@
 .editor-side-note,
 .editor-panel-card__empty {
     margin: 0.3rem 0 0;
-    color: var(--editor-muted);
+    color: var(--qz-muted);
     line-height: 1.6;
 }
 
@@ -210,19 +186,22 @@
     align-items: center;
     gap: 0.8rem;
     min-height: 3.5rem;
-    padding: 0.95rem 1rem;
-    border-radius: 22px;
+    padding: 0.85rem 1rem;
+    border-radius: var(--qz-radius-md);
     background: rgba(255, 255, 255, 0.35);
-    color: #52607d;
+    color: var(--qz-text);
     font-weight: 700;
     text-decoration: none;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.editor-shell__nav-link.is-active,
 .editor-shell__nav-link:hover {
-    background: var(--editor-surface-strong);
-    color: var(--editor-violet);
+    color: var(--qz-violet);
+}
+
+.editor-shell__nav-link.is-active {
+    background: var(--qz-surface-strong);
+    color: var(--qz-violet);
     box-shadow: 0 16px 30px rgba(48, 53, 85, 0.08);
 }
 
@@ -232,13 +211,16 @@
     padding: 1.2rem;
 }
 
-.editor-shell__status-card p {
+.editor-shell__status-card p,
+.editor-overview__eyebrow,
+.editor-panel-card__eyebrow,
+.editor-publish-card__label {
     margin: 0;
-    color: #707b96;
+    color: var(--qz-muted);
     text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-size: 0.72rem;
-    font-weight: 700;
+    letter-spacing: var(--qz-eyebrow-tracking);
+    font-size: var(--qz-eyebrow-size);
+    font-weight: 800;
 }
 
 .editor-shell__status-card strong {
@@ -246,7 +228,7 @@
 }
 
 .editor-shell__status-card span {
-    color: var(--editor-muted);
+    color: var(--qz-muted);
     line-height: 1.6;
 }
 
@@ -255,16 +237,18 @@
 }
 
 .editor-shell__status-card--configured {
-    background: linear-gradient(180deg, rgba(55, 83, 216, 0.05), rgba(255, 255, 255, 0.94));
+    background: linear-gradient(180deg, rgba(59, 71, 199, 0.05), rgba(255, 255, 255, 0.94));
 }
 
 .editor-shell__status-card--published {
-    background: linear-gradient(180deg, rgba(31, 159, 140, 0.07), rgba(255, 255, 255, 0.94));
+    background: linear-gradient(180deg, var(--qz-success-soft), rgba(255, 255, 255, 0.94));
 }
 
+/* ---- Centre column */
 .editor-shell__main {
     display: grid;
     gap: 1.2rem;
+    min-width: 0;
 }
 
 .editor-stepper {
@@ -272,14 +256,15 @@
     padding: 0.65rem 0 0.1rem;
 }
 
+/* Runs from the first node's centre to the last one's: three equal columns with 1rem gaps. */
 .editor-stepper__track {
     position: absolute;
-    left: 2rem;
-    right: 2rem;
+    left: calc((100% - 2rem) / 6);
+    right: calc((100% - 2rem) / 6);
     top: 2.2rem;
     height: 4px;
-    border-radius: 999px;
-    background: rgba(111, 126, 160, 0.16);
+    border-radius: var(--qz-radius-pill);
+    background: var(--qz-border);
 }
 
 .editor-stepper__list {
@@ -298,20 +283,20 @@
     gap: 0.85rem;
 }
 
+/* The filled part between the previous node's centre and this one's. */
 .editor-stepper__item::before {
     content: "";
     position: absolute;
     top: 1.55rem;
-    left: 50%;
+    left: calc(-50% - 1rem);
     width: calc(100% + 1rem);
     height: 4px;
     background: transparent;
-    transform: translateX(-50%);
 }
 
 .editor-stepper__item--complete::before,
 .editor-stepper__item--current::before {
-    background: linear-gradient(90deg, var(--editor-violet), #8f2df0);
+    background: linear-gradient(90deg, var(--qz-violet), var(--qz-violet-bright));
 }
 
 .editor-stepper__item:first-child::before {
@@ -327,8 +312,8 @@
     height: 3.35rem;
     border-radius: 50%;
     border: 4px solid #fff;
-    background: #d9deea;
-    color: #626b80;
+    background: var(--qz-border-strong);
+    color: var(--qz-muted);
     font-size: 1.15rem;
     font-weight: 800;
     box-shadow: 0 14px 28px rgba(45, 52, 82, 0.08);
@@ -336,21 +321,22 @@
 
 .editor-stepper__item--complete .editor-stepper__node,
 .editor-stepper__item--current .editor-stepper__node {
-    background: linear-gradient(135deg, var(--editor-violet), #8f2df0);
+    background: var(--qz-gradient);
     color: #fff;
 }
 
 .editor-stepper__label {
-    color: #6d7489;
+    color: var(--qz-muted);
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    font-size: 0.78rem;
+    letter-spacing: var(--qz-eyebrow-tracking);
+    font-size: var(--qz-eyebrow-size);
     font-weight: 800;
+    text-align: center;
 }
 
 .editor-stepper__item--current .editor-stepper__label,
 .editor-stepper__item--complete .editor-stepper__label {
-    color: var(--editor-ink);
+    color: var(--qz-ink);
 }
 
 .editor-overview {
@@ -361,15 +347,9 @@
     flex-wrap: wrap;
 }
 
-.editor-overview__eyebrow,
-.editor-panel-card__eyebrow,
-.editor-publish-card__label {
-    margin: 0;
-    color: #76829f;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    font-size: 0.74rem;
-    font-weight: 800;
+/* Lets a long unbroken title wrap instead of pushing the page sideways. */
+.editor-overview > div:first-child {
+    min-width: 0;
 }
 
 .editor-overview h1,
@@ -377,9 +357,10 @@
 .editor-aside-card h2,
 .editor-template-summary h3 {
     margin: 0.15rem 0 0;
-    font-family: Fraunces, Georgia, serif;
+    font-family: var(--qz-font-display);
     font-weight: 700;
     line-height: 0.98;
+    overflow-wrap: anywhere;
 }
 
 .editor-overview h1 {
@@ -390,10 +371,10 @@
     display: inline-flex;
     align-items: center;
     min-height: 3rem;
-    padding-inline: 1rem;
-    border-radius: 999px;
-    background: rgba(111, 59, 209, 0.08);
-    color: var(--editor-violet);
+    padding: 0.5rem 1rem;
+    border-radius: var(--qz-radius-pill);
+    background: var(--qz-violet-soft);
+    color: var(--qz-violet);
     font-weight: 700;
 }
 
@@ -407,7 +388,6 @@
     width: 1px;
     height: 1px;
     overflow: hidden;
-    clip: rect(0 0 0 0);
     clip-path: inset(50%);
     white-space: nowrap;
 }
@@ -427,6 +407,7 @@
 
 .editor-panel-card,
 .editor-aside-card {
+    min-width: 0;
     padding: 1.35rem;
 }
 
@@ -438,6 +419,11 @@
     gap: 1rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+}
+
+.editor-panel-card__head > div,
+.editor-aside-card__head > div {
+    min-width: 0;
 }
 
 .editor-field-grid,
@@ -453,6 +439,7 @@
 
 .editor-field {
     display: grid;
+    align-content: start;
     gap: 0.5rem;
     min-width: 0;
 }
@@ -461,24 +448,30 @@
     grid-column: 1 / -1;
 }
 
-.editor-field span,
-.editor-setting-card__label {
+/* Short field names stay small caps, like the profile form. */
+.editor-field > span,
+.editor-workspace-page .editor-cell-label {
+    color: var(--qz-text);
     font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: #6d7489;
     font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
-.editor-field input,
-.editor-field textarea,
-.editor-setting-card input:not([type="checkbox"]),
-.editor-setting-card select {
-    border-radius: 22px;
-    border: 1px solid rgba(111, 126, 160, 0.18);
-    background: rgba(255, 255, 255, 0.92);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    padding: 1rem 1.05rem;
+/* Setting names are whole sentences: normal case reads better. */
+.editor-setting-card__label {
+    color: var(--qz-ink);
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+/* Shape only; border, background and the focus ring are the shared app.css field. */
+.editor-field :is(input, textarea),
+.editor-setting-card :is(input:not([type="checkbox"]), select) {
+    min-height: 3.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--qz-radius-md);
 }
 
 .editor-field textarea {
@@ -487,26 +480,30 @@
 
 .editor-field small,
 .editor-setting-card small {
-    color: var(--editor-muted);
+    color: var(--qz-muted);
+    line-height: 1.5;
 }
 
+/* ---- Template picker */
 .editor-template-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
     gap: 1rem;
 }
 
 .editor-template-card {
     display: grid;
     justify-items: start;
+    align-content: start;
     gap: 0.85rem;
+    min-width: 0;
     min-height: 220px;
     padding: 1.1rem;
-    border: 1px solid rgba(111, 126, 160, 0.16);
-    border-radius: 30px;
+    border: 1px solid var(--qz-border);
+    border-radius: var(--qz-radius-lg);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 246, 252, 0.9));
     text-align: left;
-    color: var(--editor-ink);
+    color: var(--qz-ink);
     cursor: pointer;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -526,26 +523,27 @@
     place-items: center;
     width: 3.35rem;
     height: 3.35rem;
-    border-radius: 22px;
+    border-radius: var(--qz-radius-md);
     background: rgba(255, 255, 255, 0.92);
     box-shadow: 0 12px 24px rgba(41, 48, 82, 0.08);
 }
 
 .editor-template-card--violet .editor-template-card__icon,
-.editor-template-card--lilac .editor-template-card__icon {
-    color: var(--editor-violet);
+.editor-template-card--lilac .editor-template-card__icon,
+.editor-template-card--default .editor-template-card__icon {
+    color: var(--qz-violet);
 }
 
 .editor-template-card--apricot .editor-template-card__icon {
-    color: #d56a20;
+    color: var(--editor-apricot-ink);
 }
 
 .editor-template-card--indigo .editor-template-card__icon {
-    color: var(--editor-indigo);
+    color: var(--qz-indigo);
 }
 
 .editor-template-card--sage .editor-template-card__icon {
-    color: #6b8b48;
+    color: var(--editor-sage);
 }
 
 .editor-template-card--teal .editor-template-card__icon {
@@ -555,20 +553,21 @@
 .editor-template-card__title {
     font-size: 1.35rem;
     font-weight: 800;
+    overflow-wrap: anywhere;
 }
 
 .editor-template-card__description {
-    color: var(--editor-muted);
+    color: var(--qz-muted);
     line-height: 1.55;
 }
 
 .editor-template-card__status {
     margin-top: auto;
-    color: #a14d2c;
-    font-size: 0.8rem;
+    color: var(--editor-apricot-ink);
+    font-size: var(--qz-eyebrow-size);
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--qz-eyebrow-tracking);
 }
 
 .editor-template-card--violet {
@@ -580,7 +579,7 @@
 }
 
 .editor-template-card--indigo {
-    background: linear-gradient(180deg, rgba(55, 83, 216, 0.08), rgba(255, 255, 255, 0.96));
+    background: linear-gradient(180deg, rgba(59, 71, 199, 0.08), rgba(255, 255, 255, 0.96));
 }
 
 .editor-template-card--sage {
@@ -602,46 +601,56 @@
     gap: 1rem;
     margin-top: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid rgba(111, 126, 160, 0.12);
+    border-top: 1px solid var(--qz-border);
+}
+
+.editor-template-summary > div {
+    min-width: 0;
 }
 
 .editor-template-summary__badge {
     display: inline-flex;
+    flex: none;
     align-items: center;
     padding: 0.5rem 0.85rem;
-    border-radius: 999px;
+    border-radius: var(--qz-radius-pill);
     font-size: 0.82rem;
     font-weight: 800;
     white-space: nowrap;
 }
 
 .editor-template-summary__badge.is-live {
-    background: rgba(111, 59, 209, 0.12);
-    color: var(--editor-violet);
+    background: var(--qz-violet-soft);
+    color: var(--qz-violet);
 }
 
 .editor-template-summary__badge.is-disabled {
-    background: rgba(242, 138, 68, 0.12);
-    color: #b85a22;
+    background: var(--qz-apricot-soft);
+    color: var(--editor-apricot-ink);
 }
 
+/* ---- Settings and publish tabs */
 .editor-settings-grid {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
 }
 
 .question-editor-points[hidden] {
     display: none;
 }
 
-.editor-setting-card {
+.editor-setting-card,
+.editor-publish-card {
     display: grid;
-    gap: 0.7rem;
     align-content: start;
     min-width: 0;
     padding: 1rem;
-    border-radius: 24px;
-    border: 1px solid rgba(111, 126, 160, 0.12);
+    border-radius: var(--qz-radius-lg);
+    border: 1px solid var(--qz-border);
     background: rgba(255, 255, 255, 0.82);
+}
+
+.editor-setting-card {
+    gap: 0.7rem;
 }
 
 .editor-setting-card input[type="checkbox"] {
@@ -656,13 +665,7 @@
 }
 
 .editor-publish-card {
-    display: grid;
     gap: 0.55rem;
-    min-width: 0;
-    padding: 1rem;
-    border-radius: 24px;
-    border: 1px solid rgba(111, 126, 160, 0.12);
-    background: rgba(255, 255, 255, 0.82);
 }
 
 .editor-publish-card strong {
@@ -670,7 +673,7 @@
 }
 
 .editor-publish-card__share {
-    color: var(--editor-violet);
+    color: var(--qz-violet);
     font-weight: 800;
     overflow-wrap: anywhere;
 }
@@ -682,16 +685,21 @@
     margin-top: 1rem;
 }
 
+/* ---- Right column. Sticky; when it is taller than the screen it scrolls inside. */
 .editor-shell__aside {
     position: sticky;
-    top: 5.7rem;
+    top: calc(var(--qz-header-h) + 16px);
     display: grid;
     gap: 1rem;
+    min-width: 0;
+    max-height: calc(100vh - var(--qz-header-h) - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
 }
 
 .editor-preview-card__frame {
     overflow: hidden;
-    border-radius: 24px;
+    border-radius: var(--qz-radius-lg);
     background: linear-gradient(180deg, #eceef7, #dfe3f0);
 }
 
@@ -709,7 +717,7 @@
     display: grid;
     place-items: center;
     height: 238px;
-    border-radius: 24px;
+    border-radius: var(--qz-radius-lg);
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.22), transparent 32%),
         linear-gradient(135deg, #4a5279 0%, #8c95bc 100%);
@@ -722,13 +730,13 @@
     align-items: center;
     gap: 0.4rem;
     margin-top: 0.9rem;
-    color: var(--editor-violet);
+    color: var(--qz-violet);
     font-weight: 800;
     text-decoration: none;
 }
 
 .editor-preview-card__link.is-disabled {
-    color: #94a0b8;
+    color: var(--qz-subtle);
 }
 
 .editor-side-list {
@@ -745,26 +753,28 @@
     justify-content: space-between;
     gap: 0.8rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(111, 126, 160, 0.1);
+    border-bottom: 1px solid var(--qz-border);
 }
 
 .editor-side-list li span {
-    color: var(--editor-muted);
+    color: var(--qz-muted);
 }
 
 .editor-side-list li strong {
     text-align: right;
+    overflow-wrap: anywhere;
 }
 
 .editor-side-actions {
     display: grid;
+    justify-items: start;
     gap: 0.7rem;
     margin-top: 1rem;
 }
 
 .editor-side-actions a,
 .editor-side-actions__button {
-    color: var(--editor-violet);
+    color: var(--qz-violet);
     font-weight: 800;
     text-decoration: none;
 }
@@ -796,114 +806,204 @@
     width: 100%;
 }
 
-.editor-workspace-page .question-editor-card,
-.editor-workspace-page .editor-input-card,
-.editor-workspace-page .question-editor-cell {
+/* ---- Question bank (cards built by question-bank-editor.js from the <template>s in editor.html).
+   app.css still gives them a beige look; here they join the grey/violet family. */
+.editor-workspace-page .question-editor-card {
+    border-color: var(--qz-border);
+    border-radius: var(--qz-radius-lg);
     background: rgba(255, 255, 255, 0.88);
 }
 
-.editor-workspace-page .question-editor-card {
-    border-color: rgba(111, 126, 160, 0.12);
+.editor-workspace-page .question-editor-cell {
+    border-color: var(--qz-border);
+    border-radius: var(--qz-radius-md);
+    background: var(--qz-surface-strong);
 }
 
-.editor-workspace-page :where(a, button, input, select, textarea):focus-visible {
-    outline: 3px solid rgba(111, 59, 209, 0.24);
-    outline-offset: 2px;
+.editor-workspace-page .question-editor-head strong {
+    font-size: 1.05rem;
 }
 
-@media (max-width: 1380px) {
+.editor-workspace-page .answer-correct-toggle {
+    color: var(--qz-text);
+}
+
+/* ---- Responsive */
+@media (max-width: 1320px) {
     .editor-shell {
-        grid-template-columns: 250px minmax(0, 1fr);
+        grid-template-columns: 240px minmax(0, 1fr);
     }
 
     .editor-shell__aside {
         grid-column: 1 / -1;
         position: static;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        max-height: none;
+        overflow: visible;
     }
 }
 
+/* One column: the sidebar folds into a row of tab links (the stepper above the form shows the status). */
 @media (max-width: 1120px) {
     .editor-shell {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.25rem;
     }
 
-    .editor-shell__sidebar,
-    .editor-shell__aside {
+    .editor-shell__sidebar {
         position: static;
     }
 
-    .editor-shell__nav {
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(210px, 1fr);
-        overflow-x: auto;
-        padding-bottom: 0.2rem;
+    .editor-shell__workspace-card,
+    .editor-shell__status-card {
+        display: none;
     }
 
-    .editor-field-grid,
-    .editor-publish-grid,
-    .editor-template-grid,
+    .editor-shell__nav {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.35rem;
+        border: 1px solid var(--editor-border);
+        border-radius: var(--qz-radius-lg);
+        background: var(--editor-surface);
+        box-shadow: var(--editor-card-shadow);
+        overflow-x: auto;
+        scrollbar-width: thin;
+    }
+
+    .editor-shell__nav-link {
+        flex: none;
+        gap: 0.5rem;
+        min-height: 2.75rem;
+        padding: 0.5rem 0.9rem;
+        border-radius: var(--qz-radius-pill);
+        background: transparent;
+        white-space: nowrap;
+    }
+
+    .editor-shell__nav-link.is-active {
+        background: var(--qz-violet-soft);
+        box-shadow: none;
+    }
+
     .editor-shell__aside {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
+/* Phones: the header stays sticky (it holds the save button) but folds into one ~64px row. */
 @media (max-width: 860px) {
     .editor-header__inner {
-        grid-template-columns: 1fr;
-        justify-items: start;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        padding: 0.5rem 0;
     }
 
+    /* The logo fills what the back link and the save button leave and scales down inside it. */
     .editor-header__brand {
-        justify-self: start;
+        justify-self: stretch;
+    }
+
+    .editor-header__brand-logo {
+        width: 100%;
+        max-width: 132px;
+        height: 46px;
+        object-position: left center;
     }
 
     .editor-header__actions {
-        width: 100%;
-        justify-content: stretch;
+        gap: 0.6rem;
     }
 
-    .editor-header__actions > * {
-        flex: 1 1 0;
+    .editor-header__actions .button {
+        min-height: 2.6rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.92rem;
+    }
+
+    .editor-workspace-main {
+        padding-top: 0.75rem;
     }
 
     .editor-overview {
         align-items: start;
     }
-
-    .editor-stepper__track {
-        left: 1rem;
-        right: 1rem;
-    }
 }
 
 @media (max-width: 640px) {
     .editor-header__inner,
-    .editor-workspace-main,
-    .editor-workspace-page .message-stack {
-        width: min(100% - 1rem, 1540px);
+    .editor-workspace-main {
+        width: min(100% - 1.5rem, 1500px);
     }
 
-    .editor-header__actions {
-        flex-direction: column;
-        align-items: stretch;
+    .editor-header__brand-logo {
+        max-width: 120px;
+        height: 42px;
+    }
+
+    .editor-header__back {
+        justify-content: center;
+        width: 2.6rem;
+        min-height: 2.6rem;
+    }
+
+    /* Folded away but still the link's accessible name. */
+    .editor-header__back-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    /* «Открыть симуляцию» sits right under the header. */
+    .editor-header__preview {
+        display: none;
+    }
+
+    .editor-field-grid,
+    .editor-publish-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .editor-field--full {
+        grid-column: auto;
     }
 
     .editor-overview h1 {
-        font-size: clamp(2.15rem, 11vw, 3rem);
+        font-size: clamp(2.1rem, 10vw, 3rem);
     }
 
-    .editor-shell__nav {
-        grid-auto-columns: minmax(190px, 1fr);
+    .editor-panel-card,
+    .editor-aside-card {
+        padding: 1.15rem;
     }
-}
 
-@media (prefers-reduced-motion: reduce) {
-    .editor-workspace-page *,
-    .editor-workspace-page *::before,
-    .editor-workspace-page *::after {
-        animation: none !important;
-        transition: none !important;
-        scroll-behavior: auto !important;
+    .editor-stepper__node {
+        width: 2.85rem;
+        height: 2.85rem;
+        font-size: 1rem;
+    }
+
+    .editor-stepper__item::before {
+        top: 1.3rem;
+    }
+
+    .editor-stepper__track {
+        top: 1.95rem;
+    }
+
+    .editor-template-summary {
+        flex-wrap: wrap;
+    }
+
+    .editor-workspace-page .question-editor-card {
+        padding: 0.85rem;
+    }
+
+    .editor-workspace-page .question-editor-cell {
+        padding: 0.75rem;
     }
 }

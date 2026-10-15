@@ -1,0 +1,117 @@
+{% comment %}
+    Teacher workspace sidebar for the dashboard, analytics and profile pages.
+    Wide screens: a sticky panel under the header. Phones (<= 860px): one horizontally scrollable row of links,
+    so the page content starts right below the header.
+
+    Parameters:
+        page — "dashboard" | "analytics" | "profile". Picks the links (the page's own link is the active one),
+               the line under «Quizzart Pro» and the info block under the links.
+    Context it reads: dashboard: q; analytics: activity, activity_template_title;
+    profile: profile, dashboard_url, create_activity_url, profile_completion, profile_completion_text.
+{% endcomment %}
+<aside class="teacher-sidebar">
+    <div class="teacher-sidebar__panel">
+        <div class="teacher-sidebar__workspace">
+            <div class="teacher-sidebar__workspace-mark" aria-hidden="true">Q</div>
+            <div>
+                <strong>Quizzart Pro</strong>
+                <p>{% if page == "analytics" %}Analytics workspace{% elif page == "profile" %}{{ profile.get_role_display }} workspace{% else %}Teacher workspace{% endif %}</p>
+            </div>
+        </div>
+
+        {% if page == "analytics" %}
+            <nav class="teacher-sidebar__nav" aria-label="Разделы аналитики">
+                <a href="{% url 'dashboard:home' %}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path></svg>
+                    <span>Панель</span>
+                </a>
+                <a href="{% url 'activities:edit' activity.pk %}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path></svg>
+                    <span>Редактор</span>
+                </a>
+                <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5.5 0 9.5 5.23 9.67 5.45l.33.45-.33.45C21.5 11.57 17.5 16.8 12 16.8S2.5 11.57 2.33 11.35L2 10.9l.33-.45C2.5 10.23 6.5 5 12 5Zm0 2c-3.65 0-6.57 2.95-7.59 3.9C5.43 11.85 8.35 14.8 12 14.8s6.57-2.95 7.59-3.9C18.57 9.95 15.65 7 12 7Zm0 1.5a2.4 2.4 0 1 1 0 4.8 2.4 2.4 0 0 1 0-4.8Z"></path></svg>
+                    <span>Предпросмотр</span>
+                </a>
+                <a class="is-active" href="#analytics-overview" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9h3v10H5Zm5 0V5h3v14h-3Zm5 0v-7h3v7h-3Z"></path></svg>
+                    <span>Аналитика</span>
+                </a>
+            </nav>
+
+            <div class="teacher-sidebar__search-state">
+                <p>Активность</p>
+                <strong>{{ activity.title }}</strong>
+                <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">{{ activity_template_title }} · {{ activity.get_status_display }}</a>
+            </div>
+        {% elif page == "profile" %}
+            <nav class="teacher-sidebar__nav" aria-label="Навигация кабинета">
+                {% if dashboard_url %}
+                    <a href="{{ dashboard_url }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path></svg>
+                        <span>Панель учителя</span>
+                    </a>
+                {% endif %}
+                <a class="is-active" href="#profile-overview" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.41 0-8 2.24-8 5v1h16v-1c0-2.76-3.59-5-8-5Z"></path></svg>
+                    <span>Личный кабинет</span>
+                </a>
+                <a href="#profile-main-form">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path></svg>
+                    <span>Основные данные</span>
+                </a>
+                <a href="#profile-security-form">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 4 5v6c0 5.25 3.44 10.07 8 11 4.56-.93 8-5.75 8-11V5l-8-4Zm0 10a2 2 0 1 1 .001-4.001A2 2 0 0 1 12 11Zm3 6H9v-1c0-1.66 1.34-3 3-3s3 1.34 3 3v1Z"></path></svg>
+                    <span>Безопасность</span>
+                </a>
+                {% if create_activity_url %}
+                    <a href="{{ create_activity_url }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+                        <span>Создать интерактив</span>
+                    </a>
+                {% endif %}
+            </nav>
+
+            <div class="teacher-sidebar__search-state">
+                <p>Профиль заполнен</p>
+                <strong>{{ profile_completion }}%</strong>
+                <a href="#profile-main-form">{{ profile_completion_text }}</a>
+            </div>
+        {% else %}
+            <nav class="teacher-sidebar__nav" aria-label="Навигация учителя">
+                <a class="is-active" href="#dashboard-overview" aria-current="page">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path></svg>
+                    <span>Панель</span>
+                </a>
+                <a href="#recent-activities">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v2H7V4Zm-2 4h14v12H5V8Zm2 2v8h10v-8H7Zm2 1h2v5H9v-5Zm4 2h2v3h-2v-3Z"></path></svg>
+                    <span>Активности</span>
+                </a>
+                <a href="#recent-events">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L13 11h8V3l-2.52 2.52A8.97 8.97 0 0 0 12 3Zm-1 4h2v6h-2V7Zm1 10a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 12 17Z"></path></svg>
+                    <span>События</span>
+                </a>
+                <a href="{% url 'activities:create' %}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+                    <span>Создать интерактив</span>
+                </a>
+            </nav>
+
+            {% if q %}
+                <div class="teacher-sidebar__search-state">
+                    <p>Поиск активен</p>
+                    <strong>{{ q }}</strong>
+                    <a href="{% url 'dashboard:home' %}">Сбросить фильтр</a>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
+            {% csrf_token %}
+            <button type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path></svg>
+                <span>Выйти</span>
+            </button>
+        </form>
+    </div>
+</aside>

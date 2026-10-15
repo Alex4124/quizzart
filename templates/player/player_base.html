@@ -2,16 +2,13 @@
 {% load static %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/player.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block body_class %}player-page{% if preview %} player-page--preview{% endif %}{% endblock %}
 
 {% block site_header %}
-    <header class="player-topbar">
+    <header class="player-topbar" data-sticky-header>
         <div class="player-topbar__inner">
             <div class="player-topbar__brand-group">
                 <span class="player-topbar__brand">

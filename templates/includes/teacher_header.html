@@ -1,0 +1,78 @@
+{% comment %}
+    Teacher workspace header: dashboard, analytics and profile share it (the editor has its own, same family).
+    Sticky on wide screens; on phones (<= 860px) it scrolls away and folds into a compact row.
+
+    Parameters:
+        page — "dashboard" | "analytics" | "profile". Picks the section links in the middle,
+               the search field (dashboard only) and the actions on the right.
+    Context it reads: teacher_avatar_url, teacher_initial; dashboard: q; analytics: activity;
+    profile: dashboard_url, create_activity_url (both empty for students, so they get neither).
+{% endcomment %}
+<header class="teacher-header" data-sticky-header>
+    <div class="teacher-header__inner">
+        <a class="teacher-header__brand" href="{% if page == 'profile' and not dashboard_url %}{% url 'accounts:profile' %}{% else %}{% url 'dashboard:home' %}{% endif %}">
+            {% include "includes/site_logo.html" with logo_class="teacher-header__brand-logo" %}
+        </a>
+
+        {% if page == "analytics" %}
+            <nav class="teacher-header__nav" aria-label="Навигация аналитики">
+                <a href="#analytics-overview">Сводка</a>
+                <a href="#analytics-success">Успешность</a>
+                <a href="#analytics-sessions">Прохождения</a>
+            </nav>
+        {% elif page == "profile" %}
+            <nav class="teacher-header__nav" aria-label="Разделы кабинета">
+                {% if dashboard_url %}
+                    <a href="{{ dashboard_url }}">Панель</a>
+                {% endif %}
+                <a href="{% url 'accounts:profile' %}" class="is-active" aria-current="page">Личный кабинет</a>
+            </nav>
+        {% else %}
+            <nav class="teacher-header__nav" aria-label="Разделы кабинета">
+                <a href="#dashboard-overview">Панель</a>
+                <a href="#recent-activities">Активности</a>
+                <a href="#recent-events">События</a>
+            </nav>
+
+            <form class="teacher-header__search" method="get" action="{% url 'dashboard:home' %}" role="search">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.42 1.41-1.41-4.42-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"></path>
+                </svg>
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Поиск активности..."
+                    aria-label="Поиск по активностям"
+                >
+                {% if q %}
+                    <a class="teacher-header__search-clear" href="{% url 'dashboard:home' %}">Сбросить</a>
+                {% endif %}
+            </form>
+        {% endif %}
+
+        <div class="teacher-header__actions">
+            {% if page == "analytics" %}
+                {# The analytics hero repeats both actions, so phones keep only the avatar here. #}
+                <a class="button button-secondary teacher-header__action" href="{% url 'activities:edit' activity.pk %}">В редактор</a>
+                <a class="button teacher-header__action" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
+            {% elif page == "dashboard" or create_activity_url %}
+                <a class="button teacher-header__create" href="{% if create_activity_url %}{{ create_activity_url }}{% else %}{% url 'activities:create' %}{% endif %}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path>
+                    </svg>
+                    <span class="teacher-header__create-label">Создать интерактив</span>
+                </a>
+            {% endif %}
+            <a class="teacher-header__profile-link" href="{% url 'accounts:profile' %}" aria-label="Открыть личный кабинет">
+                <span class="teacher-header__avatar" aria-hidden="true">
+                    {% if teacher_avatar_url %}
+                        <img src="{{ teacher_avatar_url }}" alt="">
+                    {% else %}
+                        {{ teacher_initial }}
+                    {% endif %}
+                </span>
+            </a>
+        </div>
+    </div>
+</header>

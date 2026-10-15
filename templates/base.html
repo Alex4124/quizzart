@@ -5,7 +5,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Quizzart{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{% static 'img/browser-favicon.png' %}?v=3">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ asset_version }}">
     {% block extra_head %}{% endblock %}
 </head>
@@ -45,9 +49,12 @@
 
     <main class="{% block main_class %}page-shell{% endblock %}">
         {% if messages %}
-            <section class="message-stack">
+            <section class="flash-stack" aria-live="polite" data-flash-stack>
                 {% for message in messages %}
-                    <div class="message">{{ message }}</div>
+                    <div class="flash{% if message.tags %} flash--{{ message.tags }}{% endif %}" role="{% if message.level >= 40 %}alert{% else %}status{% endif %}" data-flash>
+                        <span class="flash__text">{{ message }}</span>
+                        <button class="flash__close" type="button" aria-label="Закрыть сообщение" data-flash-close>&times;</button>
+                    </div>
                 {% endfor %}
             </section>
         {% endif %}

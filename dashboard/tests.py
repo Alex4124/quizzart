@@ -24,12 +24,24 @@ class LandingViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'rel="icon"', html=False)
-        self.assertContains(response, "browser-favicon.png")
+        self.assertContains(response, "favicon-32.png")
         self.assertContains(response, "Сделайте обучение")
         self.assertContains(response, "Начать бесплатно")
         self.assertContains(response, "Выберите свой стиль проведения занятия.")
         self.assertContains(response, "Выбери коробку")
         self.assertContains(response, "Карточки")
+
+    def test_landing_uses_shared_buttons_sticky_header_and_app_script(self):
+        response = self.client.get(reverse("dashboard:landing"))
+
+        self.assertContains(response, "data-sticky-header", html=False)
+        self.assertContains(response, 'class="button button-large"', html=False)
+        self.assertNotContains(response, "landing-button")
+        # The mascot is part of the hero illustration now, not a fixed overlay over the page and the footer.
+        self.assertNotContains(response, 'class="landing-mascot"')
+        self.assertContains(response, 'class="landing-preview__mascot"', html=False)
+        # app.js writes --qz-header-h and runs the toasts; the landing must not drop it.
+        self.assertContains(response, "js/app.js", html=False)
 
     def test_authenticated_user_is_redirected_to_dashboard(self):
         user = User.objects.create_user(
@@ -97,7 +109,7 @@ class BaseLayoutSmokeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'rel="icon"', html=False)
-        self.assertContains(response, "browser-favicon.png")
+        self.assertContains(response, "favicon-32.png")
 
 
 class DashboardHomeViewTests(TestCase):

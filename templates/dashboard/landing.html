@@ -6,17 +6,14 @@
 {% block body_class %}landing-page{% endblock %}
 
 {% block extra_head %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/landing.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block site_header %}
-    <header class="landing-header">
+    <header class="landing-header" data-sticky-header>
         <div class="landing-container landing-header__inner">
             <a class="landing-brand" href="{% url 'dashboard:landing' %}">
-                {% include "includes/site_logo.html" with logo_class="landing-brand__logo" %}
+                {% include "includes/site_logo.html" %}
             </a>
             <nav class="landing-nav" aria-label="Основная навигация">
                 <a href="#features">Преимущества</a>
@@ -25,7 +22,7 @@
             </nav>
             <div class="landing-header__actions">
                 <a class="landing-link" href="{% url 'accounts:login' %}">Войти</a>
-                <a class="landing-button landing-button-small" href="{% url 'accounts:register' %}">Создать интерактив</a>
+                <a class="button button-small landing-header__cta" href="{% url 'accounts:register' %}">Создать интерактив</a>
             </div>
         </div>
     </header>
@@ -46,8 +43,8 @@
                     открыть её классу по ссылке и сохранить результаты в одном рабочем потоке.
                 </p>
                 <div class="landing-hero__actions">
-                    <a class="landing-button" href="{% url 'accounts:register' %}">Начать бесплатно</a>
-                    <a class="landing-button landing-button-secondary" href="#templates">Посмотреть шаблоны</a>
+                    <a class="button button-large" href="{% url 'accounts:register' %}">Начать бесплатно</a>
+                    <a class="button button-secondary button-large" href="#templates">Посмотреть шаблоны</a>
                 </div>
                 <div class="landing-hero__meta">
                     <span>6 шаблонов в редакторе</span>
@@ -129,6 +126,7 @@
                             <span>От викторины до змейки в одном редакторе.</span>
                         </div>
                     </div>
+                    <img class="landing-preview__mascot" src="{% static 'img/landing-mascot.webp' %}" alt="" width="576" height="864" decoding="async">
                 </div>
             </div>
         </div>
@@ -289,18 +287,13 @@
                     публикуете ссылку и получаете сохранённые результаты в панели учителя.
                 </p>
                 <div class="landing-final-cta__actions">
-                    <a class="landing-button" href="{% url 'accounts:register' %}">Начать бесплатно</a>
-                    <a class="landing-button landing-button-outline" href="{% url 'accounts:login' %}">Войти в кабинет</a>
+                    <a class="button button-large" href="{% url 'accounts:register' %}">Начать бесплатно</a>
+                    <a class="button button-secondary button-large" href="{% url 'accounts:login' %}">Войти в кабинет</a>
                 </div>
                 <p class="landing-final-cta__note">Без установки для класса · С серверным рендерингом · С аналитикой по прохождениям</p>
             </div>
         </div>
     </section>
-
-    <div class="landing-mascot" aria-hidden="true">
-        <div class="landing-mascot__bubble">Есть вопросы?</div>
-        <img src="{% static 'img/landing-mascot.png' %}" alt="">
-    </div>
 {% endblock %}
 
 {% block site_footer %}
@@ -308,7 +301,7 @@
         <div class="landing-container landing-footer__inner">
             <div class="landing-footer__intro">
                 <a class="landing-brand" href="{% url 'dashboard:landing' %}">
-                    {% include "includes/site_logo.html" with logo_class="landing-brand__logo" %}
+                    {% include "includes/site_logo.html" %}
                 </a>
                 <p>
                     Python-first конструктор учебных интерактивов для учителя, которому нужен
@@ -329,5 +322,3 @@
         </div>
     </footer>
 {% endblock %}
-
-{% block scripts %}{% endblock %}
