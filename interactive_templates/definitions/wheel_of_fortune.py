@@ -64,7 +64,6 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
     player_template_name = "player/wheel_of_fortune.html"
     preview_template_name = "player/wheel_of_fortune.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
-    answer_actions = frozenset({"answer", "answer_wheel"})
     allows_early_finish = True
     review_item_label = "Сектор"
 
@@ -146,9 +145,6 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
         if posted_key and posted_key != active_key and session.answers.filter(item_key=posted_key).exists():
             # The same answer posted again (a double click, a retry after a lost reply): the saved answer stands.
             return posted_key
-        if not active_key and posted_key and str(payload.get("action", "")) == "answer_wheel":
-            # Pages loaded before the server picked sectors chose the sector themselves; keep their answer.
-            return posted_key
         if not active_key:
             raise ValidationError("Сначала раскрутите колесо.")
         if posted_key and posted_key != active_key:
@@ -174,7 +170,7 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
         return {"item_key": chosen, "repeat": chosen in answered_keys, "resumed": False}
 
     def handle_custom_action(self, activity: Any, session: Any, action: str, payload: Any) -> TemplateEvaluation | None:
-        if action not in {"spin", "spin_wheel"}:
+        if action != "spin":
             return None
         config = activity.config_json
         answers = {answer.item_key: answer for answer in session.answers.all()}
@@ -195,7 +191,7 @@ class WheelOfFortuneDefinition(QuestionBankTemplateDefinition):
 
     def evaluate_preview_action(self, activity: Any, payload: Any) -> dict[str, Any]:
         action = str(payload.get("action", "")).strip()
-        if action not in {"spin", "spin_wheel"}:
+        if action != "spin":
             return super().evaluate_preview_action(activity, payload)
         # The preview saves nothing: the browser sends what it has answered and which sector is open.
         answered = set(payload.getlist("answered")) if hasattr(payload, "getlist") else set()

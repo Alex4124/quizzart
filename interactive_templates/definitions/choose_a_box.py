@@ -46,9 +46,6 @@ class ChooseABoxDefinition(QuestionBankTemplateDefinition):
     player_template_name = "player/choose_a_box.html"
     preview_template_name = "player/choose_a_box.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
-    answer_actions = frozenset({"answer", "answer_box"})
-    # "finish" with box_<id> fields is how pages loaded before per-answer checks ended a run.
-    legacy_bulk_actions = {"finish": "box_{key}"}
     allows_early_finish = True
     review_item_label = "Коробка"
 

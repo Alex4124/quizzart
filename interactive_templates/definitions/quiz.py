@@ -41,7 +41,6 @@ class QuizDefinition(QuestionBankTemplateDefinition):
     player_template_name = "player/quiz.html"
     preview_template_name = "player/quiz.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
-    legacy_bulk_actions = {"submit_quiz": "question_{key}"}
 
     def default_config(self) -> dict[str, Any]:
         return {

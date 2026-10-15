@@ -41,23 +41,18 @@ class PublicPlayTests(TestCase):
         }
 
     def test_scoreless_mode_counts_correct_answers_in_every_template(self):
-        payloads = {
-            "quiz": {"action": "submit_quiz", "question_item-1": "Correct 1"},
-            "matching": {"action": "submit_matching", "match_item-1": "Correct 1"},
-            "categorize": {"action": "submit_categorize", "question_item-1": "Correct 1"},
-            "snake": {"action": "submit_snake", "question_item-1": "Correct 1"},
-            "choose_a_box": {"action": "answer_box", "item_key": "item-1", "answer": "Correct 1"},
-            "wheel_of_fortune": {"action": "answer_wheel", "answer": "Correct 1"},
-        }
+        template_keys = ["quiz", "matching", "categorize", "snake", "choose_a_box", "wheel_of_fortune"]
 
-        for template_key, payload in payloads.items():
+        for template_key in template_keys:
             with self.subTest(template_key=template_key):
                 link = self._create_published_activity(template_key, self._scoreless_config())
                 self.client.post(f"/p/{link.slug}/", {"action": "start"})
                 if template_key == "wheel_of_fortune":
-                    self.client.post(f"/p/{link.slug}/", {"action": "spin_wheel"})
+                    self.client.post(f"/p/{link.slug}/", {"action": "spin"})
 
-                response = self.client.post(f"/p/{link.slug}/", payload)
+                response = self.client.post(
+                    f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Correct 1"}
+                )
 
                 self.assertEqual(response.status_code, 302)
                 session = ActivitySession.objects.get(activity=link.activity)
@@ -86,10 +81,7 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
-        self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "submit_quiz", "question_item-1": "Correct"},
-        )
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Correct"})
 
         session = ActivitySession.objects.get(activity=link.activity)
         self.assertEqual(session.score, 37)
@@ -109,7 +101,7 @@ class PublicPlayTests(TestCase):
 
         result_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "submit_quiz", "question_item-1": "Correct 1"},
+            {"action": "answer", "item_key": "item-1", "answer": "Correct 1"},
             follow=True,
         )
 
@@ -135,7 +127,7 @@ class PublicPlayTests(TestCase):
 
         response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "answer_wheel", "answer": "Correct 1"},
+            {"action": "answer", "answer": "Correct 1"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             HTTP_ACCEPT="application/json",
         )
@@ -155,10 +147,8 @@ class PublicPlayTests(TestCase):
         )
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
 
-        self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "finish", "box_item-1": "Correct 1"},
-        )
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Correct 1"})
+        self.client.post(f"/p/{link.slug}/", {"action": "finish"})
 
         session = ActivitySession.objects.get(activity=link.activity)
         self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
@@ -187,10 +177,7 @@ class PublicPlayTests(TestCase):
         self.client.post(f"/p/{link.slug}/", {"action": "start", "participant_name": "Student"})
         submit_response = self.client.post(
             f"/p/{link.slug}/",
-            {
-                "action": "submit_quiz",
-                "question_item-1": "4",
-            },
+            {"action": "answer", "item_key": "item-1", "answer": "4"},
         )
         self.assertEqual(submit_response.status_code, 302)
         session = ActivitySession.objects.get(activity__template_key="quiz")
@@ -226,14 +213,8 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{link.slug}/", {"action": "start", "participant_name": "Student"})
-        self.client.post(
-            f"/p/{link.slug}/",
-            {
-                "action": "submit_quiz",
-                "question_item-1": "4",
-                "question_item-2": "Paris",
-            },
-        )
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "4"})
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-2", "answer": "Paris"})
 
         response = self.client.get(f"/p/{link.slug}/results/")
 
@@ -304,13 +285,13 @@ class PublicPlayTests(TestCase):
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
         answer_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "finish", "box_item-1": "H2O"},
+            {"action": "answer", "item_key": "item-1", "answer": "H2O"},
         )
         self.assertEqual(answer_response.status_code, 302)
         session = ActivitySession.objects.get(activity__template_key="choose_a_box")
         self.assertEqual(session.score, 100)
 
-    def test_choose_a_box_finish_persists_all_hidden_answers(self):
+    def test_choose_a_box_last_answer_completes_the_run(self):
         link = self._create_published_activity(
             "choose_a_box",
             {
@@ -339,13 +320,10 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "H2O"})
         response = self.client.post(
             f"/p/{link.slug}/",
-            {
-                "action": "finish",
-                "box_item-1": "H2O",
-                "box_item-2": "Star",
-            },
+            {"action": "answer", "item_key": "item-2", "answer": "Star"},
         )
 
         self.assertEqual(response.status_code, 302)
@@ -399,7 +377,7 @@ class PublicPlayTests(TestCase):
 
         answer_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
+            {"action": "answer", "item_key": "item-1", "answer": "H2O"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             HTTP_ACCEPT="application/json",
         )
@@ -440,7 +418,7 @@ class PublicPlayTests(TestCase):
         )
         answer_response = self.client.post(
             f"/p/{link.slug}/",
-            {"action": "answer_box", "item_key": "item-1", "answer": "H2O"},
+            {"action": "answer", "item_key": "item-1", "answer": "H2O"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             HTTP_ACCEPT="application/json",
         )
@@ -629,13 +607,10 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{link.slug}/", {"action": "start"})
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Dennis"})
         submit_response = self.client.post(
             f"/p/{link.slug}/",
-            {
-                "action": "submit_matching",
-                "match_item-1": "Dennis",
-                "match_item-2": "Adrian",
-            },
+            {"action": "answer", "item_key": "item-2", "answer": "Adrian"},
         )
 
         self.assertEqual(submit_response.status_code, 302)
@@ -689,14 +664,11 @@ class PublicPlayTests(TestCase):
         self.assertEqual(play_response.status_code, 200)
         self.assertContains(play_response, "data-matching-choice", count=2, html=False)
 
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-1", "answer": "верно"})
+        self.client.post(f"/p/{link.slug}/", {"action": "answer", "item_key": "item-2", "answer": "  Верно  "})
         submit_response = self.client.post(
             f"/p/{link.slug}/",
-            {
-                "action": "submit_matching",
-                "match_item-1": "верно",
-                "match_item-2": "  Верно  ",
-                "match_item-3": "НЕВЕРНО",
-            },
+            {"action": "answer", "item_key": "item-3", "answer": "НЕВЕРНО"},
         )
 
         self.assertEqual(submit_response.status_code, 302)
@@ -726,8 +698,8 @@ class PublicPlayTests(TestCase):
             },
         )
         self.client.post(f"/p/{wheel.slug}/", {"action": "start"})
-        self.client.post(f"/p/{wheel.slug}/", {"action": "spin_wheel"})
-        self.client.post(f"/p/{wheel.slug}/", {"action": "answer_wheel", "answer": "Pacific"})
+        self.client.post(f"/p/{wheel.slug}/", {"action": "spin"})
+        self.client.post(f"/p/{wheel.slug}/", {"action": "answer", "answer": "Pacific"})
         self.assertEqual(
             ActivitySession.objects.get(activity__template_key="wheel_of_fortune").status,
             ActivitySession.Status.COMPLETED,
@@ -750,10 +722,7 @@ class PublicPlayTests(TestCase):
             },
         )
         self.client.post(f"/p/{matching.slug}/", {"action": "start"})
-        self.client.post(
-            f"/p/{matching.slug}/",
-            {"action": "submit_matching", "match_item-1": "Guido"},
-        )
+        self.client.post(f"/p/{matching.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Guido"})
         self.assertEqual(
             ActivitySession.objects.get(activity__template_key="matching").status,
             ActivitySession.Status.COMPLETED,
@@ -776,10 +745,7 @@ class PublicPlayTests(TestCase):
             },
         )
         self.client.post(f"/p/{categorize.slug}/", {"action": "start"})
-        self.client.post(
-            f"/p/{categorize.slug}/",
-            {"action": "submit_categorize", "question_item-1": "Animals"},
-        )
+        self.client.post(f"/p/{categorize.slug}/", {"action": "answer", "item_key": "item-1", "answer": "Animals"})
         self.assertEqual(
             ActivitySession.objects.get(activity__template_key="categorize").status,
             ActivitySession.Status.COMPLETED,
@@ -819,7 +785,7 @@ class PublicPlayTests(TestCase):
 
         response = self.client.post(
             f"/p/{wheel.slug}/",
-            {"action": "answer_wheel", "answer": "Pacific"},
+            {"action": "answer", "answer": "Pacific"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             HTTP_ACCEPT="application/json",
         )
@@ -859,7 +825,7 @@ class PublicPlayTests(TestCase):
 
         response = self.client.post(
             f"/p/{wheel.slug}/",
-            {"action": "answer_wheel", "answer": "Pacific"},
+            {"action": "answer", "answer": "Pacific"},
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
             HTTP_ACCEPT="application/json",
         )
@@ -902,34 +868,6 @@ class PublicPlayTests(TestCase):
         self.assertContains(response, "data-player-progress-ring-label", html=False)
         self.assertContains(response, "data-player-progress-bar-fill", html=False)
 
-    def test_cards_still_accept_legacy_category_field_names(self):
-        categorize = self._create_published_activity(
-            "categorize",
-            {
-                "items": [
-                    {
-                        "id": "item-1",
-                        "prompt": "Cat",
-                        "points": 1,
-                        "options": [
-                            {"id": "a", "text": "Animals", "is_correct": True},
-                            {"id": "b", "text": "Plants", "is_correct": False},
-                        ],
-                    }
-                ]
-            },
-        )
-
-        self.client.post(f"/p/{categorize.slug}/", {"action": "start"})
-        response = self.client.post(
-            f"/p/{categorize.slug}/",
-            {"action": "submit_categorize", "category_item-1": "Animals"},
-        )
-
-        self.assertEqual(response.status_code, 302)
-        session = ActivitySession.objects.get(activity__template_key="categorize")
-        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
-
     def test_student_can_complete_snake(self):
         snake = self._create_published_activity(
             "snake",
@@ -959,13 +897,10 @@ class PublicPlayTests(TestCase):
         )
 
         self.client.post(f"/p/{snake.slug}/", {"action": "start"})
+        self.client.post(f"/p/{snake.slug}/", {"action": "answer", "item_key": "item-1", "answer": "4"})
         submit_response = self.client.post(
             f"/p/{snake.slug}/",
-            {
-                "action": "submit_snake",
-                "question_item-1": "4",
-                "question_item-2": "Pacific",
-            },
+            {"action": "answer", "item_key": "item-2", "answer": "Pacific"},
         )
 
         self.assertEqual(submit_response.status_code, 302)
@@ -1012,51 +947,6 @@ class PublicPlayTests(TestCase):
         self.assertContains(response, 'data-snake-direction="down"', html=False)
         self.assertContains(response, 'data-snake-direction="left"', html=False)
         self.assertNotContains(response, "курсор")
-
-    def test_partial_snake_submit_returns_validation_error(self):
-        snake = self._create_published_activity(
-            "snake",
-            {
-                "reveal_correct_answer": True,
-                "items": [
-                    {
-                        "id": "item-1",
-                        "prompt": "2+2?",
-                        "points": 1,
-                        "options": [
-                            {"id": "a", "text": "4", "is_correct": True},
-                            {"id": "b", "text": "3", "is_correct": False},
-                        ],
-                    },
-                    {
-                        "id": "item-2",
-                        "prompt": "Largest ocean?",
-                        "points": 2,
-                        "options": [
-                            {"id": "a", "text": "Pacific", "is_correct": True},
-                            {"id": "b", "text": "Atlantic", "is_correct": False},
-                        ],
-                    },
-                ],
-            },
-        )
-
-        self.client.post(f"/p/{snake.slug}/", {"action": "start"})
-        response = self.client.post(
-            f"/p/{snake.slug}/",
-            {
-                "action": "submit_snake",
-                "question_item-1": "4",
-            },
-            follow=True,
-        )
-
-        # Errors now come back as a message on the play page (POST-redirect-GET), not a re-render of the POST.
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Ответьте на все задания")
-        session = ActivitySession.objects.get(activity__template_key="snake")
-        self.assertEqual(session.status, ActivitySession.Status.STARTED)
-        self.assertEqual(session.answers.count(), 0)
 
     def test_authenticated_student_launch_attaches_account_and_prefills_name(self):
         student = User.objects.create_user(
@@ -1134,7 +1024,7 @@ class PlayerFixesTests(TestCase):
 
     def test_results_stay_available_after_unpublishing(self):
         self.client.post(self.url, {"action": "start"})
-        self.client.post(self.url, {"action": "submit_quiz", "question_item-1": "4"})
+        self.client.post(self.url, {"action": "answer", "item_key": "item-1", "answer": "4"})
         self.activity.unpublish()
         self.activity.save()
 

@@ -236,16 +236,6 @@ class WheelAnswerProtocolTests(AnswerProtocolTestCase):
         self.assertTrue(payload["is_complete"])
         self.assertEqual(payload["redirect_url"], f"/p/{link.slug}/results/")
 
-    def test_legacy_spin_and_answer_actions_still_work(self):
-        link = self.publish(question_bank(1))
-        self.start(link)
-
-        self.client.post(f"/p/{link.slug}/", {"action": "spin_wheel"})
-        response = self.client.post(f"/p/{link.slug}/", {"action": "answer_wheel", "answer": "ZZCORRECT 1"})
-
-        self.assertRedirects(response, f"/p/{link.slug}/results/")
-        self.assertEqual(ActivitySession.objects.get().score, 10)
-
 
 class WheelPreviewTests(AnswerProtocolTestCase):
     template_key = "wheel_of_fortune"
