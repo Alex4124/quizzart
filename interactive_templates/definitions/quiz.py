@@ -74,6 +74,10 @@ class QuizDefinition(QuestionBankTemplateDefinition):
             ),
         }
 
+    def shows_review(self, config: dict[str, Any]) -> bool:
+        # «Показывать результат в конце» off: the results page shows the total only.
+        return bool(config.get("show_result_at_end", True))
+
     def build_runtime_data(
         self,
         activity: Any,

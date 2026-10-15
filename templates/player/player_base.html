@@ -38,25 +38,39 @@
 
 {% block content %}
     <section class="student-player">
-        <div class="student-player__hero">
+        <div class="student-player__hero{% if not player_shell.summary_cards %} student-player__hero--solo{% endif %}">
             <div class="student-player__copy">
                 <p class="student-player__eyebrow">{{ player_shell.template_title }}</p>
                 <h1>{{ activity.title }}</h1>
-                <p>{{ activity.description|default:player_shell.template_description }}</p>
+                {% if activity.description %}<p class="student-player__description">{{ activity.description }}</p>{% endif %}
+                {% if player_shell.launch_facts %}
+                    <ul class="player-launch-facts" aria-label="Об интерактиве">
+                        {% for fact in player_shell.launch_facts %}
+                            <li data-player-launch-fact="{{ fact.key }}">{{ fact.text }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
             </div>
 
-            <div class="student-player__stats">
-                {% for stat in player_shell.summary_cards %}
-                    <article class="student-player__stat student-player__stat--{{ stat.tone }}" data-player-summary-card="{{ stat.key }}">
-                        <span data-player-summary-label="{{ stat.key }}">{{ stat.label }}</span>
-                        <strong data-player-summary-value="{{ stat.key }}">{{ stat.value }}</strong>
-                    </article>
-                {% endfor %}
-            </div>
+            {% if player_shell.summary_cards %}
+                <div class="student-player__stats">
+                    {% for stat in player_shell.summary_cards %}
+                        <article class="student-player__stat student-player__stat--{{ stat.tone }}" data-player-summary-card="{{ stat.key }}">
+                            <span data-player-summary-label="{{ stat.key }}">{{ stat.label }}</span>
+                            <strong data-player-summary-value="{{ stat.key }}">{{ stat.value }}{% if stat.suffix %} <small>{{ stat.suffix }}</small>{% endif %}</strong>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         <div class="student-player__layout {% block player_layout_class %}{% endblock %}" {% block player_layout_attrs %}{% endblock %}>
             <div class="student-player__board">
+                {% if preview %}
+                    <p class="player-preview-banner" data-preview-banner role="note">
+                        <span><strong>Предпросмотр</strong> — ответы не сохраняются</span>
+                    </p>
+                {% endif %}
                 {% block player_board %}{% endblock %}
             </div>
 
@@ -84,49 +98,55 @@
                         </div>
                     </div>
 
-                    <dl class="player-panel__facts-list">
-                        {% for fact in player_shell.fact_rows %}
-                            <div data-player-fact-row="{{ fact.key }}">
-                                <dt data-player-fact-label="{{ fact.key }}">{{ fact.label }}</dt>
-                                <dd data-player-fact-value="{{ fact.key }}">{{ fact.value }}</dd>
-                            </div>
-                        {% endfor %}
-                    </dl>
+                    {% if player_shell.fact_rows %}
+                        <dl class="player-panel__facts-list">
+                            {% for fact in player_shell.fact_rows %}
+                                <div data-player-fact-row="{{ fact.key }}">
+                                    <dt data-player-fact-label="{{ fact.key }}">{{ fact.label }}</dt>
+                                    <dd data-player-fact-value="{{ fact.key }}">{{ fact.value }}</dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+                    {% endif %}
                 </section>
             </aside>
         </div>
 
-        <div class="student-player__footer">
-            <section class="player-panel player-panel--progress">
-                <div class="player-progress__head">
-                    <div>
-                        <p class="player-panel__eyebrow">{{ player_shell.footer_title }}</p>
-                        <h2 data-player-progress-heading>{{ player_shell.progress_percent }}% готово</h2>
-                    </div>
-                    <div class="player-progress__ring" data-player-progress-ring style="--progress: {{ player_shell.progress_percent }};">
-                        <span data-player-progress-ring-label>{{ player_shell.progress_percent }}%</span>
-                    </div>
-                </div>
+        {% block player_footer %}
+            <div class="student-player__footer{% if not player_shell.progress_heading %} student-player__footer--solo{% endif %}">
+                {% if player_shell.progress_heading %}
+                    <section class="player-panel player-panel--progress">
+                        <div class="player-progress__head">
+                            <div>
+                                <p class="player-panel__eyebrow">{{ player_shell.footer_title }}</p>
+                                <h2 data-player-progress-heading>{{ player_shell.progress_heading }}</h2>
+                            </div>
+                            <div class="player-progress__ring" data-player-progress-ring style="--progress: {{ player_shell.progress_percent }};">
+                                <span data-player-progress-ring-label>{{ player_shell.progress_percent }}%</span>
+                            </div>
+                        </div>
 
-                <div class="player-progress__bar" aria-hidden="true">
-                    <span data-player-progress-bar-fill style="width: {{ player_shell.progress_percent }}%;"></span>
-                </div>
+                        <div class="player-progress__bar" aria-hidden="true">
+                            <span data-player-progress-bar-fill style="width: {{ player_shell.progress_percent }}%;"></span>
+                        </div>
 
-                <div class="player-progress__segments" aria-hidden="true">
-                    {% for segment in player_shell.progress_segments %}
-                        <span data-player-progress-segment class="{% if segment.filled %}is-filled{% endif %}"></span>
-                    {% endfor %}
-                </div>
-            </section>
+                        <div class="player-progress__segments" aria-hidden="true">
+                            {% for segment in player_shell.progress_segments %}
+                                <span data-player-progress-segment class="{% if segment.filled %}is-filled{% endif %}"></span>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
 
-            <section class="player-panel player-panel--accent">
-                {% block player_footer_accent %}
-                    <p class="player-panel__eyebrow">Статус</p>
-                    <h3>{{ player_shell.spotlight_title }}</h3>
-                    <p>{{ player_shell.footer_text }}</p>
-                {% endblock %}
-            </section>
-        </div>
+                <section class="player-panel player-panel--accent">
+                    {% block player_footer_accent %}
+                        <p class="player-panel__eyebrow">Статус</p>
+                        <h3>{{ player_shell.spotlight_title }}</h3>
+                        <p>{{ player_shell.footer_text }}</p>
+                    {% endblock %}
+                </section>
+            </div>
+        {% endblock %}
     </section>
 {% endblock %}
 

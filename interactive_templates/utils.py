@@ -401,19 +401,35 @@ def build_review_items(
     answer_map: dict[str, Any] | None = None,
     *,
     config: dict[str, Any] | None = None,
+    reveal_correct: bool = False,
+    item_label: str = "Вопрос",
 ) -> list[dict[str, Any]]:
+    """The results page review: the student's answers and, if the activity allows it, the right ones.
+
+    status is "correct", "wrong" or "unanswered" (a run finished early). The correct option is filled in only
+    with reveal_correct and only after a wrong answer, as during the run: an item the student never answered
+    keeps its answer key, so finishing early cannot be used to read the answers.
+    """
     review_items = []
     answer_map = answer_map or {}
-    for item in items:
+    for number, item in enumerate(items, start=1):
         answer = answer_map.get(item["id"])
-        submitted_value = answer.submitted_value if answer else {}
+        submitted_value = (answer.submitted_value or {}) if answer else {}
+        if answer is None:
+            status = "unanswered"
+        else:
+            status = "correct" if answer.is_correct else "wrong"
+        points = get_question_score(config or {}, item)
         review_items.append(
             {
+                "label": f"{item_label} {number}",
                 "prompt": item["prompt"],
+                "status": status,
                 "submitted": submitted_value.get("choice", submitted_value.get("answer", "")),
-                "correct": correct_option(item)["text"],
-                "is_correct": answer.is_correct if answer else None,
-                "points": get_question_score(config or {}, item),
+                "correct": correct_option(item)["text"] if reveal_correct and status == "wrong" else None,
+                "is_correct": None if answer is None else bool(answer.is_correct),
+                "points": points,
+                "points_awarded": points if status == "correct" else 0,
             }
         )
     return review_items

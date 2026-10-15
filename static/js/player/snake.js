@@ -1,5 +1,7 @@
 (() => {
     const { wait, submitAction, applyChoiceFeedback, finishIfComplete, focusFirst, isPreview } = window.QuizzartPlayer;
+    // A question is open: on a phone its layer covers the whole screen (player.css).
+    const ASKING_CLASS = "snake-player-asking";
 
     function initSnakePlayers() {
         const directionVectors = {
@@ -29,6 +31,10 @@
             const appleElements = Array.from(root.querySelectorAll("[data-snake-apple]"));
             const questionCards = Array.from(root.querySelectorAll("[data-snake-question-card]"));
             const directionButtons = Array.from(root.querySelectorAll("[data-snake-direction]"));
+            const startLayer = root.querySelector("[data-snake-start]");
+            const startButton = root.querySelector("[data-snake-start-button]");
+            // The editor shows the preview as a small thumbnail in an iframe: there the snake never starts.
+            const isThumbnail = preview && window.self !== window.top;
 
             if (
                 !board ||
@@ -54,6 +60,8 @@
 
             let frameId = null;
             let boardRect = null;
+            // The snake stands still until «Начать» (or «Продолжить» after a reload), Enter, Space or an arrow.
+            let started = !startLayer;
             let paused = false;
             let completed = false;
             // Apples answered before a reload are rendered eaten: the snake keeps the length it had.
@@ -121,8 +129,34 @@
                 });
             }
 
+            function startRun(directionName = "") {
+                if (started || completed || isThumbnail) {
+                    return;
+                }
+                started = true;
+                if (startLayer) {
+                    startLayer.hidden = true;
+                }
+                // The first arrow both starts the snake and points it; any direction is fine from standstill.
+                const firstVector = directionVectors[directionName];
+                if (firstVector) {
+                    heading = { x: firstVector.x, y: firstVector.y };
+                    queuedHeading = null;
+                }
+                updateDirectionControls();
+                playfield.focus({ preventScroll: true });
+                lastTimestamp = 0;
+                if (frameId === null) {
+                    frameId = window.requestAnimationFrame(tick);
+                }
+            }
+
             function requestDirection(directionName) {
                 const nextVector = directionVectors[directionName];
+                if (!started) {
+                    startRun(directionName);
+                    return;
+                }
                 if (!nextVector || paused || completed) {
                     return;
                 }
@@ -243,7 +277,7 @@
             function hideQuestionLayer() {
                 activeItemId = "";
                 paused = false;
-                root.classList.remove("snake-player-paused");
+                root.classList.remove("snake-player-paused", ASKING_CLASS);
                 questionLayer.hidden = true;
                 questionCards.forEach((card) => {
                     card.hidden = true;
@@ -269,6 +303,7 @@
                 paused = true;
                 activeItemId = "";
                 root.classList.add("snake-player-paused");
+                root.classList.remove(ASKING_CLASS);
                 questionLayer.hidden = false;
                 questionCards.forEach((card) => {
                     card.hidden = true;
@@ -295,7 +330,8 @@
 
                 activeItemId = itemId;
                 questionLayer.hidden = false;
-                root.classList.add("snake-player-paused");
+                root.classList.add("snake-player-paused", ASKING_CLASS);
+                questionLayer.scrollTop = 0;
                 questionCards.forEach((candidate) => {
                     const isCurrent = candidate === card;
                     candidate.hidden = !isCurrent;
@@ -303,6 +339,18 @@
                 });
                 updateDirectionControls();
                 focusFirst(card);
+            }
+
+            // A long card on a phone (the layer covers the screen and scrolls): the verdict under the options must
+            // not stay below the screen. Scrolled by hand: scrollIntoView could also scroll the board, which clips.
+            function revealInLayer(element) {
+                if (!element || getComputedStyle(questionLayer).position !== "fixed") {
+                    return;
+                }
+                const overflow = element.getBoundingClientRect().bottom + 12 - questionLayer.getBoundingClientRect().bottom;
+                if (overflow > 0) {
+                    questionLayer.scrollTop += overflow;
+                }
             }
 
             function consumeApple(apple) {
@@ -341,7 +389,9 @@
 
                 card.dataset.state = "answered";
                 updateHud(payload);
-                const delay = applyChoiceFeedback(options, chosen, payload.feedback, form.querySelector("[data-question-feedback]"));
+                const feedbackElement = form.querySelector("[data-question-feedback]");
+                const delay = applyChoiceFeedback(options, chosen, payload.feedback, feedbackElement);
+                revealInLayer(feedbackElement);
                 await wait(delay);
                 eatApple(itemId);
 
@@ -358,22 +408,42 @@
                 playfield.focus({ preventScroll: true });
             }
 
+            // A field or a button of the page keeps its keys; the D-pad and «Начать» belong to the snake.
+            function isOtherControl(target, controls = "input, textarea, select, button, [contenteditable='true']") {
+                return (
+                    target instanceof HTMLElement &&
+                    Boolean(target.closest(controls)) &&
+                    !target.closest("[data-snake-direction], [data-snake-start-button]")
+                );
+            }
+
             function handleDirectionKeydown(event) {
+                if (event.altKey || event.ctrlKey || event.metaKey) {
+                    return;
+                }
                 const directionName = directionKeys[event.key];
-                if (!directionName || event.altKey || event.ctrlKey || event.metaKey) {
+                if (!started) {
+                    // Enter and Space start the snake too, unless they belong to a link or a field of the page.
+                    // On the start button itself they click it.
+                    const isStartKey = event.key === "Enter" || event.key === " ";
+                    const onStartButton = event.target instanceof HTMLElement && event.target.closest("[data-snake-start-button]");
+                    const blocked = directionName
+                        ? isOtherControl(event.target)
+                        : isOtherControl(event.target, "a, input, textarea, select, button, summary, [contenteditable='true']");
+                    if ((directionName || (isStartKey && !onStartButton)) && !blocked && !isThumbnail) {
+                        event.preventDefault();
+                        startRun(directionName || "");
+                    }
+                    return;
+                }
+                if (!directionName) {
                     return;
                 }
                 // While a question is open the arrows belong to the page, not to the snake.
                 if (paused || completed) {
                     return;
                 }
-
-                const target = event.target;
-                if (
-                    target instanceof HTMLElement &&
-                    target.closest("input, textarea, select, button, [contenteditable='true']") &&
-                    !target.closest("[data-snake-direction]")
-                ) {
+                if (isOtherControl(event.target)) {
                     return;
                 }
 
@@ -459,6 +529,8 @@
                 });
             });
 
+            startButton?.addEventListener("click", () => startRun());
+
             window.addEventListener("keydown", handleDirectionKeydown);
 
             window.addEventListener("resize", () => {
@@ -470,7 +542,9 @@
             syncSegments();
             updateDirectionControls();
             renderSnake();
-            frameId = window.requestAnimationFrame(tick);
+            if (started) {
+                frameId = window.requestAnimationFrame(tick);
+            }
         });
     }
 

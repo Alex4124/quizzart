@@ -50,6 +50,7 @@ class ChooseABoxDefinition(QuestionBankTemplateDefinition):
     # "finish" with box_<id> fields is how pages loaded before per-answer checks ended a run.
     legacy_bulk_actions = {"finish": "box_{key}"}
     allows_early_finish = True
+    review_item_label = "Коробка"
 
     def default_config(self) -> dict[str, Any]:
         return {

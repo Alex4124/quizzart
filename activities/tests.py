@@ -515,9 +515,51 @@ class ActivityEditorTests(TestCase):
         self.assertContains(response, "quiz-flow")
         self.assertContains(response, "quiz-stage")
         self.assertContains(response, "Интерактив Quizzart")
-        self.assertContains(response, "Гость")
         self.assertNotContains(response, "Режим учителя")
         self.assertNotContains(response, "Предпросмотр шаблона")
+
+    def test_preview_shows_banner_and_the_teacher_not_a_guest(self):
+        self.user.first_name = "Мария"
+        self.user.last_name = "Иванова"
+        self.user.save()
+        for template_key in registry.keys():
+            with self.subTest(template_key=template_key):
+                activity = Activity.objects.create(
+                    owner=self.user,
+                    title=f"Preview {template_key}",
+                    template_key=template_key,
+                    config_json=registry.get(template_key).default_config(),
+                )
+
+                response = self.client.get(reverse("activities:preview", args=[activity.pk]))
+
+                self.assertContains(response, "data-preview-banner")
+                self.assertContains(response, "<strong>Предпросмотр</strong> — ответы не сохраняются", html=False)
+                self.assertEqual(response.context["player_shell"]["participant"]["label"], "Учитель")
+                self.assertEqual(response.context["player_shell"]["participant"]["name"], "Мария")
+                self.assertEqual(response.context["player_shell"]["participant"]["initials"], "МИ")
+                topbar = response.content.decode().split('class="player-topbar__profile"', 1)[1].split("</header>", 1)[0]
+                self.assertIn("Учитель", topbar)
+                self.assertIn("Мария", topbar)
+                self.assertNotIn("Гость", topbar)
+
+    def test_student_pages_have_no_preview_banner(self):
+        activity = Activity.objects.create(
+            owner=self.user,
+            title="Live quiz",
+            template_key="quiz",
+            config_json=registry.get("quiz").default_config(),
+            status=Activity.Status.PUBLISHED,
+        )
+        link = ensure_share_link(activity)
+        self.client.logout()
+
+        launch = self.client.get(f"/p/{link.slug}/")
+        play = self.client.post(f"/p/{link.slug}/", {"action": "start"}, follow=True)
+
+        for response in (launch, play):
+            self.assertNotContains(response, "data-preview-banner")
+            self.assertNotContains(response, "Учитель")
 
     def test_teacher_can_delete_activity_from_edit_mode(self):
         activity = Activity.objects.create(

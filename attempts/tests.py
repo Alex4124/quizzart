@@ -113,10 +113,15 @@ class PublicPlayTests(TestCase):
             follow=True,
         )
 
-        self.assertContains(result_response, "Правильные ответы")
-        self.assertContains(result_response, "1 из 1")
-        self.assertContains(result_response, "100%")
+        # «X из Y верно» instead of points.
+        score_card = next(
+            card for card in result_response.context["player_shell"]["summary_cards"] if card["key"] == "score"
+        )
+        self.assertEqual((score_card["label"], score_card["value"], score_card["suffix"]), ("Верно", "1", "из 1"))
+        self.assertContains(result_response, "1 <small>из 1</small>", html=False)
+        self.assertContains(result_response, "Результат 100%")
         self.assertNotContains(result_response, "Баллы")
+        self.assertNotContains(result_response, "балл")
 
     def test_scoreless_wheel_ajax_awards_one_and_keeps_question_maximum(self):
         link = self._create_published_activity(
@@ -1137,6 +1142,8 @@ class PlayerFixesTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'value="restart"', html=False)
+        self.assertNotContains(response, "Можно пройти ещё раз")
+        self.assertContains(response, "пройти его ещё раз сейчас нельзя")
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
     def test_results_of_unpublished_activity_without_a_run_are_404(self):
