@@ -135,33 +135,6 @@ class SnakeAnswerProtocolTests(AnswerProtocolTestCase):
         self.assertEqual(payload["feedback"]["submitted"], "ZZWRONG 1")
         self.assertEqual(ActivitySession.objects.get().score, 0)
 
-    def test_legacy_partial_submit_is_still_rejected(self):
-        link = self.publish(question_bank(2))
-        self.start(link)
-
-        response = self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "submit_snake", "question_q-1": "ZZCORRECT 1"},
-            follow=True,
-        )
-
-        self.assertContains(response, "Ответьте на все задания")
-        session = ActivitySession.objects.get()
-        self.assertEqual(session.status, ActivitySession.Status.STARTED)
-        self.assertFalse(session.answers.exists())
-
-    def test_legacy_submit_counts_apples_answered_one_by_one(self):
-        link = self.publish(question_bank(2))
-        self.start(link)
-        self.answer(link, "q-1", "ZZWRONG 1")
-
-        response = self.client.post(f"/p/{link.slug}/", {"action": "submit_snake", "question_q-2": "ZZCORRECT 2"})
-
-        self.assertRedirects(response, f"/p/{link.slug}/results/")
-        session = ActivitySession.objects.get()
-        self.assertEqual((session.status, session.score), (ActivitySession.Status.COMPLETED, 10))
-        self.assertFalse(session.answers.get(item_key="q-1").is_correct)
-
     def test_preview_checks_an_apple_without_saving(self):
         link = self.publish(question_bank(2))
         self.client.force_login(self.teacher)

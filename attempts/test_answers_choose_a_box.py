@@ -239,19 +239,6 @@ class ChooseABoxAnswerProtocolTests(AnswerProtocolTestCase):
         self.assertFalse(ActivityAnswer.objects.exists())
         self.assertEqual(ActivitySession.objects.get().runtime_state["opened"], ["q-1"])
 
-    def test_answer_box_action_of_older_pages_still_works(self):
-        link = self.publish(question_bank(2))
-        self.start(link)
-
-        response = self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "answer_box", "item_key": "q-1", "answer": "ZZCORRECT 1"},
-            **AJAX,
-        )
-
-        self.assertEqual(response.json()["feedback"]["is_correct"], True)
-        self.assertEqual(ActivitySession.objects.get().runtime_state["opened"], ["q-1"])
-
     def test_preview_checks_answers_and_opens_boxes_in_the_page(self):
         link = self.publish(question_bank(2))
         url = reverse("activities:preview_action", args=[link.activity.pk])

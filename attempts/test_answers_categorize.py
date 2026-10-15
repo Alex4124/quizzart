@@ -163,16 +163,3 @@ class CategorizeAnswerProtocolTests(AnswerProtocolTestCase):
                 self.assertEqual(response.json()["feedback"]["is_correct"], expected_correct)
                 self.assertFalse(ActivitySession.objects.exists())
                 self.client.logout()
-
-    def test_legacy_whole_run_submission_still_finishes(self):
-        link = self.publish(question_bank(2))
-        self.start(link)
-        self.answer(link, "q-1", "ZZWRONG 1")
-
-        self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "submit_categorize", "question_q-1": "ZZCORRECT 1", "question_q-2": "ZZCORRECT 2"},
-        )
-
-        session = ActivitySession.objects.get()
-        self.assertEqual((session.status, session.score), (ActivitySession.Status.COMPLETED, 10))

@@ -188,20 +188,27 @@ class QuizAnswerProtocolTests(AnswerProtocolTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["redirect_url"], f"/p/{link.slug}/results/")
 
-    def test_legacy_bulk_submit_keeps_answers_already_saved(self):
-        link = self.publish(question_bank(2))
-        self.start(link)
-        self.answer(link, "q-1", "ZZWRONG 1")
+    def test_actions_of_pages_before_per_answer_checks_are_rejected(self):
+        old_actions = {
+            "quiz": {"action": "submit_quiz", "question_q-1": "ZZCORRECT 1", "question_q-2": "ZZCORRECT 2"},
+            "matching": {"action": "submit_matching", "match_q-1": "ZZCORRECT 1", "match_q-2": "ZZCORRECT 2"},
+            "categorize": {"action": "submit_categorize", "question_q-1": "ZZCORRECT 1", "question_q-2": "ZZCORRECT 2"},
+            "snake": {"action": "submit_snake", "question_q-1": "ZZCORRECT 1", "question_q-2": "ZZCORRECT 2"},
+            "choose_a_box": {"action": "answer_box", "item_key": "q-1", "answer": "ZZCORRECT 1"},
+            "wheel_of_fortune": {"action": "answer_wheel", "item_key": "q-1", "answer": "ZZCORRECT 1"},
+        }
+        for template_key, payload in old_actions.items():
+            with self.subTest(template_key=template_key):
+                link = self.publish(question_bank(2), template_key=template_key)
+                session = self.start(link)
 
-        self.client.post(
-            f"/p/{link.slug}/",
-            {"action": "submit_quiz", "question_q-1": "ZZCORRECT 1", "question_q-2": "ZZCORRECT 2"},
-        )
+                response = self.client.post(f"/p/{link.slug}/", payload, **AJAX)
 
-        session = ActivitySession.objects.get()
-        self.assertEqual(session.status, ActivitySession.Status.COMPLETED)
-        self.assertEqual(session.score, 10)
-        self.assertFalse(session.answers.get(item_key="q-1").is_correct)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("Обновите страницу", response.json()["error"])
+                session.refresh_from_db()
+                self.assertEqual(session.status, ActivitySession.Status.STARTED)
+                self.assertFalse(session.answers.exists())
 
 
 class PreviewActionTests(AnswerProtocolTestCase):
@@ -259,20 +266,6 @@ class MidRunChangesTests(AnswerProtocolTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["redirect_url"], f"/p/{link.slug}/results/")
         self.assertRedirects(self.answer(link, "q-1", "ZZWRONG 1", ajax=False), f"/p/{link.slug}/results/")
-
-    def test_old_wheel_page_answer_without_a_server_spin_is_kept(self):
-        link = self.publish(question_bank(2), template_key="wheel_of_fortune")
-        self.start(link)
-
-        response = self.client.post(
-            f"/p/{link.slug}/", {"action": "answer_wheel", "item_key": "q-2", "answer": "ZZCORRECT 2"}, **AJAX
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["feedback"]["is_correct"])
-        # The new protocol still requires a spin.
-        response = self.answer(link, "q-1", "ZZCORRECT 1")
-        self.assertEqual(response.status_code, 400)
 
     def test_imported_config_with_integer_ids_and_padded_options(self):
         config = question_bank(1)

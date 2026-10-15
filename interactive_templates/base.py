@@ -140,11 +140,6 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
     """
 
     answer_actions: frozenset[str] = frozenset({"answer"})
-    # Whole-run submissions from pages loaded before answers were checked one by one:
-    # action -> answer field pattern, e.g. {"submit_quiz": "question_{key}"}.
-    legacy_bulk_actions: dict[str, str] = {}
-    # A legacy bulk submission is rejected unless every item is answered.
-    legacy_bulk_requires_all = False
     allows_early_finish = False
     # What an item is called on the results page: «Вопрос 2», «Коробка 2», «Яблоко 2».
     review_item_label = "Вопрос"
@@ -308,38 +303,13 @@ class QuestionBankTemplateDefinition(BaseTemplateDefinition):
                 runtime_state=self.after_answer_state(session, check.item_key),
             )
 
-        if action in self.legacy_bulk_actions:
-            return self._evaluate_legacy_bulk(config, session, payload, self.legacy_bulk_actions[action])
-
         if action == "finish" and self.allows_early_finish:
             return TemplateEvaluation(is_complete=True)
 
         evaluation = self.handle_custom_action(activity, session, action, payload)
         if evaluation is not None:
             return evaluation
-        raise ValidationError(f"Неизвестное действие для шаблона «{self.metadata.title}».")
-
-    def _evaluate_legacy_bulk(
-        self,
-        config: dict[str, Any],
-        session: Any,
-        payload: Any,
-        field_pattern: str,
-    ) -> TemplateEvaluation:
-        rows = []
-        answered = {answer.item_key for answer in session.answers.all()}
-        for item in self.get_items(config):
-            raw = payload.get(field_pattern.format(key=item["id"]), "")
-            if not str(raw or "").strip():
-                continue
-            try:
-                rows.append(self.check_answer(config, item, raw).to_answer_row())
-            except ValidationError:
-                continue
-            answered.add(str(item["id"]))
-        if self.legacy_bulk_requires_all and not self.is_complete(config, answered):
-            raise ValidationError("Ответьте на все задания, прежде чем завершать.")
-        return TemplateEvaluation(answers=rows, is_complete=True)
+        raise ValidationError(f"Неизвестное действие для шаблона «{self.metadata.title}». Обновите страницу.")
 
     def evaluate_preview_action(self, activity: Any, payload: Any) -> dict[str, Any]:
         """The teacher's preview: the same checks, nothing saved. The browser keeps the preview state."""

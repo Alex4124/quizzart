@@ -242,17 +242,6 @@ class MatchingAnswerProtocolTests(AnswerProtocolTestCase):
         self.assertFalse(ActivitySession.objects.exists())
         self.assertFalse(ActivityAnswer.objects.exists())
 
-    def test_legacy_whole_run_submit_still_completes(self):
-        link = self.publish(question_bank(2, shuffle=False))
-        self.start(link)
-        self.answer(link, "q-1", "ZZWRONG 1")
-
-        self.client.post(f"/p/{link.slug}/", {"action": "submit_matching", "match_q-1": "ZZCORRECT 1", "match_q-2": "zzcorrect 2"})
-
-        session = ActivitySession.objects.get()
-        self.assertEqual((session.status, session.score), ("completed", 10))
-        self.assertFalse(session.answers.get(item_key="q-1").is_correct)
-
     def test_results_still_list_every_pair(self):
         link = self.publish(question_bank(2, shuffle=False))
         self.start(link)

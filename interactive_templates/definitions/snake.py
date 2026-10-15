@@ -90,8 +90,6 @@ class SnakeDefinition(QuestionBankTemplateDefinition):
     player_template_name = "player/snake.html"
     preview_template_name = "player/snake.html"
     editor_question_default_points = DEFAULT_QUESTION_POINTS
-    legacy_bulk_actions = {"submit_snake": "question_{key}"}
-    legacy_bulk_requires_all = True
     review_item_label = "Яблоко"
 
     def default_config(self) -> dict[str, Any]:
