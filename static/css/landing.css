@@ -1,20 +1,12 @@
+/* Landing page for anonymous visitors.
+   Colours, radii, shadows and fonts come from the --qz-* tokens in app.css; the --landing-* names are short
+   aliases, not a second palette. Buttons are the shared .button family; page classes here only do layout. */
 .landing-page {
-    --landing-bg: #f5f3f8;
-    --landing-surface: rgba(255, 255, 255, 0.9);
-    --landing-surface-strong: #ffffff;
-    --landing-surface-soft: #f1eef5;
-    --landing-surface-muted: #eceff4;
-    --landing-ink: #17151d;
-    --landing-muted: #676277;
-    --landing-border: rgba(42, 31, 80, 0.08);
-    --landing-purple: #6b31df;
-    --landing-purple-strong: #5324b7;
-    --landing-purple-soft: #efe4ff;
-    --landing-peach: #ffb285;
-    --landing-peach-soft: #ffe0d0;
-    --landing-shadow: 0 24px 60px rgba(35, 21, 66, 0.12);
-    margin: 0;
-    font-family: "Manrope", "Segoe UI", sans-serif;
+    --landing-ink: var(--qz-ink);
+    --landing-muted: var(--qz-muted);
+    --landing-border: var(--qz-border);
+    --landing-purple: var(--qz-violet);
+    --landing-shadow: var(--qz-shadow-raised);
     color: var(--landing-ink);
     background:
         radial-gradient(circle at top left, rgba(255, 206, 182, 0.55), transparent 22%),
@@ -23,31 +15,23 @@
     overflow-x: hidden;
 }
 
-.landing-page a {
-    color: inherit;
-}
-
 .landing-main {
     width: 100%;
     padding: 0;
 }
 
-.landing-main .message-stack {
-    width: min(1180px, calc(100% - 2rem));
-    margin: 1rem auto 0;
-}
-
 .landing-container {
-    width: min(1180px, calc(100% - 2rem));
+    width: min(1180px, calc(100% - 2 * var(--qz-gutter)));
     margin: 0 auto;
 }
 
+/* ---- Header: sticky on wide screens (data-sticky-header feeds --qz-header-h), static on tablets and phones. */
 .landing-header {
     position: sticky;
     top: 0;
     z-index: 40;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(250, 248, 253, 0.78);
+    border-bottom: 1px solid var(--landing-border);
+    background: rgba(250, 248, 253, 0.82);
     backdrop-filter: blur(18px);
 }
 
@@ -65,35 +49,27 @@
 
 .landing-header__inner {
     justify-content: space-between;
+    gap: 0.75rem 1.5rem;
     min-height: 82px;
 }
 
 .landing-brand {
     display: inline-flex;
     align-items: center;
-    gap: 0;
-    font-size: 1.25rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    text-decoration: none;
     line-height: 0;
 }
 
-.landing-brand::before {
-    content: none;
-}
-
-.landing-brand__logo {
-    width: var(--site-logo-width);
-    height: var(--site-logo-height);
-    max-width: min(100%, var(--site-logo-width));
+.landing-nav {
+    gap: 0.4rem 1.5rem;
 }
 
 .landing-nav a,
 .landing-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     color: var(--landing-muted);
     font-weight: 600;
-    text-decoration: none;
     transition: color 0.2s ease;
 }
 
@@ -102,54 +78,7 @@
     color: var(--landing-ink);
 }
 
-.landing-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 54px;
-    padding: 0.95rem 1.45rem;
-    border: 0;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--landing-purple), #873dff);
-    color: #fff;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    text-decoration: none;
-    box-shadow: 0 18px 36px rgba(107, 49, 223, 0.24);
-    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
-}
-
-.landing-page :is(a, button).landing-button:not(.landing-button-secondary):not(.landing-button-outline),
-.landing-page :is(a, button).landing-button:not(.landing-button-secondary):not(.landing-button-outline):hover,
-.landing-page :is(a, button).landing-button:not(.landing-button-secondary):not(.landing-button-outline):focus-visible,
-.landing-page :is(a, button).landing-button:not(.landing-button-secondary):not(.landing-button-outline):visited,
-.landing-page :is(a, button).landing-button:not(.landing-button-secondary):not(.landing-button-outline):active {
-    color: #fff !important;
-}
-
-.landing-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 22px 42px rgba(107, 49, 223, 0.28);
-    filter: saturate(1.04);
-}
-
-.landing-button-small {
-    min-height: 46px;
-    padding: 0.8rem 1.2rem;
-    font-size: 0.95rem;
-}
-
-.landing-button-secondary,
-.landing-button-outline {
-    color: var(--landing-ink);
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: inset 0 0 0 1px rgba(34, 26, 56, 0.1);
-}
-
-.landing-button-outline {
-    background: transparent;
-}
-
+/* ---- Hero */
 .landing-hero-section {
     padding: 2.4rem 0 5.5rem;
 }
@@ -165,38 +94,32 @@
     max-width: 620px;
 }
 
-.landing-kicker,
 .landing-section-heading__eyebrow,
 .landing-template-card__eyebrow {
     margin: 0 0 0.9rem;
     color: var(--landing-purple);
-    font-size: 0.73rem;
+    font-size: var(--qz-eyebrow-size);
     font-weight: 800;
-    letter-spacing: 0.18em;
+    letter-spacing: var(--qz-eyebrow-tracking);
     text-transform: uppercase;
 }
 
-.landing-kicker {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    padding: 0.4rem 0.8rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.84);
-    box-shadow: inset 0 0 0 1px rgba(107, 49, 223, 0.1);
-}
-
+/* Display headings: the same serif as the teacher pages (h1/h2 in dashboard, profile, player). */
 .landing-hero h1,
 .landing-section-heading h2,
 .landing-showcase__copy h2,
 .landing-final-cta h2 {
     margin: 0;
-    letter-spacing: -0.06em;
-    line-height: 0.95;
+    font-family: var(--qz-font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+    text-wrap: balance;
 }
 
+/* «интерактивным» is one long word: 4.2rem is the largest size that still fits the copy column. */
 .landing-hero h1 {
-    font-size: clamp(3rem, 6vw, 5.4rem);
+    font-size: clamp(2.6rem, 4.6vw, 4.2rem);
 }
 
 .landing-hero h1 span,
@@ -214,11 +137,11 @@
     margin: 0;
     color: var(--landing-muted);
     font-size: 1.02rem;
-    line-height: 1.72;
+    line-height: 1.7;
 }
 
 .landing-hero__text {
-    margin-top: 10px;
+    margin-top: 1.1rem;
 }
 
 .landing-hero__actions {
@@ -235,14 +158,15 @@
     align-items: center;
     min-height: 36px;
     padding: 0.4rem 0.78rem;
-    border-radius: 999px;
+    border-radius: var(--qz-radius-pill);
     background: rgba(255, 255, 255, 0.68);
-    color: #584e75;
+    color: var(--qz-text);
     font-size: 0.9rem;
     font-weight: 700;
-    box-shadow: inset 0 0 0 1px rgba(42, 31, 80, 0.07);
+    box-shadow: inset 0 0 0 1px var(--landing-border);
 }
 
+/* ---- Hero illustration: a drawn dashboard window, the "6 templates" badge and the mascot. */
 .landing-preview {
     position: relative;
     padding: 1.25rem 0 2.2rem 1rem;
@@ -251,7 +175,7 @@
 .landing-preview__window {
     position: relative;
     overflow: hidden;
-    border-radius: 28px;
+    border-radius: var(--qz-radius-xl);
     border: 8px solid rgba(255, 255, 255, 0.94);
     background:
         radial-gradient(circle at top right, rgba(71, 204, 255, 0.12), transparent 24%),
@@ -299,7 +223,7 @@
 
 .landing-preview__menu-item {
     height: 14px;
-    border-radius: 999px;
+    border-radius: var(--qz-radius-pill);
     background: rgba(255, 255, 255, 0.11);
 }
 
@@ -332,7 +256,7 @@
 .landing-preview__stat-bar,
 .landing-preview__row span,
 .landing-preview__toolbar span {
-    border-radius: 999px;
+    border-radius: var(--qz-radius-pill);
     background: rgba(255, 255, 255, 0.11);
 }
 
@@ -356,7 +280,7 @@
     display: grid;
     gap: 0.75rem;
     padding: 1rem;
-    border-radius: 18px;
+    border-radius: var(--qz-radius-md);
     background: rgba(255, 255, 255, 0.04);
 }
 
@@ -403,8 +327,13 @@
 
 .landing-preview__row {
     padding: 0.9rem 1rem;
-    border-radius: 18px;
+    border-radius: var(--qz-radius-md);
     background: rgba(255, 255, 255, 0.05);
+}
+
+.landing-preview__row span {
+    display: block;
+    height: 10px;
 }
 
 .landing-preview__row span:nth-child(1) {
@@ -420,11 +349,6 @@
     margin-left: auto;
 }
 
-.landing-preview__row span {
-    display: block;
-    height: 10px;
-}
-
 .landing-preview__toolbar {
     justify-content: center;
 }
@@ -438,6 +362,7 @@
     position: absolute;
     left: 0;
     bottom: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -470,6 +395,18 @@
     fill: none;
 }
 
+/* The mascot sits on the corner of the drawn window: part of the illustration, never over the page text. */
+.landing-preview__mascot {
+    position: absolute;
+    right: -1.25rem;
+    bottom: 0;
+    z-index: 2;
+    width: clamp(140px, 13vw, 190px);
+    height: auto;
+    filter: drop-shadow(0 18px 28px rgba(59, 33, 100, 0.22));
+    pointer-events: none;
+}
+
 .landing-preview__badge strong,
 .landing-feature-card h3,
 .landing-template-card h3,
@@ -477,7 +414,7 @@
     display: block;
     margin: 0;
     font-size: 1.15rem;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.01em;
 }
 
 .landing-preview__badge span,
@@ -487,53 +424,7 @@
     line-height: 1.5;
 }
 
-.landing-mascot {
-    position: fixed;
-    right: 18px;
-    bottom: 16px;
-    z-index: 34;
-    display: block;
-    pointer-events: none;
-}
-
-.landing-mascot__bubble {
-    position: absolute;
-    right: calc(100% - 34px);
-    bottom: 172px;
-    padding: 0.82rem 1rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.96);
-    color: var(--landing-ink);
-    font-size: 0.98rem;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    box-shadow:
-        0 16px 30px rgba(59, 33, 100, 0.14),
-        inset 0 0 0 1px rgba(107, 49, 223, 0.08);
-    white-space: nowrap;
-}
-
-.landing-mascot__bubble::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    right: -8px;
-    width: 16px;
-    height: 16px;
-    background: inherit;
-    transform: translateY(-50%) rotate(45deg);
-    border-radius: 3px;
-    box-shadow: 1px -1px 0 rgba(107, 49, 223, 0.05);
-}
-
-.landing-mascot img {
-    display: block;
-    width: clamp(180px, 19.2vw, 288px);
-    height: auto;
-    filter: drop-shadow(0 20px 34px rgba(59, 33, 100, 0.22));
-}
-
+/* ---- Sections */
 .landing-section {
     padding: 5.4rem 0;
 }
@@ -561,7 +452,7 @@
 .landing-section-heading h2,
 .landing-showcase__copy h2,
 .landing-final-cta h2 {
-    font-size: clamp(2rem, 4vw, 3.65rem);
+    font-size: clamp(1.9rem, 3.4vw, 3.1rem);
 }
 
 .landing-section-heading-split {
@@ -572,6 +463,10 @@
     max-width: none;
 }
 
+.landing-section-heading-split > div {
+    max-width: 760px;
+}
+
 .landing-section-heading__note {
     max-width: 360px;
     text-align: right;
@@ -580,39 +475,29 @@
 .landing-feature-grid,
 .landing-template-grid {
     display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.25rem;
-}
-
-.landing-feature-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.landing-template-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .landing-card,
 .landing-template-card,
 .landing-showcase__frame,
 .landing-final-cta {
-    border-radius: 28px;
-    box-shadow: var(--landing-shadow);
-}
-
-.landing-card,
-.landing-feature-card {
-    background: var(--landing-surface-strong);
+    border-radius: var(--qz-radius-xl);
+    box-shadow: var(--qz-shadow-card);
 }
 
 .landing-feature-card {
     padding: 1.6rem;
     border: 1px solid var(--landing-border);
+    background: var(--qz-surface-strong);
     transition: transform 0.24s ease, box-shadow 0.24s ease;
 }
 
 .landing-feature-card:hover,
 .landing-template-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
+    box-shadow: var(--landing-shadow);
 }
 
 .landing-feature-card__icon {
@@ -621,8 +506,8 @@
     width: 56px;
     height: 56px;
     margin-bottom: 1.2rem;
-    border-radius: 18px;
-    background: linear-gradient(135deg, rgba(107, 49, 223, 0.13), rgba(255, 178, 133, 0.24));
+    border-radius: var(--qz-radius-md);
+    background: linear-gradient(135deg, var(--qz-violet-soft), var(--qz-apricot-soft));
     color: var(--landing-purple);
 }
 
@@ -641,18 +526,23 @@
     margin-bottom: 0.85rem;
 }
 
-.landing-template-card {
-    --template-panel-bg: linear-gradient(180deg, #f2ebff, #ebe6fb);
-    --template-panel-line: rgba(107, 49, 223, 0.12);
-    --template-panel-glow: rgba(107, 49, 223, 0.16);
-    --template-icon-main: #6b31df;
-    --template-icon-secondary: #8f5cff;
-    --template-icon-main-soft: #c3a4ff;
-    --template-icon-accent: #ffb24c;
-    --template-icon-accent-soft: #ffd996;
+/* ---- Template cards: each card sets its illustration palette through the --template-* variables. */
+.landing-template-card,
+.landing-template-card-violet {
+    --template-panel-bg: linear-gradient(180deg, #f3ebff, #ebe5fb);
+    --template-panel-line: var(--qz-violet-line);
+    --template-panel-glow: rgba(111, 59, 209, 0.15);
+    --template-icon-main: var(--qz-violet);
+    --template-icon-secondary: #8b5af0;
+    --template-icon-main-soft: #c4abff;
+    --template-icon-accent: #ffbe56;
+    --template-icon-accent-soft: #ffe6a9;
     --template-icon-contrast: #fff;
+}
+
+.landing-template-card {
     padding: 1.1rem;
-    border: 1px solid rgba(58, 35, 109, 0.06);
+    border: 1px solid var(--landing-border);
     background: rgba(255, 255, 255, 0.72);
     transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
@@ -673,7 +563,7 @@
     content: "";
     position: absolute;
     inset: 18px;
-    border-radius: 24px;
+    border-radius: var(--qz-radius-lg);
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.75), transparent 42%),
         radial-gradient(circle at bottom right, var(--template-panel-glow), transparent 38%);
@@ -684,20 +574,9 @@
     content: "";
     position: absolute;
     inset: 12px;
-    border-radius: 24px;
+    border-radius: var(--qz-radius-lg);
     border: 1px solid var(--template-panel-line);
     pointer-events: none;
-}
-
-.landing-template-card-violet {
-    --template-panel-bg: linear-gradient(180deg, #f3ebff, #ebe5fb);
-    --template-panel-line: rgba(107, 49, 223, 0.14);
-    --template-panel-glow: rgba(107, 49, 223, 0.15);
-    --template-icon-main: #6b31df;
-    --template-icon-secondary: #8b5af0;
-    --template-icon-main-soft: #c4abff;
-    --template-icon-accent: #ffbe56;
-    --template-icon-accent-soft: #ffe6a9;
 }
 
 .landing-template-card-rose {
@@ -715,7 +594,7 @@
     --template-panel-bg: linear-gradient(180deg, #fff1e8, #f8ebe4);
     --template-panel-line: rgba(242, 138, 68, 0.15);
     --template-panel-glow: rgba(255, 178, 133, 0.18);
-    --template-icon-main: #f28a44;
+    --template-icon-main: var(--qz-apricot);
     --template-icon-secondary: #ffb062;
     --template-icon-main-soft: #ffd5ad;
     --template-icon-accent: #8c4fff;
@@ -788,7 +667,6 @@
 }
 
 .landing-template-card__panel-icon .stroke-main,
-.landing-template-card__panel-icon .stroke-secondary,
 .landing-template-card__panel-icon .stroke-accent,
 .landing-template-card__panel-icon .stroke-contrast {
     fill: none;
@@ -798,11 +676,6 @@
 
 .landing-template-card__panel-icon .stroke-main {
     stroke: var(--template-icon-main);
-    stroke-width: 5;
-}
-
-.landing-template-card__panel-icon .stroke-secondary {
-    stroke: var(--template-icon-secondary);
     stroke-width: 5;
 }
 
@@ -817,7 +690,7 @@
 }
 
 .landing-template-card__panel-icon .icon-letter {
-    font-family: "Manrope", "Segoe UI", sans-serif;
+    font-family: var(--qz-font-body);
     font-size: 18px;
     font-weight: 800;
     text-anchor: middle;
@@ -834,8 +707,10 @@
 
 .landing-template-card__eyebrow {
     margin-bottom: 0.7rem;
+    overflow-wrap: anywhere;
 }
 
+/* ---- Showcases: copy next to a photo, alternating sides. */
 .landing-showcase-stack {
     display: grid;
     gap: 4.2rem;
@@ -861,6 +736,10 @@
     gap: 1rem;
 }
 
+.landing-showcase__copy .landing-section-heading__eyebrow {
+    margin-bottom: 0;
+}
+
 .landing-showcase__frame {
     overflow: hidden;
     padding: 0.9rem;
@@ -880,11 +759,11 @@
     background: linear-gradient(180deg, #4b2275, #2d2152);
 }
 
-.landing-showcase__image-cover {
-    width: 100%;
+/* Two classes, so it beats ".landing-showcase__frame img": the photo fills the 16/10 frame, the frame rounds it. */
+.landing-showcase__frame .landing-showcase__image-cover {
     height: 100%;
     object-fit: cover;
-    border-radius: 28px;
+    border-radius: 0;
 }
 
 .landing-showcase__image-cover-teacher {
@@ -922,15 +801,16 @@
     width: 11px;
     height: 11px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--landing-purple), #9455ff);
-    box-shadow: 0 0 0 5px rgba(107, 49, 223, 0.1);
+    background: var(--qz-gradient);
+    box-shadow: 0 0 0 5px var(--qz-violet-soft);
 }
 
+/* ---- Final call to action */
 .landing-final-cta {
     padding: 3.4rem 2rem;
     text-align: center;
     background: rgba(255, 255, 255, 0.82);
-    border: 1px solid rgba(58, 35, 109, 0.06);
+    border: 1px solid var(--landing-border);
 }
 
 .landing-final-cta__text {
@@ -945,17 +825,18 @@
 
 .landing-final-cta__note {
     margin: 1.4rem 0 0;
-    color: #918a9f;
-    font-size: 0.82rem;
+    color: var(--qz-subtle);
+    font-size: var(--qz-eyebrow-size);
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--qz-eyebrow-tracking);
     text-transform: uppercase;
 }
 
+/* ---- Footer */
 .landing-footer {
     padding: 2.2rem 0 3rem;
     background: linear-gradient(180deg, rgba(236, 239, 244, 0.86), rgba(231, 234, 239, 0.98));
-    border-top: 1px solid rgba(35, 21, 66, 0.06);
+    border-top: 1px solid var(--landing-border);
 }
 
 .landing-footer__inner {
@@ -978,19 +859,21 @@
 
 .landing-footer__column ul {
     display: grid;
-    gap: 0.7rem;
+    gap: 0.2rem;
 }
 
 .landing-footer__column a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
     color: var(--landing-muted);
-    text-decoration: none;
 }
 
 .landing-footer__column a:hover {
     color: var(--landing-ink);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
     .landing-hero,
     .landing-showcase,
     .landing-showcase-reverse {
@@ -1001,10 +884,7 @@
         order: initial;
     }
 
-    .landing-feature-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
+    .landing-feature-grid,
     .landing-template-grid,
     .landing-footer__inner {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1019,31 +899,51 @@
     }
 }
 
-@media (max-width: 780px) {
+/* Tablets and phones: the header scrolls away with the page and the section links get their own row. */
+@media (max-width: 960px) {
     .landing-header {
         position: static;
     }
 
     .landing-header__inner {
-        padding: 0.95rem 0;
-        gap: 1rem;
+        padding: 0.6rem 0 0.4rem;
     }
 
     .landing-nav {
         order: 3;
         width: 100%;
         justify-content: space-between;
-        gap: 0.6rem;
+        border-top: 1px solid var(--landing-border);
+    }
+}
+
+@media (max-width: 780px) {
+    .landing-hero-section {
+        padding-bottom: 4rem;
+    }
+
+    .landing-section-heading-split {
+        flex-direction: column;
+        gap: 0.9rem;
     }
 
     .landing-feature-grid,
-    .landing-template-grid,
-    .landing-footer__inner {
+    .landing-template-grid {
         grid-template-columns: 1fr;
     }
 
+    .landing-footer__inner {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem;
+    }
+
+    .landing-footer__intro {
+        grid-column: 1 / -1;
+        max-width: none;
+    }
+
     .landing-preview {
-        padding-left: 0;
+        padding: 0;
     }
 
     .landing-preview__body {
@@ -1053,7 +953,13 @@
 
     .landing-preview__badge {
         position: static;
+        max-width: none;
         margin-top: 1rem;
+    }
+
+    /* On phones the mascot would cover the badge and the window: it is decoration, so it goes. */
+    .landing-preview__mascot {
+        display: none;
     }
 
     .landing-template-card__panel {
@@ -1063,41 +969,35 @@
     .landing-final-cta {
         padding: 2.6rem 1.3rem;
     }
-
-    .landing-mascot {
-        right: 10px;
-        bottom: 10px;
-    }
-
-    .landing-mascot__bubble {
-        right: calc(100% - 24px);
-        bottom: 138px;
-        padding: 0.75rem 0.9rem;
-        font-size: 0.92rem;
-    }
-
-    .landing-mascot img {
-        width: clamp(142px, 28.8vw, 211px);
-    }
 }
 
 @media (max-width: 560px) {
-    .landing-container {
-        width: min(100% - 1rem, 1180px);
+    .landing-hero-section {
+        padding-top: 2rem;
     }
 
-    .landing-hero-section,
     .landing-section {
         padding-top: 3.6rem;
         padding-bottom: 3.6rem;
     }
 
     .landing-hero h1 {
-        font-size: clamp(2.5rem, 14vw, 3.8rem);
+        font-size: clamp(2.2rem, 10.5vw, 3rem);
+    }
+
+    .landing-section-heading h2,
+    .landing-showcase__copy h2,
+    .landing-final-cta h2 {
+        font-size: clamp(1.7rem, 8vw, 2.2rem);
+    }
+
+    .landing-hero__text {
+        font-size: 1rem;
     }
 
     .landing-preview__body {
         grid-template-columns: 1fr;
+        min-height: 0;
     }
 
     .landing-preview__sidebar {
@@ -1112,38 +1012,37 @@
         flex-direction: column;
     }
 
-    .landing-button,
-    .landing-button-secondary,
-    .landing-button-outline {
+    .landing-template-card__panel {
+        min-height: 124px;
+    }
+
+    .landing-template-card__panel-icon {
+        width: min(96px, 60%);
+    }
+
+    .landing-hero__actions .button,
+    .landing-final-cta__actions .button {
         width: 100%;
     }
 
-    .landing-header__actions,
-    .landing-hero__actions,
-    .landing-final-cta__actions {
-        width: 100%;
+    .landing-showcase-stack {
+        gap: 3rem;
+    }
+}
+
+/* Narrow phones: logo + «Войти» only; the hero's own «Начать бесплатно» is right below. */
+@media (max-width: 479px) {
+    .landing-header__cta {
+        display: none;
     }
 
-    .landing-mascot img {
-        width: 144px;
-    }
-
-    .landing-mascot__bubble {
-        right: calc(100% - 18px);
-        bottom: 114px;
-        padding: 0.7rem 0.82rem;
-        font-size: 0.88rem;
+    .landing-nav {
+        gap: 0.4rem 0.75rem;
+        font-size: 0.95rem;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .landing-button,
-    .landing-feature-card,
-    .landing-template-card {
-        transition: none;
-    }
-
-    .landing-button:hover,
     .landing-feature-card:hover,
     .landing-template-card:hover {
         transform: none;

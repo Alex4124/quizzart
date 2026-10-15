@@ -11,105 +11,14 @@
 {% block body_class %}teacher-dashboard-page profile-page{% endblock %}
 
 {% block site_header %}
-    <header class="teacher-header">
-        <div class="teacher-header__inner">
-            <a class="teacher-header__brand" href="{% if dashboard_url %}{{ dashboard_url }}{% else %}{% url 'accounts:profile' %}{% endif %}">
-                {% include "includes/site_logo.html" with logo_class="teacher-header__brand-logo" %}
-            </a>
-
-            <nav class="teacher-header__nav" aria-label="Разделы кабинета">
-                {% if dashboard_url %}
-                    <a href="{{ dashboard_url }}">Панель</a>
-                {% endif %}
-                <a href="{% url 'accounts:profile' %}" class="is-active">Личный кабинет</a>
-            </nav>
-
-            <div class="teacher-header__actions">
-                {% if create_activity_url %}
-                    <a class="button teacher-header__create" href="{{ create_activity_url }}">Создать интерактив</a>
-                {% endif %}
-                <a class="teacher-header__profile-link" href="{% url 'accounts:profile' %}" aria-label="Открыть личный кабинет">
-                    <span class="teacher-header__avatar" aria-hidden="true">
-                        {% if teacher_avatar_url %}
-                            <img src="{{ teacher_avatar_url }}" alt="">
-                        {% else %}
-                            {{ teacher_initial }}
-                        {% endif %}
-                    </span>
-                </a>
-            </div>
-        </div>
-    </header>
+    {% include "includes/teacher_header.html" with page="profile" %}
 {% endblock %}
 
 {% block main_class %}teacher-dashboard-main{% endblock %}
 
 {% block content %}
 <section class="profile-workspace-grid">
-    <aside class="teacher-sidebar">
-        <div class="teacher-sidebar__panel">
-            <div class="teacher-sidebar__workspace">
-                <div class="teacher-sidebar__workspace-mark">Q</div>
-                <div>
-                    <strong>Quizzart Pro</strong>
-                    <p>{{ profile.get_role_display }} workspace</p>
-                </div>
-            </div>
-
-            <nav class="teacher-sidebar__nav" aria-label="Навигация кабинета">
-                {% if dashboard_url %}
-                    <a href="{{ dashboard_url }}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path>
-                        </svg>
-                        <span>Панель учителя</span>
-                    </a>
-                {% endif %}
-                <a class="is-active" href="#profile-overview">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.41 0-8 2.24-8 5v1h16v-1c0-2.76-3.59-5-8-5Z"></path>
-                    </svg>
-                    <span>Личный кабинет</span>
-                </a>
-                <a href="#profile-main-form">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path>
-                    </svg>
-                    <span>Основные данные</span>
-                </a>
-                <a href="#profile-security-form">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 1 4 5v6c0 5.25 3.44 10.07 8 11 4.56-.93 8-5.75 8-11V5l-8-4Zm0 10a2 2 0 1 1 .001-4.001A2 2 0 0 1 12 11Zm3 6H9v-1c0-1.66 1.34-3 3-3s3 1.34 3 3v1Z"></path>
-                    </svg>
-                    <span>Безопасность</span>
-                </a>
-                {% if create_activity_url %}
-                    <a href="{{ create_activity_url }}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path>
-                        </svg>
-                        <span>Создать интерактив</span>
-                    </a>
-                {% endif %}
-            </nav>
-
-            <div class="teacher-sidebar__search-state">
-                <p>Профиль заполнен</p>
-                <strong>{{ profile_completion }}%</strong>
-                <a href="#profile-main-form">{{ profile_completion_text }}</a>
-            </div>
-
-            <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
-                {% csrf_token %}
-                <button type="submit">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path>
-                    </svg>
-                    <span>Выйти</span>
-                </button>
-            </form>
-        </div>
-    </aside>
+    {% include "includes/teacher_sidebar.html" with page="profile" %}
 
     <div class="profile-page__main" id="profile-overview">
         <section class="profile-hero-card">
@@ -144,11 +53,12 @@
                         {% endif %}
                     {% endif %}
                 </p>
-                <div class="tag-row">
-                    <span class="status-chip">{{ profile.get_role_display }}</span>
-                    <span class="status-chip">{{ request.user.username }}</span>
+                {# Own chips, not app.css .status-chip: that one capitalizes, which turns a login or e-mail into «Qa-Teacher». #}
+                <div class="profile-hero-card__chips">
+                    <span class="profile-chip">{{ profile.get_role_display }}</span>
+                    <span class="profile-chip">{{ request.user.username }}</span>
                     {% if request.user.email %}
-                        <span class="status-chip">{{ request.user.email }}</span>
+                        <span class="profile-chip">{{ request.user.email }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -257,7 +167,8 @@
                             <span>{{ field.label }}</span>
                             {{ field }}
                             {% if field.help_text %}
-                                <p class="profile-field__help">{{ field.help_text|safe }}</p>
+                                {# A div: Django's password help is a <ul>, which a <p> cannot hold. #}
+                                <div class="profile-field__help">{{ field.help_text|safe }}</div>
                             {% endif %}
                             {% for error in field.errors %}
                                 <p class="field-error">{{ error }}</p>
@@ -303,13 +214,13 @@
             </div>
             <div class="profile-aside-actions">
                 {% if dashboard_url %}
-                    <a href="{{ dashboard_url }}">Открыть панель учителя</a>
+                    <a class="button button-secondary" href="{{ dashboard_url }}">Открыть панель учителя</a>
                 {% endif %}
                 {% if create_activity_url %}
-                    <a href="{{ create_activity_url }}">Создать новый интерактив</a>
+                    <a class="button button-secondary" href="{{ create_activity_url }}">Создать новый интерактив</a>
                 {% endif %}
-                <a href="#profile-main-form">Редактировать основные данные</a>
-                <a href="#profile-security-form">Перейти к безопасности</a>
+                <a class="button button-secondary" href="#profile-main-form">Редактировать основные данные</a>
+                <a class="button button-secondary" href="#profile-security-form">Перейти к безопасности</a>
             </div>
         </section>
     </aside>

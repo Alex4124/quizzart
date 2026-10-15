@@ -10,110 +10,14 @@
 {% block body_class %}teacher-dashboard-page{% endblock %}
 
 {% block site_header %}
-    <header class="teacher-header">
-        <div class="teacher-header__inner">
-            <a class="teacher-header__brand" href="{% url 'dashboard:home' %}">
-                {% include "includes/site_logo.html" with logo_class="teacher-header__brand-logo" %}
-            </a>
-
-            <nav class="teacher-header__nav" aria-label="Разделы кабинета">
-                <a href="#dashboard-overview">Панель</a>
-                <a href="#recent-activities">Активности</a>
-                <a href="#recent-events">События</a>
-            </nav>
-
-            <form class="teacher-header__search" method="get" action="{% url 'dashboard:home' %}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.42 1.41-1.41-4.42-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"></path>
-                </svg>
-                <input
-                    type="search"
-                    name="q"
-                    value="{{ q }}"
-                    placeholder="Поиск активности..."
-                    aria-label="Поиск по активностям"
-                >
-                {% if q %}
-                    <a class="teacher-header__search-clear" href="{% url 'dashboard:home' %}">Сбросить</a>
-                {% endif %}
-            </form>
-
-            <div class="teacher-header__actions">
-                <a class="button teacher-header__create" href="{% url 'activities:create' %}">Создать интерактив</a>
-                <a class="teacher-header__profile-link" href="{% url 'accounts:profile' %}" aria-label="Открыть личный кабинет">
-                    <span class="teacher-header__avatar" aria-hidden="true">
-                        {% if teacher_avatar_url %}
-                            <img src="{{ teacher_avatar_url }}" alt="">
-                        {% else %}
-                            {{ teacher_initial }}
-                        {% endif %}
-                    </span>
-                </a>
-            </div>
-        </div>
-    </header>
+    {% include "includes/teacher_header.html" with page="dashboard" %}
 {% endblock %}
 
 {% block main_class %}teacher-dashboard-main{% endblock %}
 
 {% block content %}
 <section class="teacher-dashboard-grid" id="dashboard-overview">
-    <aside class="teacher-sidebar">
-        <div class="teacher-sidebar__panel">
-            <div class="teacher-sidebar__workspace">
-                <div class="teacher-sidebar__workspace-mark">Q</div>
-                <div>
-                    <strong>Quizzart Pro</strong>
-                    <p>Teacher workspace</p>
-                </div>
-            </div>
-
-            <nav class="teacher-sidebar__nav" aria-label="Навигация учителя">
-                <a class="is-active" href="#dashboard-overview">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path>
-                    </svg>
-                    <span>Панель</span>
-                </a>
-                <a href="#recent-activities">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M7 4h10v2H7V4Zm-2 4h14v12H5V8Zm2 2v8h10v-8H7Zm2 1h2v5H9v-5Zm4 2h2v3h-2v-3Z"></path>
-                    </svg>
-                    <span>Активности</span>
-                </a>
-                <a href="#recent-events">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.05-4.95L13 11h8V3l-2.52 2.52A8.97 8.97 0 0 0 12 3Zm-1 4h2v6h-2V7Zm1 10a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 12 17Z"></path>
-                    </svg>
-                    <span>События</span>
-                </a>
-                <a href="{% url 'activities:create' %}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path>
-                    </svg>
-                    <span>Создать интерактив</span>
-                </a>
-            </nav>
-
-            {% if q %}
-                <div class="teacher-sidebar__search-state">
-                    <p>Поиск активен</p>
-                    <strong>{{ q }}</strong>
-                    <a href="{% url 'dashboard:home' %}">Сбросить фильтр</a>
-                </div>
-            {% endif %}
-
-            <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
-                {% csrf_token %}
-                <button type="submit">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path>
-                    </svg>
-                    <span>Выйти</span>
-                </button>
-            </form>
-        </div>
-    </aside>
+    {% include "includes/teacher_sidebar.html" with page="dashboard" %}
 
     <div class="teacher-dashboard-center">
         <section class="teacher-hero">

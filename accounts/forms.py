@@ -200,5 +200,7 @@ class LocalizedPasswordChangeForm(PasswordChangeForm):
         self.fields["new_password1"].label = "Новый пароль"
         self.fields["new_password2"].label = "Подтверждение нового пароля"
         self.fields["old_password"].widget.attrs.update({"autocomplete": "current-password"})
+        # Django autofocuses this field; on the profile page that scrolls straight past the profile to «Текущий пароль».
+        self.fields["old_password"].widget.attrs.pop("autofocus", None)
         self.fields["new_password1"].widget.attrs.update({"autocomplete": "new-password"})
         self.fields["new_password2"].widget.attrs.update({"autocomplete": "new-password"})

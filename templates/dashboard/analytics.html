@@ -10,95 +10,14 @@
 {% block body_class %}teacher-dashboard-page{% endblock %}
 
 {% block site_header %}
-    <header class="teacher-header">
-        <div class="teacher-header__inner teacher-header__inner--analytics">
-            <a class="teacher-header__brand" href="{% url 'dashboard:home' %}">
-                {% include "includes/site_logo.html" with logo_class="teacher-header__brand-logo" %}
-            </a>
-
-            <nav class="teacher-header__nav" aria-label="Навигация аналитики">
-                <a href="#analytics-overview">Сводка</a>
-                <a href="#analytics-success">Успешность</a>
-                <a href="#analytics-sessions">Прохождения</a>
-            </nav>
-
-            <div aria-hidden="true"></div>
-
-            <div class="teacher-header__actions">
-                <a class="button button-secondary teacher-header__secondary" href="{% url 'activities:edit' activity.pk %}">В редактор</a>
-                <a class="button teacher-header__create" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
-                <a class="teacher-header__profile-link" href="{% url 'accounts:profile' %}" aria-label="Открыть личный кабинет">
-                    <span class="teacher-header__avatar" aria-hidden="true">
-                        {% if teacher_avatar_url %}
-                            <img src="{{ teacher_avatar_url }}" alt="">
-                        {% else %}
-                            {{ teacher_initial }}
-                        {% endif %}
-                    </span>
-                </a>
-            </div>
-        </div>
-    </header>
+    {% include "includes/teacher_header.html" with page="analytics" %}
 {% endblock %}
 
 {% block main_class %}teacher-dashboard-main{% endblock %}
 
 {% block content %}
     <section class="teacher-analytics teacher-dashboard-grid teacher-dashboard-grid--analytics-page" id="analytics-overview">
-        <aside class="teacher-sidebar">
-            <div class="teacher-sidebar__panel">
-                <div class="teacher-sidebar__workspace">
-                    <div class="teacher-sidebar__workspace-mark">Q</div>
-                    <div>
-                        <strong>Quizzart Pro</strong>
-                        <p>Analytics workspace</p>
-                    </div>
-                </div>
-
-                <nav class="teacher-sidebar__nav" aria-label="Разделы аналитики">
-                    <a href="{% url 'dashboard:home' %}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 3.5h7V20h-7v-3.5ZM13 13h7v2h-7v-2Z"></path>
-                        </svg>
-                        <span>Панель</span>
-                    </a>
-                    <a href="{% url 'activities:edit' activity.pk %}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="m16.37 3.29 4.34 4.34-11 11H5.37v-4.34l11-11Zm-9 13.34h1.51l8.62-8.63-1.5-1.5-8.63 8.62v1.51Z"></path>
-                        </svg>
-                        <span>Редактор</span>
-                    </a>
-                    <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 5c5.5 0 9.5 5.23 9.67 5.45l.33.45-.33.45C21.5 11.57 17.5 16.8 12 16.8S2.5 11.57 2.33 11.35L2 10.9l.33-.45C2.5 10.23 6.5 5 12 5Zm0 2c-3.65 0-6.57 2.95-7.59 3.9C5.43 11.85 8.35 14.8 12 14.8s6.57-2.95 7.59-3.9C18.57 9.95 15.65 7 12 7Zm0 1.5a2.4 2.4 0 1 1 0 4.8 2.4 2.4 0 0 1 0-4.8Z"></path>
-                        </svg>
-                        <span>Предпросмотр</span>
-                    </a>
-                    <a class="is-active" href="#analytics-overview">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M5 19V9h3v10H5Zm5 0V5h3v14h-3Zm5 0v-7h3v7h-3Z"></path>
-                        </svg>
-                        <span>Аналитика</span>
-                    </a>
-                </nav>
-
-                <div class="teacher-sidebar__search-state teacher-sidebar__search-state--analytics">
-                    <p>Активность</p>
-                    <strong>{{ activity.title }}</strong>
-                    <a href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">{{ activity_template_title }} · {{ activity.get_status_display }}</a>
-                </div>
-
-                <form method="post" action="{% url 'accounts:logout' %}" class="teacher-sidebar__logout">
-                    {% csrf_token %}
-                    <button type="submit">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M10 4H5v16h5v-2H7V6h3V4Zm3.29 4.29-1.41 1.41L13.17 11H19v2h-5.83l-1.29 1.29 1.41 1.41L17 12l-3.71-3.71Z"></path>
-                        </svg>
-                        <span>Выйти</span>
-                    </button>
-                </form>
-            </div>
-        </aside>
+        {% include "includes/teacher_sidebar.html" with page="analytics" %}
 
         <div class="teacher-dashboard-center teacher-dashboard-center--analytics">
             <section class="teacher-analytics-card teacher-analytics-card--hero-prototype">
@@ -119,13 +38,13 @@
                         </p>
                     </div>
                     <div class="teacher-analytics-hero-prototype__actions teacher-analytics-hero-prototype__actions--buttons">
-                        <a class="button button-secondary teacher-header__secondary" href="{% url 'activities:edit' activity.pk %}">Изменить тест</a>
-                        <a class="button teacher-header__create" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Открыть превью</a>
+                        <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Изменить тест</a>
+                        <a class="button" href="{{ activity.get_preview_url }}" target="_blank" rel="noreferrer">Открыть превью</a>
                     </div>
                 </div>
             </section>
 
-            <section class="teacher-summary teacher-summary--analytics-redesign">
+            <section class="teacher-summary">
                 <article class="teacher-metric teacher-metric--analytics teacher-metric--violet">
                     <p class="teacher-metric__delta">Завершённые прохождения</p>
                     <p class="teacher-metric__label">Всего завершений</p>
@@ -154,7 +73,7 @@
             <section class="teacher-analytics-layout">
                 <div class="teacher-analytics-layout__main">
                     <section class="teacher-analytics-card teacher-analytics-card--chart" id="analytics-success">
-                        <div class="teacher-analytics-card__head teacher-analytics-card__head--stacked">
+                        <div class="teacher-analytics-card__head">
                             <div>
                                 <h2>Зависимость номера задания от количества успешных выполнений</h2>
                                 {% if success_chart %}
@@ -211,8 +130,8 @@
                                 {% if share_url %}
                                     <span class="teacher-analytics-empty__url">{{ share_url }}</span>
                                     <div class="teacher-analytics-empty__actions">
-                                        <button class="button teacher-header__create" type="button" data-copy-link="{{ share_url }}">Скопировать ссылку</button>
-                                        <a class="button button-secondary teacher-header__secondary" href="{{ share_url }}" target="_blank" rel="noreferrer">Открыть</a>
+                                        <button class="button" type="button" data-copy-link="{{ share_url }}">Скопировать ссылку</button>
+                                        <a class="button button-secondary" href="{{ share_url }}" target="_blank" rel="noreferrer">Открыть</a>
                                     </div>
                                 {% else %}
                                     {% if not activity.is_published %}
@@ -220,7 +139,7 @@
                                             Сначала опубликуйте интерактив в редакторе: пока это черновик, ученики не смогут его открыть.
                                         </p>
                                     {% endif %}
-                                    <a class="button button-secondary teacher-header__secondary" href="{% url 'activities:edit' activity.pk %}">Перейти в редактор</a>
+                                    <a class="button button-secondary" href="{% url 'activities:edit' activity.pk %}">Перейти в редактор</a>
                                 {% endif %}
                             </div>
                         {% endif %}
