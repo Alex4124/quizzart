@@ -225,18 +225,18 @@ def _activity_editor(request, activity: Activity | None = None):
                             if action == "publish" and was_published:
                                 messages.success(request, "Изменения опубликованного интерактива сохранены.")
                             elif action == "publish":
-                                messages.success(request, "Интерактив сохранен и опубликован.")
+                                messages.success(request, "Интерактив сохранён и опубликован.")
                             elif action == "save_changes":
                                 messages.success(request, "Изменения сохранены без снятия публикации.")
                             else:
-                                messages.success(request, "Интерактив сохранен и опубликован.")
+                                messages.success(request, "Интерактив сохранён и опубликован.")
                         else:
                             if action == "save_changes":
                                 messages.success(request, "Изменения черновика сохранены.")
                             elif action == "save_draft" and was_published:
-                                messages.success(request, "Интерактив снят с публикации и сохранен как черновик.")
+                                messages.success(request, "Интерактив снят с публикации и сохранён как черновик.")
                             else:
-                                messages.success(request, "Черновик сохранен.")
+                                messages.success(request, "Черновик сохранён.")
                         return redirect(_edit_url_with_tab(candidate, request.POST.get("active_tab", "")))
     else:
         config = _config_source(definition, activity)
@@ -329,7 +329,7 @@ def delete_activity(request, pk: int):
     activity = get_object_or_404(Activity, pk=pk, owner=request.user)
     activity_title = activity.title
     activity.delete()
-    messages.success(request, f'Интерактив "{activity_title}" удален.')
+    messages.success(request, f"Интерактив «{activity_title}» удалён.")
     return redirect("dashboard:home")
 
 

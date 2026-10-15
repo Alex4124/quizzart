@@ -1,5 +1,5 @@
 {% extends "player/player_base.html" %}
-{% load static %}
+{% load static quizzart_text %}
 
 {% block title %}{{ activity.title }}{% endblock %}
 
@@ -27,7 +27,7 @@
                 >
                     <div class="box-card-head">
                         <span class="box-label">#{{ box.number }}</span>
-                        {% if player_shell.scoring_enabled %}<span class="muted">{{ box.points }} балл.</span>{% endif %}
+                        {% if player_shell.scoring_enabled %}<span class="muted">{{ box.points|ru_count:"балл,балла,баллов" }}</span>{% endif %}
                     </div>
 
                     <div class="box-card__surface box-card__surface--cover" data-box-cover{% if box.state != "unopened" %} hidden{% endif %}>
@@ -36,7 +36,7 @@
                         </div>
                         <div class="box-card__cover-copy">
                             <p class="box-card__cover-title">Подарочная коробка</p>
-                            {% if player_shell.scoring_enabled %}<p class="muted">Внутри спрятан вопрос на {{ box.points }} балл.</p>{% endif %}
+                            {% if player_shell.scoring_enabled %}<p class="muted">Внутри спрятан вопрос на {{ box.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                         </div>
                         <form method="post" action="{{ runtime.action_url }}" class="stack-form box-card__open-form" data-box-open-form>
                             {% csrf_token %}

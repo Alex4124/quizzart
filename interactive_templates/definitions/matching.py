@@ -8,6 +8,7 @@ from django import forms
 from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    sample_question_bank,
     DEFAULT_QUESTION_POINTS,
     is_scoring_enabled,
     normalize_answer,
@@ -43,18 +44,7 @@ def _dock_card(answer_bank: list[dict[str, Any]], text: str) -> dict[str, Any]:
 
 
 def _sample_items() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": f"item-{index}",
-            "prompt": f"Match prompt {index}",
-            "options": [
-                {"id": f"item-{index}-option-1", "text": f"Answer {index}", "is_correct": True},
-                {"id": f"item-{index}-option-2", "text": f"Wrong {index}", "is_correct": False},
-            ],
-            "points": DEFAULT_QUESTION_POINTS,
-        }
-        for index in range(1, 5)
-    ]
+    return sample_question_bank(4, option_count=2)
 
 
 class MatchingDefinition(QuestionBankTemplateDefinition):

@@ -25,7 +25,7 @@ def split_pipe_row(raw_line: str, line_number: int) -> list[str]:
     parts = [part.strip() for part in raw_line.split("|")]
     if len(parts) < 2:
         raise ValueError(
-            f"Line {line_number} must contain at least two pipe-separated values."
+            f"В строке {line_number} должно быть хотя бы два значения через «|»."
         )
     return parts
 
@@ -312,6 +312,35 @@ def serialize_question_bank(
     return "\n".join(rows)
 
 
+SAMPLE_QUESTIONS = (
+    ("Сколько будет 7 × 8?", ("56", "54", "64")),
+    ("Столица Франции?", ("Париж", "Лион", "Марсель")),
+    ("Какая планета ближе всех к Солнцу?", ("Меркурий", "Венера", "Марс")),
+    ("Сколько сторон у шестиугольника?", ("6", "5", "8")),
+    ("Самый большой океан на Земле?", ("Тихий", "Атлантический", "Индийский")),
+    ("Химическая формула воды?", ("H₂O", "CO₂", "O₂")),
+)
+
+
+def sample_question_bank(count: int, *, option_count: int = 3) -> list[dict[str, Any]]:
+    """Starter questions for a new activity, so the editor and the preview show something real."""
+    items = []
+    for index in range(1, count + 1):
+        prompt, options = SAMPLE_QUESTIONS[(index - 1) % len(SAMPLE_QUESTIONS)]
+        items.append(
+            {
+                "id": f"item-{index}",
+                "prompt": prompt,
+                "options": [
+                    {"id": f"item-{index}-option-{number}", "text": text, "is_correct": number == 1}
+                    for number, text in enumerate(options[:option_count], start=1)
+                ],
+                "points": DEFAULT_QUESTION_POINTS,
+            }
+        )
+    return items
+
+
 def correct_option(item: dict[str, Any]) -> dict[str, Any]:
     for option in item.get("options", []):
         if option.get("is_correct"):
@@ -353,7 +382,7 @@ def _build_options(correct_text: str, distractors: list[str]) -> list[dict[str, 
         if value not in unique_pool:
             unique_pool.append(value)
     while len(unique_pool) < 2:
-        unique_pool.append(f"Option {len(unique_pool) + 1}")
+        unique_pool.append(f"Вариант {len(unique_pool) + 1}")
     return [
         {
             "id": f"legacy-option-{index}",

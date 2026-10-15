@@ -136,7 +136,7 @@
         <div class="landing-container">
             <div class="landing-section-heading">
                 <p class="landing-section-heading__eyebrow">Создано для современных педагогов</p>
-                <h2>Все, что нужно для перехода от статичного контента к живому классному опыту.</h2>
+                <h2>Всё, чтобы из обычного задания получилось живое занятие.</h2>
             </div>
             <div class="landing-feature-grid">
                 {% for feature in features %}
@@ -171,13 +171,13 @@
                     <p class="landing-section-heading__eyebrow">Шаблоны</p>
                     <h2>Выберите свой стиль проведения занятия.</h2>
                 </div>
-                <p class="landing-section-heading__note">В MVP уже доступны шесть игровых и проверочных форматов.</p>
+                <p class="landing-section-heading__note">Шесть игровых и проверочных форматов на одном банке вопросов.</p>
             </div>
             <div class="landing-template-grid">
                 {% for template_card in template_cards %}
                     <article class="landing-template-card {{ template_card.accent_class }}">
                         <div class="landing-template-card__panel" aria-hidden="true">
-                            {% if template_card.eyebrow == "quiz" %}
+                            {% if template_card.key == "quiz" %}
                                 <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
                                     <rect class="fill-secondary" x="18" y="32" width="38" height="48" rx="12"></rect>
                                     <rect class="fill-main" x="40" y="20" width="46" height="60" rx="16"></rect>
@@ -186,7 +186,7 @@
                                     <path class="stroke-main" d="M28 88h58"></path>
                                     <text class="icon-letter icon-letter--contrast" x="74" y="41">?</text>
                                 </svg>
-                            {% elif template_card.eyebrow == "wheel_of_fortune" %}
+                            {% elif template_card.key == "wheel_of_fortune" %}
                                 <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
                                     <circle class="fill-secondary" cx="62" cy="62" r="35"></circle>
                                     <path class="fill-main" d="M62 62V27a35 35 0 0 1 25 10Z"></path>
@@ -197,7 +197,7 @@
                                     <circle class="fill-main" cx="62" cy="62" r="4"></circle>
                                     <path class="fill-main" d="M17 62 34 54v16Z"></path>
                                 </svg>
-                            {% elif template_card.eyebrow == "choose_a_box" %}
+                            {% elif template_card.key == "choose_a_box" %}
                                 <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
                                     <rect class="fill-secondary" x="28" y="46" width="64" height="44" rx="14"></rect>
                                     <rect class="fill-main" x="24" y="34" width="72" height="20" rx="10"></rect>
@@ -206,7 +206,7 @@
                                     <path class="stroke-contrast" d="M60 34v56M24 54h72"></path>
                                     <circle class="fill-accent" cx="60" cy="34" r="8"></circle>
                                 </svg>
-                            {% elif template_card.eyebrow == "matching" %}
+                            {% elif template_card.key == "matching" %}
                                 <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
                                     <rect class="fill-main" x="18" y="28" width="34" height="24" rx="12"></rect>
                                     <rect class="fill-secondary" x="68" y="28" width="34" height="24" rx="12"></rect>
@@ -217,7 +217,7 @@
                                     <circle class="fill-accent" cx="60" cy="40" r="5"></circle>
                                     <circle class="fill-main" cx="60" cy="80" r="5"></circle>
                                 </svg>
-                            {% elif template_card.eyebrow == "categorize" %}
+                            {% elif template_card.key == "categorize" %}
                                 <svg class="landing-template-card__panel-icon" viewBox="0 0 120 120" focusable="false">
                                     <rect class="fill-secondary" x="22" y="24" width="30" height="40" rx="12"></rect>
                                     <rect class="fill-main" x="44" y="34" width="30" height="40" rx="12"></rect>
@@ -290,7 +290,7 @@
                     <a class="button button-large" href="{% url 'accounts:register' %}">Начать бесплатно</a>
                     <a class="button button-secondary button-large" href="{% url 'accounts:login' %}">Войти в кабинет</a>
                 </div>
-                <p class="landing-final-cta__note">Без установки для класса · С серверным рендерингом · С аналитикой по прохождениям</p>
+                <p class="landing-final-cta__note">Без установки для класса · Работает на телефоне · Результаты каждого ученика</p>
             </div>
         </div>
     </section>
@@ -304,10 +304,10 @@
                     {% include "includes/site_logo.html" %}
                 </a>
                 <p>
-                    Python-first конструктор учебных интерактивов для учителя, которому нужен
-                    быстрый запуск, публикация по ссылке и сохранение результатов.
+                    Конструктор учебных интерактивов для учителя: быстрый запуск, публикация по ссылке
+                    и сохранённые результаты учеников.
                 </p>
-                <p class="landing-footer__copyright">© {% now "Y" %} Quizzart. MVP для classroom workflows.</p>
+                <p class="landing-footer__copyright">© {% now "Y" %} Quizzart.</p>
             </div>
             {% for column in footer_columns %}
                 <div class="landing-footer__column">

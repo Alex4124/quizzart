@@ -7,6 +7,7 @@ from django import forms
 from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    sample_question_bank,
     DEFAULT_QUESTION_POINTS,
     is_scoring_enabled,
     normalize_question_bank,
@@ -26,19 +27,7 @@ class QuizEditorForm(QuestionBankEditorForm):
 
 
 def _sample_items() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": f"item-{index}",
-            "prompt": f"Sample question {index}?",
-            "options": [
-                {"id": f"item-{index}-option-1", "text": f"Correct {index}", "is_correct": True},
-                {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
-                {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
-            ],
-            "points": DEFAULT_QUESTION_POINTS,
-        }
-        for index in range(1, 4)
-    ]
+    return sample_question_bank(3, option_count=3)
 
 
 class QuizDefinition(QuestionBankTemplateDefinition):

@@ -9,6 +9,7 @@ from django import forms
 from interactive_templates.base import QuestionBankTemplateDefinition, TemplateMetadata
 from interactive_templates.forms import QuestionBankEditorForm
 from interactive_templates.utils import (
+    sample_question_bank,
     DEFAULT_QUESTION_POINTS,
     is_scoring_enabled,
     normalize_question_bank,
@@ -27,19 +28,7 @@ class SnakeEditorForm(QuestionBankEditorForm):
 
 
 def _sample_items() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": f"item-{index}",
-            "prompt": f"Snake question {index}",
-            "options": [
-                {"id": f"item-{index}-option-1", "text": f"Correct {index}", "is_correct": True},
-                {"id": f"item-{index}-option-2", "text": f"Wrong A{index}", "is_correct": False},
-                {"id": f"item-{index}-option-3", "text": f"Wrong B{index}", "is_correct": False},
-            ],
-            "points": DEFAULT_QUESTION_POINTS,
-        }
-        for index in range(1, 5)
-    ]
+    return sample_question_bank(4, option_count=3)
 
 
 def _distance(first: tuple[float, float], second: tuple[float, float]) -> float:
@@ -94,7 +83,7 @@ class SnakeDefinition(QuestionBankTemplateDefinition):
     metadata = TemplateMetadata(
         key="snake",
         title="Змейка",
-        description="Змейка следует за курсором или пальцем, ест яблоки и открывает вопросы.",
+        description="Ведите змейку стрелками или кнопками, собирайте яблоки и отвечайте на вопросы.",
         playable=True,
     )
     editor_form_class = SnakeEditorForm

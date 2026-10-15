@@ -1,5 +1,5 @@
 {% extends "player/player_base.html" %}
-{% load static %}
+{% load static quizzart_text %}
 {% load l10n %}
 
 {% block title %}{{ activity.title }}{% endblock %}
@@ -113,7 +113,7 @@
                                 <input type="hidden" name="item_key" value="{{ apple.id }}">
                                 <p class="player-panel__eyebrow">Яблоко {{ apple.number }} из {{ runtime.total_count }}</p>
                                 <h2 id="snake-question-{{ forloop.counter }}">{{ apple.prompt }}</h2>
-                                {% if player_shell.scoring_enabled %}<p class="muted">{{ apple.points }} балл.</p>{% endif %}
+                                {% if player_shell.scoring_enabled %}<p class="muted">{{ apple.points|ru_count:"балл,балла,баллов" }}</p>{% endif %}
                                 {% include "player/_answer_options.html" with item=apple %}
                             </form>
                         </article>

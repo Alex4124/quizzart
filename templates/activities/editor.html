@@ -26,7 +26,7 @@
             </a>
 
             <div class="editor-header__actions">
-                {# Phones drop this one: «Открыть симуляцию» sits right under the header. #}
+                {# Phones drop this one: «Открыть предпросмотр» sits right under the header. #}
                 {% if is_saved %}
                     <a class="button button-secondary editor-header__preview" href="{{ preview_url }}" target="_blank" rel="noreferrer">Предпросмотр</a>
                 {% else %}
@@ -51,8 +51,8 @@
         <div class="editor-shell__workspace-card">
             <div class="editor-shell__workspace-mark" aria-hidden="true">Q</div>
             <div>
-                <strong>Quizzart Pro</strong>
-                <p>Рабочее пространство учителя</p>
+                <strong>Quizzart</strong>
+                <p>Кабинет учителя</p>
             </div>
         </div>
 
@@ -92,10 +92,10 @@
                 <span>Ссылка для учеников уже активна и доступна в блоке публикации.</span>
             {% elif is_saved %}
                 <strong>Черновик настроен</strong>
-                <span>Контент сохранён. Осталось опубликовать или открыть симуляцию предпросмотра.</span>
+                <span>Контент сохранён. Осталось проверить его в предпросмотре и опубликовать.</span>
             {% else %}
                 <strong>Новый черновик</strong>
-                <span>Сначала сохраните интерактив, чтобы открыть симуляцию и публикацию.</span>
+                <span>Сохраните интерактив, чтобы открыть предпросмотр и публикацию.</span>
             {% endif %}
         </div>
     </aside>
@@ -131,14 +131,14 @@
                     {% if activity %}
                         Соберите контент, настройте правила показа и проверьте, как интерактив выглядит для ученика.
                     {% else %}
-                        Начните с общей информации, выберите шаблон и сохраните черновик, чтобы открыть полную симуляцию.
+                        Начните с общей информации, выберите шаблон и сохраните черновик, чтобы открыть предпросмотр.
                     {% endif %}
                 </p>
             </div>
 
             <div class="editor-overview__actions">
                 {% if is_saved %}
-                    <a class="button button-secondary" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть симуляцию</a>
+                    <a class="button button-secondary" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть предпросмотр</a>
                 {% else %}
                     <span class="editor-overview__hint">Предпросмотр станет доступен после первого сохранения.</span>
                 {% endif %}
@@ -154,7 +154,7 @@
             <button type="submit" name="action" value="switch_template" formnovalidate hidden data-switch-template-submit></button>
 
             <label class="editor-template-switch-native" aria-hidden="true">
-                <span>Template switch</span>
+                <span>Шаблон</span>
                 <select id="template-switch" data-template-switch tabindex="-1">
                     {% for template in templates %}
                         <option value="{{ template.metadata.key }}" {% if template.metadata.key == template_definition.metadata.key %}selected{% endif %}>
@@ -235,7 +235,7 @@
                                     <span class="editor-template-card__title">{{ template_card.title }}</span>
                                     <span class="editor-template-card__description">{{ template_card.description }}</span>
                                     {% if not template_card.playable %}
-                                        <span class="editor-template-card__status">runtime pending</span>
+                                        <span class="editor-template-card__status">Скоро</span>
                                     {% endif %}
                                 </button>
                             {% endfor %}
@@ -416,13 +416,13 @@
                         loading="lazy"
                     ></iframe>
                 </div>
-                <p class="editor-preview-card__copy">Откройте полную симуляцию, если нужно проверить flow целиком и пройти интерактив как ученик.</p>
-                <a class="editor-preview-card__link" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть полную симуляцию</a>
+                <p class="editor-preview-card__copy">Откройте предпросмотр на весь экран, чтобы пройти интерактив целиком так, как его увидит ученик.</p>
+                <a class="editor-preview-card__link" href="{{ preview_url }}" target="_blank" rel="noreferrer">Открыть предпросмотр</a>
             {% else %}
                 <div class="editor-preview-card__placeholder" aria-hidden="true">
                     <span>▶</span>
                 </div>
-                <p class="editor-preview-card__copy">Сначала сохраните интерактив. После этого справа появится живая мини-симуляция и ссылка на полный preview.</p>
+                <p class="editor-preview-card__copy">Сохраните интерактив — здесь появится его предпросмотр.</p>
                 <span class="editor-preview-card__link is-disabled" aria-disabled="true">Сначала сохраните интерактив</span>
             {% endif %}
         </section>
