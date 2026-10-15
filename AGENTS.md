@@ -44,7 +44,7 @@ Question bank templates inherit `QuestionBankTemplateDefinition` (`interactive_t
 - `build_item_states()`: per-item render data with no answer key; answered items carry their feedback
 - `score_answers()` / `is_complete()`: recomputed from saved answers with the current points and questions
 - `handle_custom_action()`, `answer_item_key()`, `after_answer_state()`: template-specific actions (open a box, spin the wheel)
-- `build_results_data()`: the review for the results page
+- `build_results_data()`: the review for the results page; `shows_review()` (quiz can hide it), `review_items_in_order()` (match the order the student saw) and `review_item_label` («Коробка», «Сектор»…)
 - `evaluate_preview_action()`: the teacher's preview, nothing saved
 - `legacy_bulk_actions`: whole-run submissions from pages opened before per-answer checking; keep them until no old page can still be open
 
